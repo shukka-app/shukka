@@ -1,7 +1,9 @@
 [build]
-  command = "NEXT_DIST_DIR=.next-netlify npm run build"
-  publish = ".next-netlify"
+  command = "npm run build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "22"
-  NEXT_DIST_DIR = ".next-netlify"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
