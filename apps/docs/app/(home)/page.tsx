@@ -129,7 +129,7 @@ function Features() {
     {
       icon: ServerIcon,
       title: '单机自托管',
-      body: '一把 Docker，数据在 /data。单管理员，没有注册，没有多租户。',
+      body: 'Docker 容器，数据在 /data。单管理员，没有注册，没有多租户。',
     },
   ];
 
@@ -264,7 +264,7 @@ function Cta() {
           </p>
           <ul className="mt-8 space-y-3 text-sm">
             <li>
-              <span className="font-medium">一把 Docker。</span>
+              <span className="font-medium">Docker 部署。</span>
               <span className="text-fd-muted-foreground"> 公开镜像，数据在 /data。</span>
             </li>
             <li>
