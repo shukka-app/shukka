@@ -7,27 +7,26 @@ Shukka 是单管理员的自托管服务。服务自身的数据库与加密密�
 
 ## 推荐形态
 
-一台 VPS（或同等单机）上跑仓库根 `Dockerfile` 构建的容器，挂一个持久卷到 `/data`，前面用 Caddy 或 nginx 提供 HTTPS。对象存储用 Cloudflare R2、AWS S3 或独立 MinIO。
+一台 VPS（或同等单机）上跑公开镜像 `ghcr.io/shukka-app/shukka`，挂一个持久卷到 `/data`，前面用 Caddy 或 nginx 提供 HTTPS。对象存储用 Cloudflare R2、AWS S3 或独立 MinIO。
 
 ## 用 Docker 部署（主路径）
 
 1. 准备一台能跑 Docker 的 Linux 主机、一个域名、以及 S3 兼容存储。
-2. 在仓库根构建并运行：
+2. 拉取公开镜像并运行：
 
 ```bash
-docker build -t shukka .
 docker run -d --name shukka --restart unless-stopped \
   -p 127.0.0.1:3000:3000 \
   -v shukka-data:/data \
-  shukka
+  ghcr.io/shukka-app/shukka
 ```
+
+镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。要从源码自行构建时，在仓库根执行 `docker build -t shukka .`，把上面的镜像名换成 `shukka`。
 
 3. 反向代理到 `127.0.0.1:3000`，对外只暴露 HTTPS。
 4. 打开面板，首次访问进入 setup，设置至少 8 位管理员密码。
 5. 创建应用时测试存储连接；测试失败不会保存。
 6. 用下文「探活 / 冒烟」确认服务正常。
-
-README 里的 `ghcr.io/akarachen/shukka` 是预定镜像名；拉取失败时用上面的 `docker build` 自行构建。
 
 ## 从源码 + systemd
 
