@@ -21,7 +21,7 @@ docker run -d --name shukka --restart unless-stopped \
   ghcr.io/shukka-app/shukka
 ```
 
-镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。要从源码自行构建时，在仓库根执行 `docker build -t shukka .`，把上面的镜像名换成 `shukka`。
+镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。推送 semver 标签（`vMAJOR.MINOR.PATCH`）会由 GitHub Actions 构建并发布；未加 tag 时拉的是 `latest`。钉版本用 `ghcr.io/shukka-app/shukka:0.1.0`。要从源码自行构建时，在仓库根执行 `docker build -t shukka .`，把上面的镜像名换成 `shukka`。
 
 3. 反向代理到 `127.0.0.1:3000`，对外只暴露 HTTPS。
 4. 打开面板，首次访问进入 setup，设置至少 8 位管理员密码。
