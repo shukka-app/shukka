@@ -4,9 +4,14 @@ import { appName, gitConfig } from './shared';
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: `${appName} 文档`,
+      title: appName,
     },
     links: [
+      {
+        text: '文档',
+        url: '/docs',
+        active: 'nested-url',
+      },
       {
         text: 'API 参考',
         url: '/api',
