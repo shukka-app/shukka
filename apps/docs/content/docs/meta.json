@@ -1,4 +1,4 @@
 {
   "title": "Shukka 文档",
-  "pages": ["index", "deployment", "guide", "integration", "ci", "[API 参考](/api)"]
+  "pages": ["index", "deployment", "guide", "integration", "ci"]
 }
