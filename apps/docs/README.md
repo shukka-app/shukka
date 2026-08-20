@@ -1,6 +1,6 @@
 # shukka-docs
 
-Shukka 的公开文档站，面向部署与使用 Shukka 的用户。基于 [fumadocs](https://fumadocs.dev)（Next.js App Router + Tailwind CSS v4），内容为中文。
+Shukka 的公开文档站，面向部署与使用 Shukka 的用户。基于 [fumadocs](https://fumadocs.dev)（Next.js App Router + Tailwind CSS v4），使用 Fumadocs 内置 i18n，支持 `zh-CN` 与 `en-US`。访问 `/` 时按 `Accept-Language` 进入对应语言前缀（`/zh-CN/docs`、`/en-US/docs`）。
 
 ## 开发
 
@@ -13,7 +13,7 @@ npm start          # 运行构建产物
 
 ## 内容结构
 
-内容在 `content/docs/`，与 [shukka 主仓库](https://github.com/akarachen/shukka)的关系是「从仓库事实提炼的对外文档」，不是 `docs/` 目录的镜像（主仓库的 `docs/prd/`、`docs/adr/`、`docs/spec.md` 是开发用内部文档）：
+内容在 `content/docs/{zh-CN,en-US}/`（Fumadocs `parser: 'dir'`），与 [shukka 主仓库](https://github.com/akarachen/shukka)的关系是「从仓库事实提炼的对外文档」，不是 `docs/` 目录的镜像（主仓库的 `docs/prd/`、`docs/adr/`、`docs/spec.md` 是开发用内部文档）：
 
 | 路径 | 内容 | 主要事实来源 |
 |------|------|--------------|

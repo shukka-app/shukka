@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.2.5",
     "@fontsource-variable/instrument-sans": "^5.2.5",
+    "@fumadocs/language": "^0.2.2",
     "cnfast": "^0.1.0",
     "fumadocs-core": "16.14.0",
     "fumadocs-mdx": "15.2.2",

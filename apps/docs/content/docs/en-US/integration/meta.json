@@ -1,0 +1,4 @@
+{
+  "title": "Client Integration",
+  "pages": ["electron", "tauri"]
+}
