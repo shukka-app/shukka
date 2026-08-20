@@ -1,0 +1,46 @@
+---
+title: Shukka 简介
+description: 自托管的桌面应用发版管理器：管理面板 + 发布 API + 面向 Electron / Tauri 更新客户端的公开 feed。
+---
+
+Shukka 是一个自托管的桌面应用发版管理器，服务于通过 `electron-updater` 或 Tauri updater 做自动更新的桌面应用。创建一个 app、指向一个 S3 bucket，Shukka 就给你每个 channel 一条公开更新 feed、供 CI 使用的 API key，以及你发过的每个版本的记录。
+
+## 它能做什么
+
+- **管理面板** —— 单管理员密码后面管理 app、channel、版本与下载计数。
+- **每个 app 独立存储** —— 每个 app 自带一套 S3 配置，AWS、Cloudflare R2 与 MinIO 可以共存。
+- **presigned URL 直传** —— 安装包从 CI 直接传到 S3，Shukka 从不中转制品字节。
+- **公开 feed** —— `electron-updater` 像读 generic provider 一样读 `/api/update/{app}/{channel}`，无需任何凭证；更新元数据按 electron-builder 写出的原文返回。
+- **GitHub Action** —— 一步发布整个 `electron-builder` 输出目录。
+- **Draft 先行** —— 上传默认产生草稿版本，promote 之后才进入 feed，半成品发布永远不会到达用户。
+
+## 快速开始
+
+```bash
+docker run -d --name shukka -p 3000:3000 -v shukka-data:/data ghcr.io/akarachen/shukka
+```
+
+或从源码运行：
+
+```bash
+npm ci
+npm run build
+npm start          # http://localhost:3000
+```
+
+首次打开面板会进入初始化流程，设置管理员密码即可使用。Shukka 持久化的一切——SQLite 数据库与加密已存 S3 secret 的密钥——都在 `/data`（`SHUKKA_DATA_DIR`，默认 `./data`）里，备份那一个目录就够了。
+
+<Cards>
+  <Card title="自托管部署" href="/docs/deployment" />
+  <Card title="使用指南" href="/docs/guide" />
+  <Card title="客户端集成" href="/docs/integration/electron" />
+  <Card title="CI 发布" href="/docs/ci" />
+</Cards>
+
+## 三个 HTTP 面
+
+| 面 | 路径 | 鉴权 |
+|----|------|------|
+| 管理面板与 Admin API | `/apps`、`/api/admin/*` | 管理员密码换 session cookie |
+| App API 与上传 API | `/api/v1/*` | `Authorization: Bearer shk_…`，绑定单个 app |
+| 更新 feed | `/api/update/{app}/{channel}/*` | 无鉴权——这是产品契约 |

@@ -1,0 +1,733 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Shukka API",
+    "version": "1.0.0",
+    "description": "Operations an API key (or panel session) can call under `/api/v1/apps/{appSlug}`, the upload protocol, and the public no-auth feed. Session-only admin operations (delete the app, API key lifecycle, instance-level routes under `/api/admin`) are not documented here."
+  },
+  "servers": [
+    {
+      "url": "https://updates.example.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "App",
+      "description": "Read and update one app."
+    },
+    {
+      "name": "Channels",
+      "description": "Channels and current-version promote / rollback."
+    },
+    {
+      "name": "Versions",
+      "description": "Delete a version; read its notes and trend."
+    },
+    {
+      "name": "Notes",
+      "description": "Per-version release notes (editor) and public read."
+    },
+    {
+      "name": "Upload",
+      "description": "Presigned direct upload; defaults to draft."
+    },
+    {
+      "name": "Feed",
+      "description": "Public update feed (Electron yml or Tauri JSON) — no auth."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "apiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "shk_"
+      },
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "shukka_session"
+      }
+    }
+  },
+  "security": [
+    {
+      "apiKey": []
+    },
+    {
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/apps/{appSlug}": {
+      "get": {
+        "tags": [
+          "App"
+        ],
+        "summary": "App detail (channels, versions, keys)",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "App detail"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "App"
+        ],
+        "summary": "Update app settings (probes S3)",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated app"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "List channels",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channel list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Create a channel",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}": {
+      "patch": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Set currentVersion (promote draft or rollback)",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentVersion"
+                ],
+                "properties": {
+                  "currentVersion": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Version string, or null to clear current"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Delete a channel and its objects",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/trend": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Channel hit trend",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                7,
+                30,
+                90
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trend series"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}": {
+      "delete": {
+        "tags": [
+          "Versions"
+        ],
+        "summary": "Delete a version and its objects",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend": {
+      "get": {
+        "tags": [
+          "Versions"
+        ],
+        "summary": "Version hit trend (empty for drafts)",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trend series"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Editor read model — every locale for one version",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notes"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}": {
+      "put": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Upsert a locale note",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "markdown"
+                ],
+                "properties": {
+                  "markdown": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved note"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Delete a locale note",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/notes": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Public notes — released versions only, no auth",
+        "security": [],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public notes"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/notes-config": {
+      "put": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Save release-log config (no S3 probe)",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved config"
+          }
+        }
+      }
+    },
+    "/api/v1/upload/init": {
+      "post": {
+        "tags": [
+          "Upload"
+        ],
+        "summary": "Start a pending upload",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "uploadId and presigned PUT URLs"
+          }
+        }
+      }
+    },
+    "/api/v1/upload/finalize": {
+      "post": {
+        "tags": [
+          "Upload"
+        ],
+        "summary": "Create a version. Default is draft; `release: true` goes live.",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "uploadId"
+                ],
+                "properties": {
+                  "uploadId": {
+                    "type": "string"
+                  },
+                  "app": {
+                    "type": "string"
+                  },
+                  "release": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Version created"
+          }
+        }
+      }
+    },
+    "/api/update/{appSlug}/{channel}": {
+      "get": {
+        "tags": [
+          "Feed"
+        ],
+        "summary": "Channel-root feed. Tauri apps return static updater JSON here.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated feed document"
+          },
+          "404": {
+            "description": "Missing or draft"
+          }
+        }
+      }
+    },
+    "/api/update/{appSlug}/{channel}/{filename}": {
+      "get": {
+        "tags": [
+          "Feed"
+        ],
+        "summary": "Public feed — Electron yml / Tauri latest.json inline, artifacts 302. Drafts are 404.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metadata body"
+          },
+          "302": {
+            "description": "Artifact redirect"
+          },
+          "404": {
+            "description": "Missing or draft"
+          }
+        }
+      }
+    }
+  }
+}
