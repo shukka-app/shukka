@@ -5,7 +5,9 @@ description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为�
 
 ## GitHub Action
 
-仓库根的 `action.yml` 是一个 composite action，把目录内的构建产物完整发布为一个版本：
+仓库根的 `action.yml` 是一个 JavaScript action：runner 自带的 Node 直接执行 `scripts/shukka-upload.mjs`，不调用 bash。Windows 自建 runner 只需 Actions runner（可用 MinGit），不必装 Git for Windows。
+
+把目录内的构建产物完整发布为一个版本：
 
 ```yaml
 - uses: akarachen/shukka@main

@@ -5,7 +5,9 @@ description: Publish build artifacts as a version with the GitHub Action or the 
 
 ## GitHub Action
 
-`action.yml` at the repository root is a composite action that publishes every artifact in a directory as one version:
+`action.yml` at the repository root is a JavaScript action: the runner's bundled Node runs `scripts/shukka-upload.mjs` directly and does not call bash. A Windows self-hosted runner only needs the Actions runner (MinGit is fine); Git for Windows is not required.
+
+It publishes every artifact in a directory as one version:
 
 ```yaml
 - uses: akarachen/shukka@main
