@@ -4,6 +4,16 @@ import { i18nProvider } from 'fumadocs-ui/i18n';
 import { i18n } from '@/lib/i18n';
 import { translations } from '@/lib/layout.shared';
 
+const brandImage = {
+  openGraph: {
+    images: [{ url: '/og.png', width: 2560, height: 1280 }],
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    images: ['/og.png'],
+  },
+};
+
 export async function generateMetadata({ params }: LayoutProps<'/[lang]'>): Promise<Metadata> {
   const { lang } = await params;
 
@@ -11,11 +21,13 @@ export async function generateMetadata({ params }: LayoutProps<'/[lang]'>): Prom
     return {
       description:
         'Self-host automatic updates for desktop apps. Installers stay in your own object storage.',
+      ...brandImage,
     };
   }
 
   return {
     description: '自行托管桌面应用的自动更新。安装包存放于自有对象存储。',
+    ...brandImage,
   };
 }
 

@@ -276,7 +276,16 @@ const pages = {
 
 export async function generateMetadata(props: PageProps<'/[lang]'>): Promise<Metadata> {
   const { lang } = await props.params;
-  return (pages[lang as keyof typeof pages] ?? pages['en-US']).metadata;
+  return {
+    ...(pages[lang as keyof typeof pages] ?? pages['en-US']).metadata,
+    openGraph: {
+      images: [{ url: '/og.png', width: 2560, height: 1280 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: ['/og.png'],
+    },
+  };
 }
 
 export default async function HomePage(props: PageProps<'/[lang]'>) {

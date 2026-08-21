@@ -16,7 +16,16 @@ const copy = {
 
 export async function generateMetadata(props: PageProps<'/[lang]/api'>): Promise<Metadata> {
   const { lang } = await props.params;
-  return copy[lang as keyof typeof copy] ?? copy['en-US'];
+  return {
+    ...(copy[lang as keyof typeof copy] ?? copy['en-US']),
+    openGraph: {
+      images: [{ url: '/og.png', width: 2560, height: 1280 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: ['/og.png'],
+    },
+  };
 }
 
 export default async function ApiReferencePage(props: PageProps<'/[lang]/api'>) {

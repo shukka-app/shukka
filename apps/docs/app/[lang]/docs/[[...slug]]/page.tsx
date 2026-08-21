@@ -1,4 +1,4 @@
-import { getPageImageUrl, getPageMarkdownUrl, source } from '@/lib/source';
+import { getPageMarkdownUrl, source } from '@/lib/source';
 import {
   DocsBody,
   DocsDescription,
@@ -59,7 +59,11 @@ export async function generateMetadata(
     title: page.data.title,
     description: page.data.description,
     openGraph: {
-      images: getPageImageUrl(page).url,
+      images: [{ url: '/og.png', width: 2560, height: 1280 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: ['/og.png'],
     },
   };
 }
