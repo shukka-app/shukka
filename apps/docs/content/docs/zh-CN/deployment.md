@@ -1,6 +1,6 @@
 ---
 title: 自托管部署
-description: 用 Docker 或源码把 Shukka 跑在一台带持久盘的单机上，配好反向代理、对象存储与备份。
+description: 用 Docker 或源码把 Shukka 跑在一台带持久盘的单机上，配好反向代理、对象存储与备份，再对外提供 HTTPS。
 ---
 
 Shukka 是单管理员的自托管服务。服务自身的数据库与加密密钥存放在运行机器的磁盘上；安装包存放于每个应用各自配置的 S3 兼容存储。
@@ -22,6 +22,19 @@ docker run -d --name shukka --restart unless-stopped \
 ```
 
 镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。推送 semver 标签（`vMAJOR.MINOR.PATCH`）会由 GitHub Actions 构建并发布；未加 tag 时拉的是 `latest`。钉版本用 `ghcr.io/shukka-app/shukka:0.1.0`。要从源码自行构建时，在仓库根执行 `docker build -t shukka .`，把上面的镜像名换成 `shukka`。
+
+同一份编排在 [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml)（Shukka + 示例 MinIO）。钉版本用 `SHUKKA_IMAGE`：
+
+```bash
+docker compose -f deploy/compose.yaml up -d
+docker exec minio mkdir -p /data/releases
+```
+
+Ansible 把该文件拷到主机并等到 `/api/health`：[`deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/deploy/ansible/playbook.yml)。Docker Compose v2 是前置条件。
+
+```bash
+ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
+```
 
 3. 反向代理到 `127.0.0.1:3000`，对外只暴露 HTTPS。
 4. 打开面板，首次访问进入 setup，设置至少 8 位管理员密码。
@@ -87,7 +100,7 @@ CI 与桌面客户端必须能访问该 endpoint（上传 PUT、下载跟 302）
 
 ### 本机 MinIO（可选）
 
-Shukka **不**随镜像带对象存储。需要自建 S3 时另起 MinIO，再在面板创建 app（MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——上传由 CI 直传，不经过 Shukka。仓库没有 `docker-compose.yml`；需要时自行把 Shukka 容器与 MinIO 写在同一份 compose 里，Shukka 仍只挂自己的数据卷。
+Shukka **不**随镜像带对象存储。需要自建 S3 时用 [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml) 里的 MinIO，或另起一个，再在面板创建 app（MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——上传由 CI 直传，不经过 Shukka。Shukka 仍只挂自己的数据卷。
 
 ## 备份与升级
 

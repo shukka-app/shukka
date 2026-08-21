@@ -1,19 +1,20 @@
 import type { Metadata } from 'next';
+import { brandMetadata, siteDescription, siteUrl, socialTitle } from '@/lib/metadata';
+import { appName } from '@/lib/shared';
 import './global.css';
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl,
   title: {
-    default: 'Shukka',
-    template: '%s — Shukka',
+    default: appName,
+    template: `%s — ${appName}`,
   },
-  description: '自行托管桌面应用的自动更新。安装包存放于自有对象存储。',
-  openGraph: {
-    images: [{ url: '/og.png', width: 2560, height: 1280 }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/og.png'],
-  },
+  ...brandMetadata({
+    lang: 'zh-CN',
+    path: '/',
+    description: siteDescription['zh-CN'],
+    ogTitle: socialTitle['zh-CN'],
+  }),
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

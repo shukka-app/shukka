@@ -23,6 +23,19 @@ docker run -d --name shukka --restart unless-stopped \
 
 The image is on [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka) and can be pulled without logging in. Pushing a semver tag (`vMAJOR.MINOR.PATCH`) builds and publishes via GitHub Actions. Untagged pulls use `latest`. Pin a version with `ghcr.io/shukka-app/shukka:0.1.0`. To build from source, run `docker build -t shukka .` at the repo root and replace the image name above with `shukka`.
 
+The same stack as Compose (Shukka plus an example MinIO) is [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml). Pin the image with `SHUKKA_IMAGE`:
+
+```bash
+docker compose -f deploy/compose.yaml up -d
+docker exec minio mkdir -p /data/releases
+```
+
+Ansible copies that file onto a host and waits for `/api/health`: [`deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/deploy/ansible/playbook.yml). Docker Compose v2 must already be installed.
+
+```bash
+ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
+```
+
 3. Reverse-proxy to `127.0.0.1:3000` and expose only HTTPS.
 4. Open the panel. The first visit enters setup; set an admin password of at least 8 characters.
 5. Test the storage connection when creating an app. A failed test is not saved.
@@ -87,7 +100,7 @@ CI and desktop clients must be able to reach that endpoint (upload PUT, download
 
 ### Local MinIO (optional)
 
-Shukka does **not** ship object storage in the image. If you need self-hosted S3, run MinIO separately, then create an app in the panel (MinIO: set the endpoint, enable path-style; the wizard defaults region to `us-east-1`). GitHub Actions must be able to reach that endpoint from the public internet — uploads go from CI straight to storage, not through Shukka. There is no `docker-compose.yml` in the repo. If you want one, put the Shukka container and MinIO in the same compose file yourself. Shukka still only mounts its own data volume.
+Shukka does **not** ship object storage in the image. If you need self-hosted S3, use the MinIO service in [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml), or run MinIO separately, then create an app in the panel (MinIO: set the endpoint, enable path-style; the wizard defaults region to `us-east-1`). GitHub Actions must be able to reach that endpoint from the public internet — uploads go from CI straight to storage, not through Shukka. Shukka still only mounts its own data volume.
 
 ## Backup and upgrade
 

@@ -1,6 +1,6 @@
 ---
 title: CI 发布
-description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为一个版本。
+description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为一个版本；上传后默认是草稿，确认后才对用户开放。
 ---
 
 ## GitHub Action

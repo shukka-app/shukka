@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { brandMetadata } from '@/lib/metadata';
+import { appName } from '@/lib/shared';
 import { RedocClient } from './redoc-client';
 
 const copy = {
@@ -16,16 +18,17 @@ const copy = {
 
 export async function generateMetadata(props: PageProps<'/[lang]/api'>): Promise<Metadata> {
   const { lang } = await props.params;
-  return {
-    ...(copy[lang as keyof typeof copy] ?? copy['en-US']),
-    openGraph: {
-      images: [{ url: '/og.png', width: 2560, height: 1280 }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      images: ['/og.png'],
-    },
-  };
+  const locale = lang === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const { title, description } = copy[locale];
+  const suffix = locale === 'zh-CN' ? '文档' : 'docs';
+
+  return brandMetadata({
+    lang: locale,
+    path: `/${locale}/api`,
+    title,
+    description,
+    ogTitle: `${title} · ${appName} ${suffix}`,
+  });
 }
 
 export default async function ApiReferencePage(props: PageProps<'/[lang]/api'>) {

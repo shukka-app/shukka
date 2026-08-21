@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ServerCodeBlock } from 'fumadocs-ui/components/codeblock.rsc';
 import { cn } from '@/lib/cn';
+import { brandMetadata } from '@/lib/metadata';
 import { SetupAnimation } from './page.client';
 
 const dockerCmd = `docker run -d --name shukka \\
@@ -33,7 +34,7 @@ const pages = {
     metadata: {
       title: { absolute: 'Shukka' } as const,
       description:
-        '自行托管桌面应用的自动更新。安装包存放于自有对象存储，由你决定何时向用户开放新版本。',
+        '自行托管桌面应用的自动更新。安装包存放于自有对象存储，由你决定何时向用户开放新版本，无须交给第三方。',
     },
     eyebrow: 'the update feed you host yourself.',
     heroTitle: (
@@ -276,16 +277,15 @@ const pages = {
 
 export async function generateMetadata(props: PageProps<'/[lang]'>): Promise<Metadata> {
   const { lang } = await props.params;
-  return {
-    ...(pages[lang as keyof typeof pages] ?? pages['en-US']).metadata,
-    openGraph: {
-      images: [{ url: '/og.png', width: 2560, height: 1280 }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      images: ['/og.png'],
-    },
-  };
+  const locale = lang === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const { metadata } = pages[locale];
+
+  return brandMetadata({
+    lang: locale,
+    path: `/${locale}`,
+    title: metadata.title,
+    description: metadata.description,
+  });
 }
 
 export default async function HomePage(props: PageProps<'/[lang]'>) {

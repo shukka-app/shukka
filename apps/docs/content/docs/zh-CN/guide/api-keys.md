@@ -1,6 +1,6 @@
 ---
 title: API 密钥
-description: API key 的能力面、生命周期与使用方式。
+description: 说明 API key 能调用哪些接口、如何签发与吊销，以及持续集成和本地脚本应怎样带着它调用 App API。
 ---
 
 API key 形如 `shk_<random>`，绑定单个 app，供 CI / agent / 脚本以程序化方式操作该 app。

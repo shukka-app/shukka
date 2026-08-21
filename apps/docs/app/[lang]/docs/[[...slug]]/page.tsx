@@ -11,7 +11,8 @@ import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { gitConfig } from '@/lib/shared';
+import { brandMetadata } from '@/lib/metadata';
+import { appName, gitConfig } from '@/lib/shared';
 
 export default async function Page(props: PageProps<'/[lang]/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -55,15 +56,15 @@ export async function generateMetadata(
   const page = source.getPage(params.slug, params.lang);
   if (!page) notFound();
 
-  return {
+  const locale = params.lang === 'zh-CN' ? 'zh-CN' : 'en-US';
+  const suffix = locale === 'zh-CN' ? '文档' : 'docs';
+  const path = page.url.includes(locale) ? page.url : `/${locale}${page.url}`;
+
+  return brandMetadata({
+    lang: locale,
+    path,
     title: page.data.title,
     description: page.data.description,
-    openGraph: {
-      images: [{ url: '/og.png', width: 2560, height: 1280 }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      images: ['/og.png'],
-    },
-  };
+    ogTitle: `${page.data.title} · ${appName} ${suffix}`,
+  });
 }

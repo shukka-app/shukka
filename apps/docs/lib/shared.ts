@@ -1,4 +1,5 @@
 export const appName = 'Shukka';
+export const siteOrigin = 'https://shukka.akr.moe';
 export const docsRoute = '/docs';
 export const docsContentRoute = '/llms.mdx/docs';
 
