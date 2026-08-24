@@ -115,9 +115,13 @@ export function updateAppMutationOptions({
   return mutationOptions({
     mutationFn: (values: AppFormValues) => api.patch<{ app: PublicApp }>(appPath(slug), values),
     onSuccess: async (data, variables) => {
+      // A slug change would 404 the still-mounted old detail query if we
+      // invalidated it; drop it the same way delete drops a dead cache.
+      if (data.app.slug !== slug) {
+        queryClient.removeQueries({ queryKey: appKeys.detail(slug) })
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: appKeys.list() }),
-        queryClient.invalidateQueries({ queryKey: appKeys.detail(slug) }),
         queryClient.invalidateQueries({ queryKey: appKeys.detail(data.app.slug) }),
       ])
       onSuccess?.(data, variables)
