@@ -50,6 +50,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `POST /api/v1/upload/init`：body 含 `channel`、`version`、文件清单；返回 pending upload id 与每文件 presigned PUT URL。同 channel 已存在同 version（含 draft）时拒绝。文件清单必须通过该 app adapter 的元数据要求（Electron：至少一个 `.yml`；Tauri：`latest.json` 和/或成对的制品 + `.sig`）。
 - 目标 channel 不存在时默认拒绝；只有显式 `createChannel: true` 才创建，避免拼写错误静默产生新 channel。新 channel 名必须符合 channel name 规则。
 - `POST /api/v1/upload/finalize`：校验对象齐全（含声明大小）后创建版本。默认 **draft**（不改 current）。`release: true` 时同时写入 `releasedAt` 并原子切换 current。声明了 `version` 的元数据（Electron yml、Tauri `latest.json`）须与上传版本一致；`.sig` 不声明 version，不做此项校验。
+- 过期的 pending upload 在下次触达（同 app 的 init/finalize）时清除，其已写入的对象一并删除（尽力而为）。
 - API key 与 app 不匹配返回 403；key 已吊销或无效返回 401。
 
 ### App API（`/api/v1/apps/{appSlug}`）
