@@ -20,8 +20,38 @@ export type S3Settings = {
   forcePathStyle: boolean
 }
 
-export function settingsFromApp(app: App): S3Settings {
-  return {
+type CachedApp = { settings: S3Settings; s3Client: S3Client }
+
+const appCache = new Map<number, { fingerprint: string; entry: CachedApp }>()
+const clients = new WeakMap<S3Settings, S3Client>()
+
+function appFingerprint(app: App): string {
+  return [
+    app.s3SecretEncrypted,
+    app.s3Endpoint ?? '',
+    app.s3Region,
+    app.s3Bucket,
+    app.s3Prefix,
+    app.s3AccessKeyId,
+    app.s3ForcePathStyle ? '1' : '0',
+  ].join('\0')
+}
+
+function dropCachedApp(appId: number): void {
+  const cached = appCache.get(appId)
+  if (!cached) return
+  cached.entry.s3Client.destroy()
+  clients.delete(cached.entry.settings)
+  appCache.delete(appId)
+}
+
+function cachedAppStorage(app: App): CachedApp {
+  const fingerprint = appFingerprint(app)
+  const cached = appCache.get(app.id)
+  if (cached?.fingerprint === fingerprint) return cached.entry
+  if (cached) dropCachedApp(app.id)
+
+  const settings: S3Settings = {
     endpoint: app.s3Endpoint,
     region: app.s3Region,
     bucket: app.s3Bucket,
@@ -30,15 +60,30 @@ export function settingsFromApp(app: App): S3Settings {
     secretAccessKey: decryptSecret(app.s3SecretEncrypted),
     forcePathStyle: app.s3ForcePathStyle,
   }
+  const entry = { settings, s3Client: client(settings) }
+  appCache.set(app.id, { fingerprint, entry })
+  return entry
+}
+
+export function evictAppStorage(appId: number): void {
+  dropCachedApp(appId)
+}
+
+export function settingsFromApp(app: App): S3Settings {
+  return cachedAppStorage(app).settings
 }
 
 function client(s3: S3Settings): S3Client {
-  return new S3Client({
+  const cached = clients.get(s3)
+  if (cached) return cached
+  const created = new S3Client({
     region: s3.region,
     endpoint: s3.endpoint ?? undefined,
     forcePathStyle: s3.forcePathStyle,
     credentials: { accessKeyId: s3.accessKeyId, secretAccessKey: s3.secretAccessKey },
   })
+  clients.set(s3, created)
+  return created
 }
 
 /** Object key layout: `{prefix}/{channel}/{version}/{filename}`. */

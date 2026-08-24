@@ -4,7 +4,7 @@ import { apiKeys, apps, artifacts, channels, versions } from '~/db/schema.ts'
 import { encryptSecret } from '~/lib/crypto.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 import { clearObjectCache } from '~/lib/object-cache.ts'
-import { deleteObjects, headObject, settingsFromApp, verifyWritable } from '~/lib/storage.ts'
+import { deleteObjects, evictAppStorage, headObject, settingsFromApp, verifyWritable } from '~/lib/storage.ts'
 import type { UpdaterKind } from '~/lib/updater-kind.ts'
 import type { App } from '~/db/schema.ts'
 
@@ -167,6 +167,7 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
     .returning()
     .get()
   clearObjectCache()
+  evictAppStorage(id)
   return updated
 }
 
@@ -184,6 +185,7 @@ export async function deleteApp(id: number): Promise<void> {
   if (keys.length > 0) await deleteObjects(settingsFromApp(app), keys)
   db.delete(apps).where(eq(apps.id, id)).run()
   clearObjectCache()
+  evictAppStorage(id)
 }
 
 export function listApiKeys(appId: number) {

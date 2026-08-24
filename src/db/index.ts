@@ -12,6 +12,7 @@ function createDb() {
   mkdirSync(dirname(dbPath), { recursive: true })
   const sqlite = new Database(dbPath)
   sqlite.pragma('journal_mode = WAL')
+  sqlite.pragma('synchronous = NORMAL')
   sqlite.pragma('foreign_keys = ON')
   const database = drizzle(sqlite, { schema })
 
