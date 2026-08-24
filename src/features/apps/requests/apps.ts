@@ -129,7 +129,8 @@ export function deleteAppMutationOptions({ queryClient, t, onSuccess }: Mutation
   return mutationOptions({
     mutationFn: (slug: string) => api.delete(appPath(slug)),
     onSuccess: async (data, variables) => {
-      await queryClient.invalidateQueries({ queryKey: appKeys.all() })
+      queryClient.removeQueries({ queryKey: appKeys.detail(variables) })
+      await queryClient.invalidateQueries({ queryKey: appKeys.list() })
       onSuccess?.(data, variables)
     },
     onError: (cause) => {
