@@ -253,6 +253,87 @@ describe('release flow', () => {
     ).resolves.toMatchObject({ files: expect.any(Array) })
   })
 
+  it('deletes stored objects when an expired pending upload is purged on init', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }, { filename: 'Acme-Setup-1.0.0.exe' }],
+    })
+    for (const file of first.files) {
+      objects.set(file.key, file.filename === 'latest.yml' ? metadataFor('1.0.0', 'Acme-Setup-1.0.0.exe') : 'binary')
+    }
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const second = await initUpload(app, {
+      channel: 'stable',
+      version: '1.1.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    expect(second.uploadId).toBeTruthy()
+    for (const file of first.files) expect(objects.has(file.key)).toBe(false)
+    expect(db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeUndefined()
+  })
+
+  it('deletes stored objects when finalize rejects an expired upload', async () => {
+    const app = await createApp(appInput)
+    const init = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(init.files[0].key, metadataFor('1.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, init.uploadId)).run()
+
+    await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/expired/)
+    expect(objects.has(init.files[0].key)).toBe(false)
+  })
+
+  it('does not finalize a re-init against leftover bytes from an expired upload', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '2.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(first.files[0].key, metadataFor('2.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const second = await initUpload(app, {
+      channel: 'stable',
+      version: '2.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    await expect(finalizeUpload(app, second.uploadId)).rejects.toThrow(/was not uploaded/)
+  })
+
+  it('keeps expired pending rows when object cleanup fails', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(first.files[0].key, metadataFor('1.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(deleteObjects).mockRejectedValueOnce(new Error('s3 down'))
+    try {
+      await expect(
+        initUpload(app, {
+          channel: 'stable',
+          version: '1.1.0',
+          files: [{ filename: 'latest.yml' }],
+        }),
+      ).resolves.toMatchObject({ files: expect.any(Array) })
+      expect(db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeDefined()
+      expect(objects.has(first.files[0].key)).toBe(true)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
   it('maps a unique version insert during finalize to conflict', async () => {
     const app = await createApp(appInput)
     const init = await initUpload(app, {
