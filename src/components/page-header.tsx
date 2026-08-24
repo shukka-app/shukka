@@ -1,6 +1,12 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
+
+function useMounted() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  return mounted
+}
 
 const HEADER_SLOT_ID = 'page-header-slot'
 const TABBAR_SLOT_ID = 'page-tabbar-slot'
@@ -40,7 +46,8 @@ export function PageHeader({ title, back, children }: { title: string; back?: Re
     </div>
   )
 
-  const slot = typeof document === 'undefined' ? null : document.getElementById(HEADER_SLOT_ID)
+  const mounted = useMounted()
+  const slot = mounted ? document.getElementById(HEADER_SLOT_ID) : null
   return slot ? createPortal(content, slot) : content
 }
 
@@ -50,7 +57,8 @@ export function PageHeader({ title, back, children }: { title: string; back?: Re
  * Falls back to inline rendering when no slot is present.
  */
 export function PageTabBar({ children }: { children?: ReactNode }) {
-  const slot = typeof document === 'undefined' ? null : document.getElementById(TABBAR_SLOT_ID)
+  const mounted = useMounted()
+  const slot = mounted ? document.getElementById(TABBAR_SLOT_ID) : null
   const content = <div className="-mx-5 border-b px-5">{children}</div>
   return slot ? createPortal(content, slot) : content
 }
