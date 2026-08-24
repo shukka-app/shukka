@@ -12,9 +12,9 @@ export const Route = createFileRoute('/_panel/apps/new')({ component: NewAppPage
 function NewAppPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const t = useT()
-  const createApp = useMutation(createAppMutationOptions({ queryClient, t }))
+  const createApp = useMutation(createAppMutationOptions({ queryClient }))
   const updateNotesConfig = useMutation(updateNotesConfigMutationOptions({ queryClient }))
+  const t = useT()
   const [step, setStep] = useQueryState('step', parseAsInteger.withDefault(1))
 
   return (

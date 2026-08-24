@@ -96,17 +96,13 @@ type MutationParams<TData, TVariables> = {
 
 export function createAppMutationOptions({
   queryClient,
-  t,
   onSuccess,
-}: MutationParams<{ app: PublicApp }, AppFormValues>) {
+}: Omit<MutationParams<{ app: PublicApp }, AppFormValues>, 't'>) {
   return mutationOptions({
     mutationFn: (values: AppFormValues) => api.post<{ app: PublicApp }>('/api/admin/apps', values),
     onSuccess: async (data, variables) => {
       await queryClient.invalidateQueries({ queryKey: appKeys.all() })
       onSuccess?.(data, variables)
-    },
-    onError: (cause) => {
-      toast.error(translateError(t, cause, t.common.requestFailed))
     },
   })
 }
@@ -114,9 +110,8 @@ export function createAppMutationOptions({
 export function updateAppMutationOptions({
   slug,
   queryClient,
-  t,
   onSuccess,
-}: MutationParams<{ app: PublicApp }, AppFormValues> & { slug: string }) {
+}: Omit<MutationParams<{ app: PublicApp }, AppFormValues>, 't'> & { slug: string }) {
   return mutationOptions({
     mutationFn: (values: AppFormValues) => api.patch<{ app: PublicApp }>(appPath(slug), values),
     onSuccess: async (data, variables) => {
@@ -126,9 +121,6 @@ export function updateAppMutationOptions({
         queryClient.invalidateQueries({ queryKey: appKeys.detail(data.app.slug) }),
       ])
       onSuccess?.(data, variables)
-    },
-    onError: (cause) => {
-      toast.error(translateError(t, cause, t.common.requestFailed))
     },
   })
 }
