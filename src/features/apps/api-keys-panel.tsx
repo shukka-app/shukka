@@ -92,9 +92,9 @@ function KeysTable({ slug, keys }: { slug: string; keys: ApiKey[] }) {
  */
 function KeyRow({ slug, apiKey }: { slug: string; apiKey: ApiKey }) {
   const queryClient = useQueryClient()
-  const revoke = useMutation(revokeApiKeyMutationOptions({ slug, queryClient }))
-  const deleteKey = useMutation(deleteApiKeyMutationOptions({ slug, queryClient }))
   const t = useT()
+  const revoke = useMutation(revokeApiKeyMutationOptions({ slug, queryClient, t }))
+  const deleteKey = useMutation(deleteApiKeyMutationOptions({ slug, queryClient, t }))
   const format = useFormatters()
 
   return (
@@ -164,8 +164,8 @@ function NewKeyDialog({ slug, onCreated }: { slug: string; onCreated: (plaintext
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const queryClient = useQueryClient()
-  const createKey = useMutation(createApiKeyMutationOptions({ slug, queryClient }))
   const t = useT()
+  const createKey = useMutation(createApiKeyMutationOptions({ slug, queryClient, t }))
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -178,10 +178,14 @@ function NewKeyDialog({ slug, onCreated }: { slug: string; onCreated: (plaintext
         <form
           onSubmit={async (event) => {
             event.preventDefault()
-            const result = await createKey.mutateAsync(name)
-            onCreated(result.plaintext)
-            setName('')
-            setOpen(false)
+            try {
+              const result = await createKey.mutateAsync(name)
+              onCreated(result.plaintext)
+              setName('')
+              setOpen(false)
+            } catch {
+              // toast handled by mutation options
+            }
           }}
         >
           <DialogHeader>
