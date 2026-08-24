@@ -187,7 +187,7 @@ function AppSettings({ slug, app, channels }: { slug: string; app: PublicApp; ch
   const router = useRouter()
   const queryClient = useQueryClient()
   const t = useT()
-  const updateApp = useMutation(updateAppMutationOptions({ slug, queryClient, t }))
+  const updateApp = useMutation(updateAppMutationOptions({ slug, queryClient }))
   const deleteApp = useMutation(deleteAppMutationOptions({ queryClient, t }))
   const role = useViewRole()
   const [section, setSection] = useQueryState(
