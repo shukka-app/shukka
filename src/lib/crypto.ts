@@ -7,7 +7,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { dataDir } from '~/db/index.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 
@@ -17,9 +17,14 @@ import { ShukkaError } from '~/lib/errors.ts'
  */
 function loadEncryptionKey(): Buffer {
   const keyPath = process.env.SHUKKA_KEY_PATH ?? resolve(dataDir, 'encryption.key')
-  if (existsSync(keyPath)) return Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex')
-
-  mkdirSync(dataDir, { recursive: true })
+  if (existsSync(keyPath)) {
+    const key = Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex')
+    if (key.length !== 32) {
+      throw new Error(`Encryption key at ${keyPath} is not a 64-hex-char 256-bit key; refusing to start with a corrupt key`)
+    }
+    return key
+  }
+  mkdirSync(dirname(keyPath), { recursive: true })
   const key = randomBytes(32)
   writeFileSync(keyPath, key.toString('hex'), { mode: 0o600 })
   chmodSync(keyPath, 0o600)
