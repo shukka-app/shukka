@@ -8,7 +8,12 @@ function basename(url: string): string {
   try {
     return decodeURIComponent(new URL(url).pathname.split('/').pop() ?? url)
   } catch {
-    return decodeURIComponent(url.split('/').pop() ?? url)
+    const segment = url.split('/').pop() ?? url
+    try {
+      return decodeURIComponent(segment)
+    } catch {
+      return segment
+    }
   }
 }
 

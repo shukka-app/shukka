@@ -1,5 +1,5 @@
 import { parse } from 'yaml'
-import { ShukkaError } from './errors.ts'
+import { ShukkaError, safeDecodeURIComponent } from './errors.ts'
 
 /**
  * electron-updater metadata files: `latest.yml`, `latest-mac.yml`, `latest-linux.yml`,
@@ -52,5 +52,11 @@ export function parseUpdateMetadata(filename: string, text: string): UpdateMetad
 
 /** electron-updater resolves `files[].url` relative to the feed base URL. */
 export function referencedArtifacts(metadata: UpdateMetadata): string[] {
-  return metadata.files.map((file) => decodeURIComponent(file.url.split('/').pop() ?? file.url))
+  return metadata.files.map((file) => {
+    const decoded = safeDecodeURIComponent(file.url.split('/').pop() ?? file.url)
+    if (decoded === null) {
+      throw new ShukkaError('metadata_error', 'files[].url contains malformed percent-encoding')
+    }
+    return decoded
+  })
 }

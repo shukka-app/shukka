@@ -38,4 +38,21 @@ describe('update metadata', () => {
   it('rejects malformed yaml', () => {
     expect(() => parseUpdateMetadata('latest.yml', '::: not yaml :::')).toThrow(ShukkaError)
   })
+
+  it('rejects files[].url with malformed percent-encoding as metadata_error', () => {
+    const metadata = parseUpdateMetadata(
+      'latest.yml',
+      `version: 1.0.0
+files:
+  - url: app%zz.exe
+`,
+    )
+    expect(() => referencedArtifacts(metadata)).toThrow(ShukkaError)
+    try {
+      referencedArtifacts(metadata)
+    } catch (error) {
+      expect(error).toBeInstanceOf(ShukkaError)
+      expect((error as ShukkaError).code).toBe('metadata_error')
+    }
+  })
 })

@@ -26,6 +26,7 @@ const { clearObjectCache } = await import('~/lib/object-cache.ts')
 const { createApp } = await import('~/server/apps.ts')
 const { finalizeUpload, initUpload } = await import('~/server/releases.ts')
 const { resolveFeedRequest } = await import('~/server/feed.ts')
+const { tauriAdapter } = await import('~/server/updaters/tauri.ts')
 
 const ORIGIN = 'https://updates.test'
 const BUNDLE = 'app-aarch64.app.tar.gz'
@@ -147,6 +148,57 @@ describe('tauri upload and feed', () => {
     await publishTauri(app, '1.0.0')
     const artifact = await resolveFeedRequest('acme', 'stable', BUNDLE, ORIGIN)
     expect(artifact).toMatchObject({ kind: 'redirect' })
+  })
+
+  it('does not throw when latest.json platform urls have malformed percent-encoding', async () => {
+    const text = JSON.stringify({
+      version: '1.4.2',
+      platforms: {
+        'darwin-aarch64': { url: `https://cdn.example/${BUNDLE}`, signature: 'SIG' },
+        'windows-x86_64': { url: 'https://cdn.example/app%zz.exe', signature: 'SIG' },
+      },
+    })
+    expect(() => tauriAdapter.parseMetadata('latest.json', text)).not.toThrow()
+
+    const doc = await tauriAdapter.generateFeedDocument!({
+      filename: 'latest.json',
+      origin: ORIGIN,
+      appSlug: 'acme',
+      channelName: 'stable',
+      releasedAt: 1,
+      version: '1.4.2',
+      artifacts: [
+        { filename: 'latest.json', s3Key: 'manifest', kind: 'metadata' },
+        { filename: BUNDLE, s3Key: 'bundle', kind: 'artifact' },
+      ],
+      getText: async (key) => (key === 'manifest' ? text : ''),
+    })
+    expect(doc).not.toBeNull()
+    const body = JSON.parse(doc!.body)
+    expect(body.platforms['darwin-aarch64']).toEqual({
+      url: `${ORIGIN}/api/update/acme/stable/${encodeURIComponent(BUNDLE)}`,
+      signature: 'SIG',
+    })
+    expect(body.platforms['windows-x86_64']).toBeUndefined()
+
+    const app = await createApp({ ...baseInput, updaterKind: 'tauri' })
+    await publishTauri(app, '1.4.2', [
+      {
+        filename: 'latest.json',
+        body: JSON.stringify({
+          version: '1.4.2',
+          platforms: {
+            'darwin-aarch64': { url: `https://cdn.example/${BUNDLE}`, signature: '' },
+            'windows-x86_64': { url: 'https://cdn.example/app%zz.exe', signature: 'SIG' },
+          },
+        }),
+      },
+      { filename: 'app%zz.exe', body: 'binary' },
+    ])
+    const feed = await resolveFeedRequest('acme', 'stable', 'latest.json', ORIGIN)
+    expect(JSON.parse((feed as { body: string }).body).platforms['darwin-aarch64'].url).toBe(
+      `${ORIGIN}/api/update/acme/stable/${encodeURIComponent(BUNDLE)}`,
+    )
   })
 
   it('rejects latest.json whose version does not match the upload', async () => {
