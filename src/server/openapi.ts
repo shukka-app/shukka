@@ -42,6 +42,8 @@ export function openApiDocument(origin: string) {
         patch: {
           tags: ['App'],
           summary: 'Update app settings (probes S3)',
+          description:
+            'API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.',
           parameters: [slugParam],
           responses: { '200': { description: 'Updated app' } },
         },
