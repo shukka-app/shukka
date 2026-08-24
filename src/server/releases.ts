@@ -10,6 +10,8 @@ import { adapterFor } from './updaters/index.ts'
 import type { App } from '~/db/schema.ts'
 
 const PENDING_TTL_SECONDS = 60 * 60
+/** Real electron-builder/Tauri metadata is a few KB; this cap only exists to bound memory. */
+const MAX_METADATA_BYTES = 1024 * 1024
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
 export type PendingFile = { filename: string; s3Key: string; size: number }
@@ -165,6 +167,9 @@ export async function finalizeUpload(
   // reference files that were actually uploaded (otherwise clients 404).
   const uploaded = new Set(verified.map((file) => file.filename))
   for (const file of verified.filter((entry) => entry.kind === 'metadata')) {
+    if (file.size > MAX_METADATA_BYTES) {
+      throw new ShukkaError('metadata_error', `${file.filename} exceeds the metadata size limit`)
+    }
     const metadata = adapter.parseMetadata(file.filename, await getObjectText(s3, file.s3Key))
     if (metadata.version && metadata.version !== pending.version) {
       throw new ShukkaError(
