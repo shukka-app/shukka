@@ -85,25 +85,28 @@ export async function createApp(input: AppInput): Promise<App> {
     forcePathStyle: input.s3ForcePathStyle,
   })
 
-  const app = db
-    .insert(apps)
-    .values({
-      name: input.name,
-      slug: input.slug,
-      s3Endpoint: input.s3Endpoint,
-      s3Region: input.s3Region,
-      s3Bucket: input.s3Bucket,
-      s3Prefix: input.s3Prefix,
-      s3AccessKeyId: input.s3AccessKeyId,
-      s3SecretEncrypted: encryptSecret(input.s3SecretAccessKey),
-      s3ForcePathStyle: input.s3ForcePathStyle,
-      updaterKind: input.updaterKind ?? 'electron',
-    })
-    .returning()
-    .get()
+  const secretAccessKey = input.s3SecretAccessKey
+  return db.transaction((tx) => {
+    const app = tx
+      .insert(apps)
+      .values({
+        name: input.name,
+        slug: input.slug,
+        s3Endpoint: input.s3Endpoint,
+        s3Region: input.s3Region,
+        s3Bucket: input.s3Bucket,
+        s3Prefix: input.s3Prefix,
+        s3AccessKeyId: input.s3AccessKeyId,
+        s3SecretEncrypted: encryptSecret(secretAccessKey),
+        s3ForcePathStyle: input.s3ForcePathStyle,
+        updaterKind: input.updaterKind ?? 'electron',
+      })
+      .returning()
+      .get()
 
-  db.insert(channels).values({ appId: app.id, name: DEFAULT_CHANNEL }).run()
-  return app
+    tx.insert(channels).values({ appId: app.id, name: DEFAULT_CHANNEL }).run()
+    return app
+  })
 }
 
 export async function updateApp(id: number, input: AppInput): Promise<App> {
