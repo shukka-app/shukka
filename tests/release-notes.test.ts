@@ -23,14 +23,18 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
 
 const { eq } = await import('drizzle-orm')
 const { db } = await import('~/db/index.ts')
-const { apps, releaseNotes } = await import('~/db/schema.ts')
+const { apiKeys, apps, releaseNotes } = await import('~/db/schema.ts')
 const { createApp, getApp } = await import('~/server/apps.ts')
 const { createChannel } = await import('~/server/channels.ts')
 const { deleteVersion, finalizeUpload, initUpload } = await import('~/server/releases.ts')
 const notesServer = await import('~/server/release-notes.ts')
 const { verifyWritable } = await import('~/lib/storage.ts')
 const { ShukkaError } = await import('~/lib/errors.ts')
+const auth = await import('~/lib/auth.ts')
 const notesRoute = await import('~/routes/api/v1/apps.$appSlug.channels.$channel.notes.ts')
+const localeNotesRoute = await import(
+  '~/routes/api/v1/apps.$appSlug.channels.$channel.versions.$version.notes.$locale.ts'
+)
 
 const appInput = {
   name: 'Acme',
@@ -377,6 +381,27 @@ describe('public notes route', () => {
     })
     expect(missing.status).toBe(404)
     expect(await missing.json()).toMatchObject({ error: 'not_found' })
+  })
+})
+
+describe('locale notes route', () => {
+  it('rejects a malformed percent-encoded locale as invalid_request', async () => {
+    const app = await createApp(appInput)
+    await publish(app, 'stable', '1.0.0')
+    const { plaintext, hash, hint } = auth.generateApiKey()
+    db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash, hint }).run()
+
+    const PUT = routeHandler(localeNotesRoute.Route, 'PUT')
+    const response = await PUT({
+      request: new Request('https://shukka.test/api/v1/apps/acme/channels/stable/versions/1.0.0/notes/%', {
+        method: 'PUT',
+        headers: { authorization: `Bearer ${plaintext}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ markdown: 'hello' }),
+      }),
+      params: { appSlug: 'acme', channel: 'stable', version: '1.0.0', locale: '%' },
+    })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'invalid_request' })
   })
 })
 

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { requireAppActor } from '~/lib/auth.ts'
-import { ShukkaError, handle, textParam } from '~/lib/errors.ts'
+import { ShukkaError, handle, safeDecodeURIComponent, textParam } from '~/lib/errors.ts'
 import { getVersion } from '~/server/channels.ts'
 import { deleteNote, upsertNote } from '~/server/release-notes.ts'
 
@@ -15,13 +15,17 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels/$channel/ve
         const parsed = noteSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Invalid note payload', parsed.error.issues)
         const version = getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
-        const note = upsertNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')), parsed.data.markdown)
+        const locale = safeDecodeURIComponent(textParam(params, 'locale'))
+        if (locale === null) throw new ShukkaError('invalid_request', 'Malformed locale in URL')
+        const note = upsertNote(app.id, version.id, locale, parsed.data.markdown)
         return Response.json({ note })
       }),
       DELETE: handle(async ({ request, params }) => {
         const { app } = requireAppActor(request, textParam(params, 'appSlug'))
         const version = getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
-        deleteNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')))
+        const locale = safeDecodeURIComponent(textParam(params, 'locale'))
+        if (locale === null) throw new ShukkaError('invalid_request', 'Malformed locale in URL')
+        deleteNote(app.id, version.id, locale)
         return Response.json({ ok: true })
       }),
     },
