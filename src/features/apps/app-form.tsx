@@ -186,9 +186,11 @@ export function AppForm({ initial, submitLabel, secretOptional, section, onSubmi
           <p className="text-sm text-muted-foreground">{t.form.secretKeepHint}</p>
         ) : null}
         <div className="flex items-center gap-3">
-          <Button type="button" variant="outline" disabled={pending} onClick={handleTest}>
-            {pending ? t.common.testingConnection : t.common.testConnection}
-          </Button>
+          {section === 'storage' ? (
+            <Button type="button" variant="outline" disabled={pending} onClick={handleTest}>
+              {pending ? t.common.testingConnection : t.common.testConnection}
+            </Button>
+          ) : null}
           <Button type="submit" disabled={pending}>
             {pending ? t.common.verifyingBucket : submitLabel}
           </Button>
