@@ -24,7 +24,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
 const { eq } = await import('drizzle-orm')
 const { db } = await import('~/db/index.ts')
 const { apps, pendingUploads, versions } = await import('~/db/schema.ts')
-const { createApp, DEFAULT_CHANNEL } = await import('~/server/apps.ts')
+const { createApp, DEFAULT_CHANNEL, updateApp } = await import('~/server/apps.ts')
 const { createChannel, deleteChannel, getChannel, listChannelsForApps, listVersionsForChannels } =
   await import('~/server/channels.ts')
 const { deleteVersion, finalizeUpload, initUpload, listArtifactsForVersions } = await import('~/server/releases.ts')
@@ -359,6 +359,41 @@ describe('release flow', () => {
     })
     expect(db.select().from(versions).where(eq(versions.id, first.result.versionId)).get()?.releasedAt).not.toBeNull()
     expect(db.select().from(versions).where(eq(versions.id, second.result.versionId)).get()?.releasedAt).not.toBeNull()
+  })
+
+  it('serves fresh metadata after a version is deleted and republished', async () => {
+    const app = await createApp(appInput)
+    const first = await publish(app, 'stable', '1.0.0')
+
+    const warmed = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((warmed as { body: string }).body).toContain('version: 1.0.0')
+
+    await deleteVersion(app, first.result.versionId)
+    await publish(app, 'stable', '1.0.0')
+
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.set(ymlKey!, `${objects.get(ymlKey!)!}#republished\n`)
+
+    const fresh = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((fresh as { body: string }).body).toContain('#republished')
+  })
+
+  it('serves fresh metadata after app storage settings change', async () => {
+    const app = await createApp(appInput)
+    await publish(app, 'stable', '1.0.0')
+
+    const warmed = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((warmed as { body: string }).body).toContain('version: 1.0.0')
+
+    await updateApp(app.id, { ...appInput, s3Bucket: 'other-bucket' })
+
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.set(ymlKey!, `${objects.get(ymlKey!)!}#repointed\n`)
+
+    const fresh = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((fresh as { body: string }).body).toContain('#repointed')
   })
 
   it('falls back to the previous version when the current one is deleted', async () => {

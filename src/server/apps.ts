@@ -3,6 +3,7 @@ import { db } from '~/db/index.ts'
 import { apiKeys, apps, artifacts, channels, versions } from '~/db/schema.ts'
 import { encryptSecret } from '~/lib/crypto.ts'
 import { ShukkaError } from '~/lib/errors.ts'
+import { clearObjectCache } from '~/lib/object-cache.ts'
 import { deleteObjects, settingsFromApp, verifyWritable } from '~/lib/storage.ts'
 import type { UpdaterKind } from '~/lib/updater-kind.ts'
 import type { App } from '~/db/schema.ts'
@@ -108,7 +109,7 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
     forcePathStyle: input.s3ForcePathStyle,
   })
 
-  return db
+  const updated = db
     .update(apps)
     .set({
       name: input.name,
@@ -124,6 +125,8 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
     .where(eq(apps.id, id))
     .returning()
     .get()
+  clearObjectCache()
+  return updated
 }
 
 /** Deletes the app and every stored object it owns. */
@@ -139,6 +142,7 @@ export async function deleteApp(id: number): Promise<void> {
 
   if (keys.length > 0) await deleteObjects(settingsFromApp(app), keys)
   db.delete(apps).where(eq(apps.id, id)).run()
+  clearObjectCache()
 }
 
 export function listApiKeys(appId: number) {
