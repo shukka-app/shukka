@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, ChevronRight, Server } from 'lucide-react'
 import { siCloudflare, siElectron, siMinio, siTauri } from 'simple-icons'
@@ -204,6 +204,12 @@ export function AppWizard({
 
   const preset = provider ? PROVIDERS.find((entry) => entry.id === provider) : null
 
+  // URL can restore step 2/3; identity state is always empty on a fresh mount.
+  useEffect(() => {
+    if (step > 1 && updaterKind === null) onStepChange(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clamp once on mount
+  }, [])
+
   function updateStorage(key: keyof StorageFields, value: string | boolean) {
     setStorage((prev) => ({ ...prev, [key]: value }))
     setStorageErrors((prev) => ({ ...prev, [key]: undefined }))
@@ -211,11 +217,16 @@ export function AppWizard({
     setTested(false)
   }
 
-  function continueToStorage() {
+  function validateIdentity(): IdentityErrors {
     const errors: IdentityErrors = {}
     if (!updaterKind) errors.updaterKind = t.wizard.updaterKindRequired
     if (!name.trim()) errors.name = t.wizard.nameRequired
     if (!SLUG_PATTERN.test(slug.trim())) errors.slug = t.wizard.slugHint
+    return errors
+  }
+
+  function continueToStorage() {
+    const errors = validateIdentity()
     setIdentityErrors(errors)
     if (Object.keys(errors).length > 0) return
     // Suggest the slug as the key prefix; an explicit prefix edit survives
@@ -316,6 +327,19 @@ export function AppWizard({
   }
 
   async function submit() {
+    const identity = validateIdentity()
+    if (Object.keys(identity).length > 0) {
+      setIdentityErrors(identity)
+      onStepChange(1)
+      return
+    }
+    const storageErrs = validateStorage()
+    if (!preset || Object.keys(storageErrs).length > 0) {
+      setStorageErrors(storageErrs)
+      onStepChange(2)
+      return
+    }
+
     setPending(true)
     setSubmitError(null)
     try {
