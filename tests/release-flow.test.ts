@@ -14,7 +14,14 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
     headObject: vi.fn(async (_s3: unknown, key: string) =>
       objects.has(key) ? { size: Buffer.byteLength(objects.get(key)!) } : null,
     ),
-    getObjectText: vi.fn(async (_s3: unknown, key: string) => objects.get(key) ?? ''),
+    getObjectText: vi.fn(async (_s3: unknown, key: string) => {
+      const body = objects.get(key)
+      if (body === undefined) {
+        const { ShukkaError } = await import('~/lib/errors.ts')
+        throw new ShukkaError('storage_error', 'Cannot read update metadata from storage')
+      }
+      return body
+    }),
     deleteObjects: vi.fn(async (_s3: unknown, keys: string[]) => {
       for (const key of keys) objects.delete(key)
     }),
@@ -316,6 +323,34 @@ describe('release flow', () => {
     objects.set(init.files[1].key, 'binary')
 
     await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(ShukkaError)
+  })
+
+  it('rejects metadata larger than the size limit', async () => {
+    const app = await createApp(appInput)
+    const init = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(init.files[0].key, 'version: 1.0.0\n' + 'x'.repeat(1024 * 1024))
+
+    await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/metadata size limit/)
+    expect(db.select().from(versions).all()).toEqual([])
+  })
+
+  it('does not leak storage internals when the public feed cannot read metadata', async () => {
+    const app = await createApp(appInput)
+    await publish(app, 'stable', '1.0.0')
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.delete(ymlKey!)
+
+    const error = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN).catch((err: unknown) => err)
+    expect(error).toBeInstanceOf(ShukkaError)
+    const message = (error as InstanceType<typeof ShukkaError>).message
+    expect(message).not.toContain(ymlKey!)
+    expect(message).toBe('Cannot read update metadata from storage')
+    expect((error as InstanceType<typeof ShukkaError>).details).toBeUndefined()
   })
 
   it('requires at least one metadata file', async () => {
