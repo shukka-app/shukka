@@ -1,6 +1,8 @@
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { api } from '~/lib/api.ts'
+import { translateError, type Dictionary } from '~/lib/i18n/index.ts'
 import type { UpdaterKind } from '~/lib/updater-kind.ts'
 import type { AppDetail, AppSummary, PublicApp } from '~/server/dashboard.ts'
 import { appKeys } from './keys.ts'
@@ -88,11 +90,13 @@ export async function primeAppDetailQuery(queryClient: QueryClient, slug: string
 
 type MutationParams<TData, TVariables> = {
   queryClient: QueryClient
+  t: Dictionary
   onSuccess?: (data: TData, variables: TVariables) => void
 }
 
 export function createAppMutationOptions({
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<{ app: PublicApp }, AppFormValues>) {
   return mutationOptions({
@@ -101,12 +105,16 @@ export function createAppMutationOptions({
       await queryClient.invalidateQueries({ queryKey: appKeys.all() })
       onSuccess?.(data, variables)
     },
+    onError: (cause) => {
+      toast.error(translateError(t, cause, t.common.requestFailed))
+    },
   })
 }
 
 export function updateAppMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<{ app: PublicApp }, AppFormValues> & { slug: string }) {
   return mutationOptions({
@@ -119,15 +127,21 @@ export function updateAppMutationOptions({
       ])
       onSuccess?.(data, variables)
     },
+    onError: (cause) => {
+      toast.error(translateError(t, cause, t.common.requestFailed))
+    },
   })
 }
 
-export function deleteAppMutationOptions({ queryClient, onSuccess }: MutationParams<unknown, string>) {
+export function deleteAppMutationOptions({ queryClient, t, onSuccess }: MutationParams<unknown, string>) {
   return mutationOptions({
     mutationFn: (slug: string) => api.delete(appPath(slug)),
     onSuccess: async (data, variables) => {
       await queryClient.invalidateQueries({ queryKey: appKeys.all() })
       onSuccess?.(data, variables)
+    },
+    onError: (cause) => {
+      toast.error(translateError(t, cause, t.common.requestFailed))
     },
   })
 }
@@ -139,9 +153,10 @@ export function testStorageMutationOptions() {
 }
 
 /** Every app-scoped change refreshes that app's detail view, nothing else. */
-function appScopedMutationOptions<TData, TVariables>({
+export function appScopedMutationOptions<TData, TVariables>({
   slug,
   queryClient,
+  t,
   mutationFn,
   onSuccess,
 }: MutationParams<TData, TVariables> & {
@@ -154,17 +169,22 @@ function appScopedMutationOptions<TData, TVariables>({
       await queryClient.invalidateQueries({ queryKey: appKeys.detail(slug) })
       onSuccess?.(data, variables)
     },
+    onError: (cause) => {
+      toast.error(translateError(t, cause, t.common.requestFailed))
+    },
   })
 }
 
 export function createChannelMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, string> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: (name: string) => api.post(appPath(slug, '/channels'), { name }),
   })
@@ -173,11 +193,13 @@ export function createChannelMutationOptions({
 export function deleteChannelMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, string> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: (channel: string) => api.delete(appPath(slug, `/channels/${encodeURIComponent(channel)}`)),
   })
@@ -186,11 +208,13 @@ export function deleteChannelMutationOptions({
 export function setCurrentVersionMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, SetCurrentVersionVariables> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: ({ channel, version }: SetCurrentVersionVariables) =>
       api.patch(appPath(slug, `/channels/${encodeURIComponent(channel)}`), { currentVersion: version }),
@@ -200,11 +224,13 @@ export function setCurrentVersionMutationOptions({
 export function deleteVersionMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, { channel: string; version: string }> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: ({ channel, version }) =>
       api.delete(appPath(slug, `/channels/${encodeURIComponent(channel)}/versions/${encodeURIComponent(version)}`)),
@@ -214,11 +240,13 @@ export function deleteVersionMutationOptions({
 export function createApiKeyMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<CreatedApiKey, string> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: (name: string) => api.post<CreatedApiKey>(appPath(slug, '/keys'), { name }),
   })
@@ -227,11 +255,13 @@ export function createApiKeyMutationOptions({
 export function revokeApiKeyMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, number> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: (keyId: number) => api.delete(appPath(slug, `/keys/${keyId}`)),
   })
@@ -240,11 +270,13 @@ export function revokeApiKeyMutationOptions({
 export function deleteApiKeyMutationOptions({
   slug,
   queryClient,
+  t,
   onSuccess,
 }: MutationParams<unknown, number> & { slug: string }) {
   return appScopedMutationOptions({
     slug,
     queryClient,
+    t,
     onSuccess,
     mutationFn: (keyId: number) => api.delete(appPath(slug, `/keys/${keyId}?mode=delete`)),
   })
