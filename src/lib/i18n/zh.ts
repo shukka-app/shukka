@@ -11,6 +11,7 @@ export const zh = {
     testingConnection: '正在测试…',
     testPassed: '连接正常——存储桶可写。',
     copyToClipboard: '复制到剪贴板',
+    copyFailed: '无法复制到剪贴板',
     delete: '删除',
     cancel: '取消',
     confirm: '确认',
