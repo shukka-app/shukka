@@ -37,7 +37,8 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite via
 | `npm start` | Run the built server |
 | `npm run check` | `lint` + `typecheck` + `test` — run before commit |
 | `npm run lint` | oxlint |
-| `npm run typecheck` | `tsc -b` (needs `src/routeTree.gen.ts`, produced by a build or dev run) |
+| `npm run generate:routes` | `tsr generate` — writes gitignored `src/routeTree.gen.ts` |
+| `npm run typecheck` | `tsc -b` (npm `pretypecheck` generates the route tree first) |
 | `npm test` | vitest |
 | `npm run test:e2e` | electron-updater against a live instance (`SHUKKA_URL`) |
 | `npm run test:e2e:rollback` | Publish two releases, PATCH rollback, then feed + electron-updater (`SHUKKA_URL`, `SHUKKA_API_KEY`) |
@@ -89,6 +90,6 @@ This harness was installed by `hnm init`.
 
 Dependencies are installed by the environment update script (`npm install`). Standard scripts live in the `# Commands` table above and in `README.md`; the notes below are only the non-obvious gotchas.
 
-- `npm run typecheck` needs the generated `src/routeTree.gen.ts`. It is produced by a build or a dev run, so run `npm run build` (or start `npm run dev`) at least once before `tsc -b`.
+- `npm run typecheck` self-generates the route tree via `pretypecheck` (`tsr generate`).
 - `npm run dev` serves the panel + API on `:3000`. On a fresh database the root redirects to `/setup` to set the admin password before login.
 - Creating an app end-to-end requires a reachable S3-compatible endpoint — the creation wizard validates bucket connectivity ("Verifying bucket…") and blocks with "Could not reach storage" otherwise. For local manual testing, run MinIO or `npm run juicefs` (the same backends the CI S3 matrix uses) and in the wizard pick that provider. MinIO / JuiceFS both need **path-style** addressing (the wizard sets it).
