@@ -40,7 +40,7 @@ export type InitResult = {
 }
 
 function assertFilename(filename: string): void {
-  if (!filename || filename.includes('/') || filename.includes('\\') || filename.startsWith('.')) {
+  if (!filename || filename.includes('/') || filename.includes('\\') || filename.startsWith('.') || filename.includes('..')) {
     throw new ShukkaError('invalid_request', `Invalid artifact filename: "${filename}"`)
   }
 }

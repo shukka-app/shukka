@@ -601,6 +601,17 @@ describe('input validation', () => {
       }),
     ).rejects.toThrow(/Invalid artifact filename/)
   })
+
+  it('rejects artifact filenames containing ..', async () => {
+    const app = await createApp(appInput)
+    await expect(
+      initUpload(app, {
+        channel: 'stable',
+        version: '1.0.0',
+        files: [{ filename: 'app..v2.yml' }],
+      }),
+    ).rejects.toThrow(/Invalid artifact filename/)
+  })
 })
 
 describe('metadata consistency', () => {
