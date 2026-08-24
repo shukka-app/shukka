@@ -1,5 +1,5 @@
 import './setup-db.ts'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/lib/storage.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('~/lib/storage.ts')>()
@@ -9,7 +9,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
 const { db } = await import('~/db/index.ts')
 const { admin, apiKeys, apps, sessions } = await import('~/db/schema.ts')
 const auth = await import('~/lib/auth.ts')
-const { resetRateLimitForTests } = await import('~/lib/rate-limit.ts')
+const { resetRateLimitForTests, clientIp, isLimited, recordFailure, recordSuccess } = await import('~/lib/rate-limit.ts')
 const { createApp } = await import('~/server/apps.ts')
 const appsServer = await import('~/server/apps.ts')
 const { ShukkaError } = await import('~/lib/errors.ts')
@@ -238,19 +238,27 @@ describe('api keys', () => {
 })
 
 describe('login rate limit', () => {
+  const previousTrustProxy = process.env.SHUKKA_TRUST_PROXY
+
   beforeEach(() => {
     db.delete(admin).run()
     db.delete(sessions).run()
     resetRateLimitForTests()
+    delete process.env.SHUKKA_TRUST_PROXY
     auth.initializeAdmin('correct horse battery')
   })
 
-  async function postLogin(password: string) {
+  afterEach(() => {
+    if (previousTrustProxy === undefined) delete process.env.SHUKKA_TRUST_PROXY
+    else process.env.SHUKKA_TRUST_PROXY = previousTrustProxy
+  })
+
+  async function postLogin(password: string, headers: Record<string, string> = {}) {
     const POST = routeHandler(loginRoute.Route, 'POST')
     return POST({
       request: new Request('http://localhost:3000/api/admin/login', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify({ password }),
       }),
       params: {},
@@ -282,5 +290,41 @@ describe('login rate limit', () => {
   it('accepts the correct password before 10 failures', async () => {
     const response = await postLogin('correct horse battery')
     expect(response.status).toBe(200)
+  })
+
+  it('ignores forwarding headers unless SHUKKA_TRUST_PROXY is set', async () => {
+    for (let i = 0; i < 10; i++) {
+      const response = await postLogin('wrong', { 'x-forwarded-for': `1.0.0.${i}` })
+      expect(response.status).toBe(401)
+    }
+    const limited = await postLogin('wrong', { 'x-forwarded-for': '9.9.9.9' })
+    expect(limited.status).toBe(429)
+    expect(isLimited(clientIp(new Request('http://localhost/', { headers: { 'x-forwarded-for': '203.0.113.1' } })))).toBe(
+      true,
+    )
+  })
+
+  it('keys on the rightmost X-Forwarded-For hop when SHUKKA_TRUST_PROXY is set', async () => {
+    process.env.SHUKKA_TRUST_PROXY = '1'
+    const proxied = (xff: string) =>
+      new Request('http://localhost/', { headers: { 'x-forwarded-for': xff } })
+
+    expect(clientIp(proxied('attacker, 10.0.0.9'))).toBe('10.0.0.9')
+
+    for (let i = 0; i < 10; i++) {
+      const response = await postLogin('wrong', { 'x-forwarded-for': 'attacker, 10.0.0.9' })
+      expect(response.status).toBe(401)
+    }
+    expect((await postLogin('wrong', { 'x-forwarded-for': 'other, 10.0.0.9' })).status).toBe(429)
+    expect((await postLogin('wrong', { 'x-forwarded-for': 'attacker, 10.0.0.8' })).status).toBe(401)
+  })
+
+  it('limits every key after the global failure backstop', () => {
+    process.env.SHUKKA_TRUST_PROXY = '1'
+    for (let i = 0; i < 101; i++) {
+      recordFailure(`203.0.113.${i}`)
+    }
+    recordSuccess('203.0.113.0')
+    expect(isLimited('198.51.100.1')).toBe(true)
   })
 })
