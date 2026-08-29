@@ -18,7 +18,7 @@ Shukka 是单管理员自托管服务。仓库已有 `Dockerfile` 和 README 里
 
 ## Non-goals
 
-- 本 PRD 不改运行时代码，也不发明 `SHUKKA_PUBLIC_URL`。Compose / Ansible 示例见 `docs/prd/deploy-examples.md`；健康探针与 GHCR 发布见 `docs/prd/health-endpoint.md`、`docs/prd/container-image.md`。
+- 不发明 `SHUKKA_PUBLIC_URL`。加密密钥来源（filepath / value / 默认文件）是本指南的运行时合同，实现见 `docs/adr/encryption-key-source.md`。Compose / Ansible 示例见 `docs/prd/deploy-examples.md`；健康探针与 GHCR 发布见 `docs/prd/health-endpoint.md`、`docs/prd/container-image.md`。
 - 不把 Shukka 做成多实例/HA，也不引入 Postgres。
 - 不写「如何把桌面应用接到 feed」——那是 shukka-ops，不是本机部署。
 - 不提供托管 SaaS。
@@ -106,13 +106,17 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 |------|------|------|
 | `PORT` 或 `NITRO_PORT` | `3000` | HTTP 端口（Nitro：`NITRO_PORT` 优先） |
 | `HOST` 或 `NITRO_HOST` | 未设（听全部地址） | 绑定地址 |
-| `SHUKKA_DATA_DIR` | `./data`（镜像内 `/data`） | SQLite 与加密密钥目录 |
+| `SHUKKA_DATA_DIR` | `./data`（镜像内 `/data`） | SQLite 目录；未设置下方密钥变量时也是 `encryption.key` 的自动生成位置 |
 | `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径 |
-| `SHUKKA_KEY_PATH` | `{data}/encryption.key` | 覆盖 S3 secret 的 AES 密钥文件 |
+| `SHUKKA_ENCRYPTION_KEY_FILEPATH` | 未设 | 从该文件读取 S3 secret 的 AES 密钥（64 位 hex，32 字节）。设置后只读该文件，不自动生成；路径不是数据目录时不写 `./data` |
+| `SHUKKA_ENCRYPTION_KEY` | 未设 | 直接提供同一格式的密钥。设置后不写密钥文件 |
+| `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
+
+`SHUKKA_ENCRYPTION_KEY` 与 `SHUKKA_ENCRYPTION_KEY_FILEPATH` **只能设其中一个**。都未设则保持今天的默认：首次启动在 `{SHUKKA_DATA_DIR}/encryption.key` 生成密钥。空值或非法 hex 拒绝启动。
 
 仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
 
@@ -142,7 +146,9 @@ CI 与桌面客户端必须能访问该 endpoint（上传 PUT、下载跟 302）
 
 ## 备份与升级
 
-**备份边界是整个数据目录**（默认 `./data` / `/data`）：`shukka.db`、WAL（`shukka.db-wal` / `shukka.db-shm`）、`encryption.key`。只拷数据库、丢掉密钥，就解不开已存的 S3 secret。
+**默认与文件模式的备份边界是整个数据目录**（默认 `./data` / `/data`）：`shukka.db`、WAL（`shukka.db-wal` / `shukka.db-shm`）、以及 `encryption.key`（或 `SHUKKA_ENCRYPTION_KEY_FILEPATH` / `SHUKKA_KEY_PATH` 指向的文件）。只拷数据库、丢掉密钥，就解不开已存的 S3 secret。
+
+**`SHUKKA_ENCRYPTION_KEY` 模式**：备份是数据库目录 **加上** 该环境变量里的密钥。丢掉这个值同样解不开已存 S3 secret；进程不会在数据目录写密钥文件。
 
 建议停写后拷整个目录，或：
 
@@ -150,7 +156,7 @@ CI 与桌面客户端必须能访问该 endpoint（上传 PUT、下载跟 302）
 sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 ```
 
-并同时复制 `encryption.key`。制品在各 app 的 bucket 里，单独做 bucket 版本或生命周期，不在数据目录里。
+并同时复制密钥文件（默认 `encryption.key`，或你设置的 filepath）。制品在各 app 的 bucket 里，单独做 bucket 版本或生命周期，不在数据目录里。
 
 升级：拉新镜像或 `git pull && npm ci && npm run build`，停旧进程，同一数据目录启动新进程。启动时若 cwd 下存在 `drizzle/` 会自动 migrate。同一数据目录不要跑两个 Shukka 进程。回滚：换回旧镜像/旧构建，保留数据目录；不要对生产库跑 `db:generate`。
 
@@ -189,7 +195,8 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | 现象 | 原因与处理 |
 |------|------------|
 | 重启后回到 setup | 数据卷没挂上，或 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指向空目录 |
-| 能登录但改/建 app 报 storage 错，S3 secret 怪 | 只恢复了 `.db`，没有同目录的 `encryption.key` |
+| 能登录但改/建 app 报 storage 错，S3 secret 怪 | 只恢复了 `.db`，没有同目录的 `encryption.key`（或 filepath 指向的文件）；或用了 `SHUKKA_ENCRYPTION_KEY` 但恢复后没设同一个值 |
+| 进程立刻退出，日志提到 encryption key | 同时设了 `SHUKKA_ENCRYPTION_KEY` 与 filepath（含弃用的 `SHUKKA_KEY_PATH`）；FILEPATH 与 `SHUKKA_KEY_PATH` 不是同一路径；或密钥为空 / 不是 64 位 hex / filepath 文件不存在 |
 | 启动后表结构旧 | 进程 cwd 下没有 `drizzle/`（没从应用根启动，或镜像没 `COPY drizzle`） |
 | 创建 app：`storage_error` | 凭证、bucket、endpoint、path-style，或 Shukka 主机到 S3 不通 |
 | CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或 Tauri feed 里的 `url` 是 `http://`（见 TLS 节）。HTTP endpoint 还须使用者在 tauri.conf 打开 `dangerousInsecureTransportProtocol` |
@@ -200,7 +207,8 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 
 - [x] 按主路径（Docker + `/data` 卷）可以从零启动，首次打开进入 setup。
 - [x] 文档列出的环境变量与代码 / Nitro 运行时一致；没有把 S3 或管理员密码写成必填环境变量。
-- [x] 备份说明包含 SQLite **和** `encryption.key`；只备份其一被标为失败模式。
+- [x] 备份说明包含 SQLite **和** 密钥（默认/`FILEPATH` 下的文件，或 `SHUKKA_ENCRYPTION_KEY` 的值）；只备份其一被标为失败模式。
+- [x] 文档写明密钥三选一：未设则 `{data}/encryption.key` 自动生成；只设 filepath 则只读该文件；只设 value 则不写密钥文件；两新变量同时设、或与弃用别名冲突、或非法 hex，进程不起。
 - [x] 探活用 `GET /api/health`；初始化态仍可用 `GET /api/admin/session`。
 - [x] 写明 serverless / 无持久盘 / 多副本 SQLite 不适合。
 - [x] 写明 cwd 与 `./drizzle` 自动迁移的关系。
@@ -208,6 +216,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 ## Resolved product decisions
 
 - 主路径是自建单机 Docker，不是 PaaS 优先。
+- S3 加密密钥默认仍自动生成到数据目录；运维可改用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 或 `SHUKKA_ENCRYPTION_KEY` 二选一（见 `docs/adr/encryption-key-source.md`）。`SHUKKA_KEY_PATH` 保留一个版本作 filepath 别名。
 - 管理员密码只在面板首次设置，不从环境变量注入（与 `docs/adr/auth-model.md` 一致）。
 - Compose / Ansible 示例见 `docs/prd/deploy-examples.md`。健康探针与 GHCR 发布已另立 PRD。
 - Tauri 在反代后 origin 为 http 的问题按运行时限制记录，不发明 `SHUKKA_PUBLIC_URL`。

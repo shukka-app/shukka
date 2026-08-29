@@ -6,6 +6,8 @@ import { join } from 'node:path'
 const dir = mkdtempSync(join(tmpdir(), 'shukka-test-'))
 process.env.SHUKKA_DATA_DIR = dir
 process.env.SHUKKA_DB_PATH = join(dir, 'test.db')
-process.env.SHUKKA_KEY_PATH = join(dir, 'test.key')
+delete process.env.SHUKKA_ENCRYPTION_KEY
+delete process.env.SHUKKA_ENCRYPTION_KEY_FILEPATH
+delete process.env.SHUKKA_KEY_PATH
 
 export const testDataDir = dir

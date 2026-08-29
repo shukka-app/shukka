@@ -11,7 +11,7 @@ Shukka 是面板 + 上传 API + 更新 feed 的同一个 TanStack Start / Nitro 
 ## Decision
 
 1. **一个 Node 进程**跑 `node .output/server/index.mjs`（`npm start`）。不拆面板/API/feed，不做多副本抢同一 SQLite 文件。
-2. **一块持久盘**挂到 `SHUKKA_DATA_DIR`（镜像默认 `/data`）。目录内是完整备份边界：`shukka.db`（WAL）、`encryption.key`。
+2. **一块持久盘**挂到 `SHUKKA_DATA_DIR`（镜像默认 `/data`）。默认备份边界是该目录：`shukka.db`（WAL）、`encryption.key`。用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 时还要备份该文件；用 `SHUKKA_ENCRYPTION_KEY` 时备份边界是目录 **加上** 该 secret（进程不写密钥文件）。见 [encryption-key-source](encryption-key-source.md)。
 3. **推荐分发**：仓库根 `Dockerfile`——Debian 构建阶段装编译链后 `npm ci` + `vite build`（Nitro 把 `better-sqlite3` 官方 prebuild 追进 `.output/`），Alpine 运行阶段只拷贝 `.output/` 和 `drizzle/`。不在运行镜像里再装一份生产 `node_modules`。启动时自动 migrate。
 4. **对象存储在进程外**，按 app 在面板配置。镜像不捆绑 MinIO。
 5. TLS 默认由反代终结；进程也可读 Nitro 的 `NITRO_SSL_*`，但不作为主路径。
