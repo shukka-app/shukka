@@ -20,7 +20,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Pending upload**: init 之后、finalize 之前的上传事务，对 feed 不可见。
 - **Hit bucket**: 按 version × kind（metadata/artifact）× UTC 小时预聚合的命中计数；随所属 version 级联删除，永久保留。
 - **Release note**: 挂在单个 version 上的可变元数据，按 locale（BCP-47）一条一记；源文为 Markdown，读取面同时提供 `markdown` / `html`（消毒）/ `text` 三种表示；随所属 version 级联删除。
-- **Locale fallback chain**: notes 查询的 locale 解析顺序——请求 locale 精确匹配 → app 配置的回退 locale（缺省 `en-US`）→ 第一个可用 locale → 该版本省略 note。
+- **Locale fallback chain**: notes 查询的 locale 解析顺序——请求 locale 精确匹配 → app 配置的回退 locale（缺省 `en-US`）→ 第一个可用 locale → 该版本省略 note。比较按 BCP-47 规范化形式进行（`en-us` 与 `en-US` 视为同一 locale）。
 - **Locale**: 面板 UI 语言，`en`（源语言与回退）或 `zh`；per-browser 存于 cookie。
 - **Theme preference**: 面板明暗主题偏好（light / dark）；per-browser 存于 cookie，无记录时跟随系统。
 - **View role**: 面板视图角色（admin / developer / content）；per-browser 存于 cookie，仅控制面板 UI 入口可见性，纯前端，无鉴权语义。
