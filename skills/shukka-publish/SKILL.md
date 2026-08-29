@@ -1,11 +1,11 @@
 ---
 name: shukka-publish
-description: Publish an Electron app's electron-builder output directory as a release to a self-hosted Shukka update server over its HTTP upload API (init, presigned S3 PUT, finalize). Use when asked to build, upload, publish, ship, or cut a release or version of an Electron app with Shukka, or when wiring electron-updater publishing to a Shukka update feed.
+description: Publish an Electron, Tauri, or Sparkle output directory as a release to a self-hosted Shukka update server over its HTTP upload API (init, presigned S3 PUT, finalize). Use when asked to build, upload, publish, ship, or cut a release or version with Shukka, or when wiring electron-updater, plugin-updater, or Sparkle publishing to a Shukka update feed.
 ---
 
-# Publish an Electron release with Shukka
+# Publish a release with Shukka
 
-Shukka is a self-hosted release manager for electron-updater: a panel plus an upload API, with artifacts stored in S3-compatible storage. This skill publishes an electron-builder output directory as a new version of an app and flips a channel to it.
+Shukka is a self-hosted release manager for electron-updater, Tauri plugin-updater, and Sparkle: a panel plus an upload API, with artifacts stored in S3-compatible storage. This skill publishes an output directory as a new version of an app and flips a channel to it.
 
 This skill ships with the Shukka repository and is deliberately generic — it is not tied to one server, app, or channel.
 
@@ -26,16 +26,16 @@ JSON request bodies; errors come back as `{ "error": <code>, "message": <string>
    ```json
    { "app": "<appSlug>", "channel": "<channel>", "version": "<version>", "files": [{ "filename": "<name>", "size": <bytes> }] }
    ```
-   The file list is the adapter-collected output. Electron: installers, `*.blockmap`, `latest*.yml` in a flat directory (at least one `.yml`). Tauri: updater artifacts with matching `.sig` (and optional `latest.json`) from `bundle/` or a platform subdir; `*.AppDir` is skipped. The response contains `uploadId` and, per file, a presigned `uploadUrl`.
+   The file list is the adapter-collected output. Electron: installers, `*.blockmap`, `latest*.yml` in a flat directory (at least one `.yml`). Tauri: updater artifacts with matching `.sig` (and optional `latest.json`) from `bundle/` or a platform subdir; `*.AppDir` is skipped. Sparkle: `appcast.xml` and/or a zip/dmg plus a matching `.sig` from `sign_update`. The response contains `uploadId` and, per file, a presigned `uploadUrl`.
 2. **Upload** — `PUT` each file's raw bytes to its `uploadUrl` (direct to S3; URLs expire one hour after init). Send the exact byte count as `content-length`.
-3. **Finalize** — `POST {baseUrl}/api/v1/upload/finalize` with the same auth header and body `{ "uploadId": "<id>", "app": "<appSlug>" }`. This creates a **draft** by default (feed unchanged). Pass `"release": true` to write `releasedAt` and flip the channel current version in the same call. A yml whose `version` disagrees with the declared version fails the whole release.
+3. **Finalize** — `POST {baseUrl}/api/v1/upload/finalize` with the same auth header and body `{ "uploadId": "<id>", "app": "<appSlug>" }`. This creates a **draft** by default (feed unchanged). Pass `"release": true` to write `releasedAt` and flip the channel current version in the same call. Metadata whose declared version disagrees with the upload version fails the whole release. Sparkle declares version as `sparkle:shortVersionString` when present, otherwise `sparkle:version`, and the uploaded appcast must contain exactly one `<item>`.
 
 To promote a draft later: `PATCH {baseUrl}/api/v1/apps/{appSlug}/channels/{channel}` with `{ "currentVersion": "<version>" }` and the same API key.
 
 ## Steps
 
-1. Build the app with electron-builder; the output directory (usually `dist/`) is what gets published.
-2. Read the version unless the user gave one explicitly. Electron: `version:` in `latest*.yml`. Tauri: `latest.json` `"version"`, else the nearest `tauri.conf.json`, else a `_1.0.0_` token in an artifact filename. Do not invent a `latest.json`.
+1. Build the app. Electron: electron-builder output (usually `dist/`). Tauri: updater bundle directory. Sparkle: archive plus `sign_update` sidecar and/or `appcast.xml`.
+2. Read the version unless the user gave one explicitly. Electron: `version:` in `latest*.yml`. Tauri: `latest.json` `"version"`, else the nearest `tauri.conf.json`, else a `_1.0.0_` token in an artifact filename. Do not invent a `latest.json`. Sparkle: `sparkle:shortVersionString` / `sparkle:version` in `appcast.xml`, else an `App-1.4.2.zip` filename token.
 3. Run the publish protocol above against the output directory.
 4. If the user asked to go live immediately, pass `release: true` on finalize (or the Action input `release: true`). Otherwise leave it as a draft and say so.
-5. Verify a live release with `GET {baseUrl}/api/update/{appSlug}/{channel}/latest.yml` (no auth). A draft is invisible there — that is expected. Report the version, channel, and whether it is draft or live.
+5. Verify a live release with `GET {baseUrl}/api/update/{appSlug}/{channel}/latest.yml` (Electron), the channel root or `latest.json` (Tauri), or the channel root or `appcast.xml` (Sparkle). No auth. A draft is invisible there — that is expected. Report the version, channel, and whether it is draft or live.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Publishes an electron-builder or Tauri output directory to Shukka as one version.
+ * Publishes an electron-builder, Tauri, or Sparkle output directory to Shukka as one version.
  *
  * Protocol (docs/adr/presigned-direct-upload.md):
  *   init -> presigned PUT per file -> direct upload to S3 -> finalize
@@ -13,6 +13,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectElectronFiles, inferElectronVersion } from './updaters/electron.mjs'
 import { detectUpdaterKind, fail, kindFromFilenames } from './updaters/shared.mjs'
+import { collectSparkleFiles, inferSparkleVersion } from './updaters/sparkle.mjs'
 import { collectTauriFiles, inferTauriVersion } from './updaters/tauri.mjs'
 
 const MAX_ATTEMPTS = 3
@@ -35,12 +36,14 @@ export { detectUpdaterKind, fail }
 export async function collectFiles(directory, kind) {
   const resolved = kind ?? (await detectUpdaterKind(directory))
   if (resolved === 'tauri') return collectTauriFiles(directory)
+  if (resolved === 'sparkle') return collectSparkleFiles(directory)
   return collectElectronFiles(directory)
 }
 
 export async function versionFromMetadata(files, directory, kind) {
   const resolved = kind ?? kindFromFilenames(files.map((file) => file.filename)) ?? 'electron'
   if (resolved === 'tauri') return inferTauriVersion(files, directory)
+  if (resolved === 'sparkle') return inferSparkleVersion(files)
   return inferElectronVersion(files)
 }
 

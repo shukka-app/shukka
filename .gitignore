@@ -31,4 +31,6 @@ src/routeTree.gen.ts
 tests/e2e/client/dev-app-update.yml
 tests/e2e/tauri-app/src-tauri/target
 tests/e2e/tauri-app/src-tauri/gen
+tests/e2e/sparkle-check/.build
+tests/e2e/sparkle-check/.swiftpm
 tsconfig.tsbuildinfo

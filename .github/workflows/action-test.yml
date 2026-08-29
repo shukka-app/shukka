@@ -51,8 +51,9 @@ permissions:
 #
 # publish-windows starts MinIO from the official binary (hosted Windows has no
 # Docker) and exercises the JavaScript action — no bash — plus electron-updater.
-# JuiceFS stays on the Ubuntu matrix: its CI gateway is the Docker image used
-# by scripts/juicefs-dev.mjs.
+# sparkle-updater does the same on macos-latest with Sparkle.framework
+# (check + download, no install). JuiceFS stays on the Ubuntu matrix: its CI
+# gateway is the Docker image used by scripts/juicefs-dev.mjs.
 jobs:
   publish:
     name: Publish (${{ matrix.s3 }})
@@ -269,3 +270,63 @@ jobs:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
           SHUKKA_APP: demo-tauri
+
+  sparkle-updater:
+    name: Sparkle updater (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      SHUKKA_URL: ${{ vars.SHUKKA_URL || 'http://localhost:3000' }}
+      MINIO_URL: ${{ vars.MINIO_URL || 'http://localhost:9000' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Start MinIO
+        if: ${{ !env.ACT }}
+        run: node .github/scripts/start-minio.mjs
+
+      - name: Build and start Shukka
+        if: ${{ !env.ACT }}
+        run: |
+          npm ci
+          npm run build
+          node .github/scripts/start-server.mjs
+
+      - name: Provision a Sparkle app
+        id: provision
+        env:
+          SHUKKA_APP: demo-sparkle
+          SHUKKA_UPDATER_KIND: sparkle
+        run: node .github/scripts/provision.mjs
+
+      - name: Sign a Sparkle archive
+        id: sign
+        env:
+          SHUKKA_DIRECTORY: out
+          SHUKKA_VERSION: 2.0.${{ github.run_number }}
+        run: node tests/e2e/prepare-sparkle-release.mjs
+
+      - name: Publish with the action
+        id: publish
+        uses: ./
+        with:
+          server-url: ${{ env.SHUKKA_URL }}
+          api-key: ${{ steps.provision.outputs.api-key }}
+          app: demo-sparkle
+          channel: stable
+          directory: out
+          updater-kind: sparkle
+          release: true
+
+      - name: Sparkle.framework check and download
+        run: node tests/e2e/run-sparkle-macos.mjs
+        env:
+          SHUKKA_URL: ${{ env.SHUKKA_URL }}
+          SHUKKA_APP: demo-sparkle
+          E2E_VERSION: ${{ steps.publish.outputs.version }}
+          E2E_PUBLIC_KEY: ${{ steps.sign.outputs.public-key }}

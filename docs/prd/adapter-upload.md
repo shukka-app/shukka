@@ -12,7 +12,7 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 
 ## Users
 
-- **CI / Action users**: point `directory` at electron-builder `dist/` or Tauri `bundle/` (or a platform subdir) and get a publishable file list plus a version without inventing metadata.
+- **CI / Action users**: point `directory` at electron-builder `dist/`, Tauri `bundle/` (or a platform subdir), or a Sparkle output directory and get a publishable file list plus a version without inventing metadata.
 - **Standalone CLI users**: same script via `SHUKKA_*` env vars.
 - **Server / feed**: unchanged; still validates with the app’s `updaterKind`.
 
@@ -23,6 +23,7 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 3. Tauri collect understands `bundle/` and known platform subdirs; publishes **basenames** (flat S3 / feed names); skips `*.AppDir/`, extract trees, and shared libraries.
 4. Tauri publish does **not** require `latest.json` and must **not** synthesize one.
 5. Kind is inferred from files, with an optional override; the server still validates against the app’s `updaterKind`.
+6. Sparkle collect is a flat directory (`appcast.xml`, archives, matching `.sig`); version from `appcast.xml` then an `App-1.4.2.zip` filename token. See `docs/prd/sparkle-updater.md`.
 
 ## Non-goals
 
@@ -41,7 +42,7 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 ## Flow
 
 1. Read `directory` (`SHUKKA_DIRECTORY` / Action `directory`, default `dist`).
-2. Resolve kind: optional `SHUKKA_UPDATER_KIND` / Action `updater-kind`, else infer from files in that directory (`yml` → electron; `.sig` / `latest.json` / known bundle layout → tauri; else electron).
+2. Resolve kind: optional `SHUKKA_UPDATER_KIND` / Action `updater-kind`, else infer from files in that directory (`yml` → electron; `appcast.xml` or a Sparkle archive+.sig pair → sparkle; `.sig` / `latest.json` / known bundle layout → tauri; else electron).
 3. Dispatch collect to the kind’s collector.
 4. If the file list is empty, fail (`No files to publish`).
 5. Resolve version: explicit `SHUKKA_VERSION` / Action `version`, else the kind’s inference.
@@ -53,7 +54,8 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 - Tauri basename collision (same filename from two platform dirs): fail, naming both paths.
 - Tauri version cannot be inferred: fail with a message that names `SHUKKA_VERSION` / Action `version`, `latest.json`, nearest `tauri.conf.json`, and a `_1.0.0_` filename token.
 - Electron version cannot be inferred: fail, requiring `latest*.yml` `version:` (or an explicit version).
-- Server still rejects a file list that does not satisfy the app’s `updaterKind` (Electron needs a `.yml`; Tauri needs `latest.json` and/or artifact + `.sig` pairs).
+- Sparkle version cannot be inferred: fail, naming `SHUKKA_VERSION` / Action `version`, `appcast.xml`, and an `App-1.4.2.zip` filename token.
+- Server still rejects a file list that does not satisfy the app’s `updaterKind` (Electron needs a `.yml`; Tauri needs `latest.json` and/or artifact + `.sig` pairs; Sparkle needs `appcast.xml` and/or archive + `.sig`).
 - Drafts still 404 on the public feed.
 
 ## Acceptance criteria
@@ -70,7 +72,8 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 - Adapters own uploader-side collect + version; server adapters remain the source of upload/feed *rules*.
 - Do not require or synthesize `latest.json`. Official `tauri build` does not write it; the server-generated feed is the product contract. If the user uploads official `latest.json`, existing rewrite/inline-`.sig` behavior stays.
 - Tauri version order: explicit `SHUKKA_VERSION` / Action `version` → `latest.json` `version` → nearest `tauri.conf.json` `version` (walk up from the directory) → version token in artifact filename (`_1.0.0_`) → fail naming those options.
-- Kind detection prefers files; override is optional. Server still validates `updaterKind`.
+- Sparkle version order: explicit `SHUKKA_VERSION` / Action `version` → `appcast.xml` `sparkle:shortVersionString` (else `sparkle:version`) → `App-1.4.2.zip` filename token → fail naming those options.
+- Kind detection prefers files; override is optional. Server still validates `updaterKind`. yml wins over `.sig`. `appcast.xml` / a Sparkle archive+.sig pair wins over a lone `.sig` (still Tauri).
 - Publish basenames only; fail on collisions.
 - Recurse only into the known Tauri bundle layout (`appimage`, `macos`, `nsis`, `msi`, `deb`, `rpm`, `dmg`, `updater`, …). Skip `*.AppDir/`, extract trees, shared libraries.
 - Integration Action `directory` may stay `src-tauri/target/release/bundle` once the collector understands it.

@@ -1,11 +1,11 @@
 ---
 name: shukka-ops
-description: Operate a Shukka update platform over its HTTP API — create apps and channels, issue and revoke API keys, publish electron-builder releases, inspect versions and download counts, and wire electron-updater or GitHub Actions to a feed. Use when the user asks to publish a release, set up an update channel, create a Shukka app or API key, debug an update feed, or configure electron-updater against Shukka.
+description: Operate a Shukka update platform over its HTTP API — create apps and channels, issue and revoke API keys, publish Electron / Tauri / Sparkle releases, inspect versions and download counts, and wire an updater or GitHub Actions to a feed. Use when the user asks to publish a release, set up an update channel, create a Shukka app or API key, debug an update feed, or configure electron-updater, plugin-updater, or Sparkle against Shukka.
 ---
 
 # Shukka operations
 
-Shukka is a self-hosted release manager for `electron-updater` on S3. It has three
+Shukka is a self-hosted release manager for `electron-updater`, Tauri plugin-updater, and Sparkle on S3. It has three
 HTTP surfaces with three different authentication models:
 
 | Surface | Path | Auth |
@@ -19,9 +19,11 @@ Set `SHUKKA_URL` (e.g. `https://updates.example.com`) before running anything be
 ## Publish a release
 
 Prefer the bundled uploader over hand-rolling the protocol. It infers kind from
-the directory (yml → electron; `.sig` / `latest.json` / Tauri bundle layout → tauri)
-and reads the version from `latest*.yml` (Electron) or, for Tauri, `SHUKKA_VERSION`
-then `latest.json` then the nearest `tauri.conf.json` then a `_1.0.0_` filename token:
+the directory (yml → electron; `appcast.xml` or a Sparkle archive+.sig → sparkle;
+`.sig` / `latest.json` / Tauri bundle layout → tauri) and reads the version from
+`latest*.yml` (Electron), for Tauri `SHUKKA_VERSION` then `latest.json` then the
+nearest `tauri.conf.json` then a `_1.0.0_` filename token, or for Sparkle
+`appcast.xml` then an `App-1.4.2.zip` filename token:
 
 ```bash
 SHUKKA_SERVER_URL="$SHUKKA_URL" \
@@ -44,11 +46,11 @@ In CI, use the action instead:
     directory: dist
 ```
 
-Upload the **whole** electron-builder output directory: installers, `.blockmap`
-files, and every `latest*.yml`. Shukka serves the yml back byte-for-byte, so a
-missing platform yml means that platform silently never sees the update. For
-Tauri, point at `src-tauri/target/release/bundle` (or a platform subdir); the
-uploader collects artifact + `.sig` pairs and does not need `latest.json`.
+Upload the **whole** output directory. Electron: installers, `.blockmap`
+files, and every `latest*.yml`. Tauri: point at `src-tauri/target/release/bundle`
+(or a platform subdir); the uploader collects artifact + `.sig` pairs and does
+not need `latest.json`. Sparkle: `appcast.xml` and/or a zip/dmg plus a
+`sign_update` `.sig` sidecar. File rules follow the app's `updaterKind`.
 
 ### The raw protocol
 
@@ -112,11 +114,11 @@ No credentials belong in client configuration — the feed is public by design.
 
 Work outward from the feed, in this order:
 
-1. `curl -s "$SHUKKA_URL/api/update/{app}/{channel}/latest.yml"` — a 404 means the
-   channel has no current version, or that platform's yml was never uploaded.
-   macOS reads `latest-mac.yml`, Linux `latest-linux.yml`.
-2. Compare the `version` in the response against the installed app version.
-   electron-updater only offers strictly newer versions.
+1. `curl -s "$SHUKKA_URL/api/update/{app}/{channel}/latest.yml"` (Electron),
+   `…/latest.json` or the channel root (Tauri), `…/appcast.xml` or the channel
+   root (Sparkle). A 404 means the channel has no current published version.
+2. Compare the `version` / `sparkle:shortVersionString` in the response against
+   the installed app. electron-updater only offers strictly newer versions.
 3. `curl -sI "$SHUKKA_URL/api/update/{app}/{channel}/{installer-filename}"` — expect
    a `302`. A 404 means the installer named in the yml was not part of the upload.
 4. Check the channel's current version in the panel; a rollback may have repointed it.

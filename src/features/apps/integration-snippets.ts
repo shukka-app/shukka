@@ -93,6 +93,78 @@ npx skills add https://github.com/shukka-app/shukka/archive/${skillRef}.tar.gz -
   }
 }
 
+function sparkleSnippets({
+  app,
+  channelName,
+  feedUrl,
+  serverUrl,
+}: {
+  app: PublicApp
+  channelName: string
+  feedUrl: string
+  serverUrl: string
+}): Record<keyof IntegrationSnippets, { code: string; lang: HighlightLang }> {
+  const appcastUrl = `${feedUrl.replace(/\/+$/, '')}/appcast.xml`
+  return {
+    builderConfig: {
+      lang: 'xml',
+      code: `<!-- Info.plist -->
+<key>SUFeedURL</key>
+<string>${appcastUrl}</string>
+<key>SUPublicEDKey</key>
+<string>YOUR_EDDSA_PUBLIC_KEY</string>`,
+    },
+    mainProcess: {
+      lang: 'swift',
+      code: `import Sparkle
+
+// SUFeedURL + SUPublicEDKey come from Info.plist.
+// Sparkle compares sparkle:version and downloads the enclosure (a 302).
+let controller = SPUStandardUpdaterController(
+  startingUpdater: true,
+  updaterDelegate: nil,
+  userDriverDelegate: nil
+)`,
+    },
+    githubAction: {
+      lang: 'yaml',
+      code: `- uses: shukka-app/shukka@v1.0.2
+  with:
+    server-url: \${{ secrets.SHUKKA_URL }}
+    api-key: \${{ secrets.SHUKKA_API_KEY }}
+    app: ${app.slug}
+    channel: ${channelName}
+    directory: dist
+    # release: true   # omit to leave the version as a draft`,
+    },
+    httpApi: {
+      lang: 'bash',
+      code: `# 1. Init — appcast.xml and/or a zip/dmg + matching .sig from sign_update
+curl -X POST ${serverUrl}/api/v1/upload/init \\
+  -H "Authorization: Bearer $SHUKKA_API_KEY" \\
+  -H "content-type: application/json" \\
+  -d '{"app":"${app.slug}","channel":"${channelName}","version":"1.4.2","files":[{"filename":"appcast.xml"},{"filename":"App-1.4.2.zip"},{"filename":"App-1.4.2.zip.sig"}]}'
+
+# 2. Upload each file's bytes straight to S3
+curl -X PUT --data-binary @appcast.xml "<uploadUrl from init>"
+
+# 3. Finalize — creates a draft. Add "release":true to go live immediately.
+curl -X POST ${serverUrl}/api/v1/upload/finalize \\
+  -H "Authorization: Bearer $SHUKKA_API_KEY" \\
+  -H "content-type: application/json" \\
+  -d '{"uploadId":"<uploadId>","app":"${app.slug}"}'
+
+# Release notes (public, no auth) — only if the app enabled Release log
+curl "${serverUrl}/api/v1/apps/${app.slug}/channels/${channelName}/notes?from=1.0.0&locale=en-US"`,
+    },
+    agentCli: {
+      lang: 'bash',
+      code: `# Installs the Shukka publish skill into your coding agent (Claude Code, Cursor, Codex, ...)
+npx skills add https://github.com/shukka-app/shukka/archive/${skillRef}.tar.gz --skill shukka-publish`,
+    },
+  }
+}
+
 function tauriSnippets({
   app,
   channelName,
@@ -192,6 +264,9 @@ export function buildIntegrationSnippets({
 }): Record<keyof IntegrationSnippets, { code: string; lang: HighlightLang }> {
   if (app.updaterKind === 'tauri') {
     return tauriSnippets({ app, channelName, feedUrl, serverUrl })
+  }
+  if (app.updaterKind === 'sparkle') {
+    return sparkleSnippets({ app, channelName, feedUrl, serverUrl })
   }
   return electronSnippets({ app, channelName, feedUrl, serverUrl })
 }

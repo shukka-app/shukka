@@ -24,6 +24,7 @@ describe('classifyInstaller', () => {
     'App.exe.blockmap',
     'app.tar.gz.sig',
     'latest.json',
+    'appcast.xml',
     'App-1.0.0.zip',
     'notes.txt',
     'App.pkg',

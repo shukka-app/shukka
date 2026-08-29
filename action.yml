@@ -1,5 +1,5 @@
 name: 'Shukka Publish'
-description: 'Publish an electron-builder or Tauri output directory to a Shukka update channel'
+description: 'Publish an electron-builder, Tauri, or Sparkle output directory to a Shukka update channel'
 author: 'shukka-app'
 branding:
   icon: 'upload-cloud'
@@ -20,15 +20,15 @@ inputs:
     required: false
     default: 'stable'
   directory:
-    description: 'Build output directory. Electron: flat dist/ with installers, *.blockmap, and latest*.yml. Tauri: src-tauri/target/release/bundle or a platform subdir (appimage, macos, nsis, msi, …). latest.json is optional; *.AppDir and extract trees are skipped.'
+    description: 'Build output directory. Electron: flat dist/ with installers, *.blockmap, and latest*.yml. Tauri: src-tauri/target/release/bundle or a platform subdir (appimage, macos, nsis, msi, …). latest.json is optional; *.AppDir and extract trees are skipped. Sparkle: flat directory with appcast.xml and/or a zip/dmg plus a matching sign_update .sig.'
     required: false
     default: 'dist'
   version:
-    description: 'Release version. When omitted: Electron reads version: from latest*.yml. Tauri uses this input / SHUKKA_VERSION, then latest.json, then the nearest tauri.conf.json, then a _1.0.0_ token in the artifact filename.'
+    description: 'Release version. When omitted: Electron reads version: from latest*.yml. Tauri uses this input / SHUKKA_VERSION, then latest.json, then the nearest tauri.conf.json, then a _1.0.0_ token in the artifact filename. Sparkle uses appcast.xml (shortVersionString, else sparkle:version), then an App-1.4.2.zip filename token.'
     required: false
     default: ''
   updater-kind:
-    description: 'Optional electron or tauri override. When omitted, inferred from files (yml → electron; .sig / latest.json / known bundle layout → tauri). The server still validates against the app updaterKind.'
+    description: 'Optional electron, tauri, or sparkle override. When omitted, inferred from files (yml → electron; appcast.xml or Sparkle archive+.sig → sparkle; .sig / latest.json / known bundle layout → tauri). The server still validates against the app updaterKind.'
     required: false
     default: ''
   create-channel:

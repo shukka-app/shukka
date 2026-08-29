@@ -56,12 +56,13 @@ export const en = {
     notFoundDetail: 'It may have been deleted.',
     kindElectron: 'Electron',
     kindTauri: 'Tauri',
+    kindSparkle: 'Sparkle',
     firstRun: {
       title: 'Ship your first update',
       description:
-        'Shukka serves Electron and Tauri update feeds straight from your own storage. Three steps to a working update pipeline:',
+        'Shukka serves Electron, Tauri, and Sparkle update feeds straight from your own storage. Three steps to a working update pipeline:',
       step1Title: 'Create an app',
-      step1Detail: 'Pick Electron or Tauri, name it, and point it at an S3 bucket — AWS, R2, and MinIO all work.',
+      step1Detail: 'Pick Electron, Tauri, or Sparkle, name it, and point it at an S3 bucket — AWS, R2, and MinIO all work.',
       step2Title: 'Create an API key',
       step2Detail: 'One key per repository; it can only publish to its own app.',
       step3Title: 'Publish from CI',
@@ -146,7 +147,7 @@ export const en = {
     continue: 'Continue',
     back: 'Back',
     updaterKindLabel: 'Update client',
-    updaterKindRequired: 'Choose Electron or Tauri',
+    updaterKindRequired: 'Choose Electron, Tauri, or Sparkle',
     nameRequired: 'Name is required',
     slugHint: 'Slug must be lowercase letters, digits and dashes, starting with a letter or digit',
     bucketRequired: 'Bucket is required',
@@ -269,6 +270,15 @@ export const en = {
         'Linux AppImage: check and download work against this feed. Install replaces the running AppImage and requires a FUSE-mounted AppImage on the same mount as the temp directory. Extract-and-run, overlay filesystems, and many containers fail here — that is plugin-updater and the environment, not the feed. Shukka does not install the AppImage.',
       publishDetail:
         'Three ways to get the Tauri updater bundle directory up — pick whichever fits your pipeline. A successful upload is a draft the feed cannot see until you pass release: true or promote it.',
+    },
+    sparkle: {
+      step1Title: 'Point Sparkle at the feed',
+      step1Detail:
+        'Paste this public URL into SUFeedURL. No credentials — the feed is a one-item appcast for the current version.',
+      step2Title: 'Embed the EdDSA public key',
+      step2Detail:
+        'SUPublicEDKey is the public half of generate_keys. Shukka never stores the private key; sign_update runs in your CI.',
+      publishDetail: 'Three ways to get the Sparkle archive directory up — pick whichever fits your pipeline.',
     },
     publishTitle: 'Publish a release',
     githubActionTitle: 'GitHub Action',

@@ -10,7 +10,7 @@
 
 ## Goals
 
-1. `/apps/new` 第一步：用与存储相同的图标按钮选择更新系统（Electron / Tauri，必选、不预选），并填名称与 slug；未手改 slug 时由名称自动 slugify（拼音 + GitHub Slugger）。第二步选存储提供商，对应 S3 字段出现在选择器下方。第三步 Release log。
+1. `/apps/new` 第一步：用与存储相同的图标按钮选择更新系统（Electron / Tauri / Sparkle，必选、不预选），并填名称与 slug；未手改 slug 时由名称自动 slugify（拼音 + GitHub Slugger）。第二步选存储提供商，对应 S3 字段出现在选择器下方。第三步 Release log。
 2. Provider 预设把「该填什么」变成默认行为：每个 provider 只展示适用字段，隐藏字段由向导写入正确默认值。
 3. 每一步先自验再前进；最终提交的服务端错误映射回责任步骤并标出字段。
 4. 服务端契约不变：app 仍由一次 `POST /api/admin/apps` 创建，S3 写探测失败时数据库不留任何记录。
@@ -54,7 +54,7 @@
 
 ## Acceptance criteria
 
-- [ ] `/apps/new` 第一步同时选择更新系统（Electron / Tauri，必选、不预选）并填写名称与 slug；校验未通过时无法进入第二步。
+- [ ] `/apps/new` 第一步同时选择更新系统（Electron / Tauri / Sparkle，必选、不预选）并填写名称与 slug；校验未通过时无法进入第二步。
 - [ ] 第二步选择 provider 后，S3 字段直接出现在 provider 选择器下方，无第三个页面。
 - [ ] 四个 provider 的显示字段与隐藏字段默认值与上表一致（AWS：endpoint=`null`、path-style=`false`；R2：region=`auto`、path-style=`false`；MinIO：region=`us-east-1`、path-style=`true`；Other：显示全部字段）。
 - [ ] 输入后切换 provider，共有字段（bucket、prefix、access key、secret、双方都显示的 endpoint）保留已输入值。

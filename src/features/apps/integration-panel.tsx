@@ -31,7 +31,12 @@ export function IntegrationPanel({
   const feedUrl = channel?.feedUrl ?? `https://your-shukka-host/api/update/${app.slug}/stable`
   const serverUrl = feedUrl.replace(/\/api\/update\/.*$/, '')
 
-  const copy = app.updaterKind === 'tauri' ? t.integration.tauri : t.integration.electron
+  const copy =
+    app.updaterKind === 'tauri'
+      ? t.integration.tauri
+      : app.updaterKind === 'sparkle'
+        ? t.integration.sparkle
+        : t.integration.electron
   const steps = [
     {
       title: copy.step1Title,
@@ -45,8 +50,25 @@ export function IntegrationPanel({
     },
   ]
 
+  const sparkleActionPrompt = `Set up Sparkle self-updates for this macOS app using my Shukka instance.
+
+Facts:
+- Update feed (public, no auth): ${feedUrl}
+- Appcast URL (paste into SUFeedURL): ${feedUrl.replace(/\/+$/, '')}/appcast.xml
+- Channel: ${channelName}
+- App slug: ${app.slug}
+- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.0.2) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
+
+Do all of the following:
+1. In Info.plist, set SUFeedURL to the appcast URL above and SUPublicEDKey to the public key from Sparkle generate_keys. Do not enable SURequireSignedFeed — Shukka rewrites enclosure URLs.
+2. Start Sparkle with SPUStandardUpdaterController (or the equivalent) so the app checks the feed.
+3. Add a GitHub Actions workflow that signs the archive with sign_update and publishes that directory with the Shukka action (inputs: server-url, api-key, app, channel, directory). Version can be omitted when appcast.xml is in the directory.
+4. Tell me what manual steps remain (creating the API key, adding the secrets, embedding SUPublicEDKey).`
+
   const actionPrompt =
-    app.updaterKind === 'tauri'
+    app.updaterKind === 'sparkle'
+      ? sparkleActionPrompt
+      : app.updaterKind === 'tauri'
       ? `Set up Tauri plugin-updater self-updates for this app using my Shukka instance.
 
 Facts:
@@ -74,8 +96,31 @@ Do all of the following:
 3. Add a GitHub Actions workflow that builds the electron-builder output and publishes the dist directory with the Shukka action (inputs: server-url, api-key, app, channel, directory, release). Pass release: true to go live immediately. Omitting it creates a draft the feed cannot see — promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 4. Verify the config is coherent and tell me what manual steps remain (creating the API key, adding the secrets).`
 
+  const sparkleHttpPrompt = `Set up Sparkle self-updates for this macOS app using my Shukka instance, publishing over the raw HTTP API (no GitHub Action).
+
+Facts:
+- Update feed (public, no auth): ${feedUrl}
+- Appcast URL (paste into SUFeedURL): ${feedUrl.replace(/\/+$/, '')}/appcast.xml
+- Channel: ${channelName}
+- App slug: ${app.slug}
+- Shukka base URL: ${serverUrl}
+- Authentication: header \`Authorization: Bearer shk_...\` — I will create the API key in the panel and provide it to the CI environment myself; never hardcode it.
+
+Upload protocol (JSON bodies; errors are { "error": <code>, "message": <string> }):
+1. POST ${serverUrl}/api/v1/upload/init with { "app": "${app.slug}", "channel": "${channelName}", "version": "<version>", "files": [{ "filename": "<name>", "size": <bytes> }, ...] } — the file list is appcast.xml and/or a zip/dmg plus matching .sig from sign_update. The response contains uploadId and, per file, a presigned uploadUrl.
+2. PUT each file's raw bytes to its uploadUrl (direct to S3; URLs expire one hour after init).
+3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}" } — Shukka verifies the objects and creates a draft. Pass "release": true to go live in the same call. Promote later with PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
+
+Do all of the following:
+1. In Info.plist, set SUFeedURL to the appcast URL above and SUPublicEDKey to the generate_keys public key. Do not enable SURequireSignedFeed.
+2. Start Sparkle so the app checks the feed.
+3. Write a publish script (or CI step) that follows the upload protocol above against the Sparkle output directory.
+4. Tell me what manual steps remain (creating the API key, wiring it into CI, embedding SUPublicEDKey).`
+
   const httpApiPrompt =
-    app.updaterKind === 'tauri'
+    app.updaterKind === 'sparkle'
+      ? sparkleHttpPrompt
+      : app.updaterKind === 'tauri'
       ? `Set up Tauri plugin-updater self-updates for this app using my Shukka instance, publishing over the raw HTTP API (no GitHub Action).
 
 Facts:

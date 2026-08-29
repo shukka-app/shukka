@@ -15,6 +15,7 @@ export type ClassifiedInstaller = {
 
 const HIDDEN = /\.(ya?ml|blockmap|sig)$/i
 const LATEST_JSON = /^latest\.json$/i
+const APPCAST = /^appcast\.xml$/i
 
 const EXTENSIONS: { suffix: string; os: InstallerOs; display: string }[] = [
   { suffix: '.app.tar.gz', os: 'macos', display: '.app.tar.gz' },
@@ -38,7 +39,7 @@ function inferArch(filename: string): InstallerArch | null {
 }
 
 export function classifyInstaller(filename: string): ClassifiedInstaller | null {
-  if (HIDDEN.test(filename) || LATEST_JSON.test(filename)) return null
+  if (HIDDEN.test(filename) || LATEST_JSON.test(filename) || APPCAST.test(filename)) return null
   const lower = filename.toLowerCase()
   const ext = EXTENSIONS.find((entry) => lower.endsWith(entry.suffix))
   if (!ext) return null

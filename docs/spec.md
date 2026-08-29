@@ -2,21 +2,21 @@
 
 ## Product scope
 
-Shukka 是一个自托管的桌面应用发版管理器：管理面板 + 上传 API + 面向 Electron / Tauri 更新客户端的无鉴权 feed，制品存储在每个 app 自配的 S3 兼容存储中。
+Shukka 是一个自托管的桌面应用发版管理器：管理面板 + 上传 API + 面向 Electron / Tauri / Sparkle 更新客户端的无鉴权 feed，制品存储在每个 app 自配的 S3 兼容存储中。
 
 Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ## Terminology
 
-- **App**: 一个被管理的桌面应用，拥有唯一 slug、一种更新系统（`updaterKind`：`electron` 或 `tauri`）、一套独立 S3 配置、若干 channel 与 API key。kind 在创建时选定，之后不改。
+- **App**: 一个被管理的桌面应用，拥有唯一 slug、一种更新系统（`updaterKind`：`electron`、`tauri` 或 `sparkle`）、一套独立 S3 配置、若干 channel 与 API key。kind 在创建时选定，之后不改。
 - **Channel**: app 下的发布通道（app 创建时默认含 `stable`），任一时刻指向至多一个**已发布**当前版本。`name` 为 URL token：`^[a-z0-9][a-z0-9_-]{0,62}$`，不是任意文本。
 - **Version**: 一次 finalize 成功的发版记录，属于单个 channel，由制品文件与更新元数据文件组成。`releasedAt` 为空则为 **draft**（对公开面隐身）；非空则为已发布。
 - **Draft version**: finalize 成功但尚未 promote / 未带 `release: true` 的版本；有 `createdAt`，无 `releasedAt`。
-- **Artifact**: 版本内的一个文件（安装包、`*.blockmap`、`latest*.yml`、Tauri `.sig` / `latest.json` 等），原样来自该 app 更新系统的构建产物。
-- **Installer**: 面板按文件名识别出的桌面安装包（`.exe` / `.msi` / `.dmg` / `.AppImage` / `.deb` / `.rpm` / `.app.tar.gz`，以及带 mac 标记的 `.zip`）。不是 Artifact 的存储类型；yml、`.blockmap`、`.sig`、`latest.json` 不是 installer。
+- **Artifact**: 版本内的一个文件（安装包、`*.blockmap`、`latest*.yml`、Tauri `.sig` / `latest.json`、Sparkle `appcast.xml` / `.sig` 等），原样来自该 app 更新系统的构建产物。
+- **Installer**: 面板按文件名识别出的桌面安装包（`.exe` / `.msi` / `.dmg` / `.AppImage` / `.deb` / `.rpm` / `.app.tar.gz`，以及带 mac 标记的 `.zip`）。不是 Artifact 的存储类型；yml、`.blockmap`、`.sig`、`latest.json`、`appcast.xml` 不是 installer。
 - **Feed**: 某 app+channel 的无鉴权更新读取面，base URL 为 `/api/update/{appSlug}/{channel}`。文档形状由该 app 的 `updaterKind` 决定。
-- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、文件名 → feed target、平台识别、接入文档）。Electron 与 Tauri 各一份。
-- **Feed target**: 某制品在该更新协议 feed 里的平台键（Tauri 为 `platforms` 的 `{{target}}-{{arch}}`，如 `linux-x86_64`）。Electron feed 无此键。
+- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、文件名 → feed target、平台识别、接入文档）。Electron、Tauri、Sparkle 各一份。
+- **Feed target**: 某制品在该更新协议 feed 里的平台键（Tauri 为 `platforms` 的 `{{target}}-{{arch}}`，如 `linux-x86_64`）。Electron feed 无此键。Sparkle 单 enclosure，制品映射为 `macos`。
 - **API key**: 形如 `shk_<random>` 的凭证，绑定单个 app；可上传并操作该 app 内资源，不可删 app 或管理 key。
 - **Pending upload**: init 之后、finalize 之前的上传事务，对 feed 不可见。
 - **Hit bucket**: 按 version × kind（metadata/artifact）× UTC 小时预聚合的命中计数；随所属 version 级联删除，永久保留。
@@ -38,6 +38,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Electron**：`GET .../{metadataFile}.yml` 返回当前版本中同名 yml 的原文（不改写）。客户端默认请求 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`。把 Shukka channel 名写进 electron-builder `publish.channel` 会改成请求 `stable.yml` 等，除非产物里真有这些文件。
 - **Tauri**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../latest.json` 返回为当前已发布版本生成的静态 updater JSON（`platforms` 映射；`url` 指向本 feed 下的制品；`signature` 为对应 `.sig` 正文）。无当前版本时 404。
 - **Tauri `platforms` 键**：上传了 `latest.json` 时以其声明的键为准（只改写 `url`、补 `signature`）。未上传时由文件名推断。显式架构 token（`aarch64` / `arm64` → `aarch64`；`amd64` / `x64` / `x86_64` → `x86_64`；`i686` / `ia32` → `i686`；`armv7` → `armv7`）覆盖默认。无架构的 `AppImage` 或文件名含 `linux` 默认为 `linux-x86_64`；无架构的 `*.app.tar.gz` 或文件名含 `mac` / `darwin` 默认为 `darwin-x86_64`。Windows 无架构 token 时不产生键。arm / universal 构建须上传 `latest.json` 或在文件名中写明架构。
+- **Sparkle**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../appcast.xml` 返回为当前已发布版本生成的 `application/xml` appcast，恰好一个 `<item>`。`enclosure` 的 `url` 指向本 feed 下的制品；`sparkle:edSignature` 与 `length` 来自上传。无当前版本时 404。请求上的额外 query（Sparkle 的 `os` / `osVersion` 等）不影响文档。上传的多 item appcast 在 finalize 被拒绝。
 - 元数据是否原文透传是 adapter 不变量，不是全系统不变量。
 - yml 命中与制品 302 分别计入所属版本的下载计数；每次命中在计数器递增的同一事务内 upsert 其 UTC 小时 hit bucket。
 
@@ -49,9 +50,9 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### Upload API（Bearer API key）
 
-- `POST /api/v1/upload/init`：body 含 `channel`、`version`、文件清单；返回 pending upload id 与每文件 presigned PUT URL。同 channel 已存在同 version（含 draft）时拒绝。文件清单必须通过该 app adapter 的元数据要求（Electron：至少一个 `.yml`；Tauri：`latest.json` 和/或成对的制品 + `.sig`）。
+- `POST /api/v1/upload/init`：body 含 `channel`、`version`、文件清单；返回 pending upload id 与每文件 presigned PUT URL。同 channel 已存在同 version（含 draft）时拒绝。文件清单必须通过该 app adapter 的元数据要求（Electron：至少一个 `.yml`；Tauri：`latest.json` 和/或成对的制品 + `.sig`；Sparkle：`appcast.xml` 和/或成对的制品 + `sign_update` sidecar `.sig`）。
 - 目标 channel 不存在时默认拒绝；只有显式 `createChannel: true` 才创建，避免拼写错误静默产生新 channel。新 channel 名必须符合 channel name 规则。
-- `POST /api/v1/upload/finalize`：校验对象齐全（含声明大小）后创建版本。默认 **draft**（不改 current）。`release: true` 时同时写入 `releasedAt` 并原子切换 current。声明了 `version` 的元数据（Electron yml、Tauri `latest.json`）须与上传版本一致；`.sig` 不声明 version，不做此项校验。
+- `POST /api/v1/upload/finalize`：校验对象齐全（含声明大小）后创建版本。默认 **draft**（不改 current）。`release: true` 时同时写入 `releasedAt` 并原子切换 current。声明了 `version` 的元数据（Electron yml、Tauri `latest.json`、Sparkle `appcast.xml`）须与上传版本一致。Sparkle 的声明版本是 `sparkle:shortVersionString`（有则用之），否则 `sparkle:version`；上传的 appcast 必须恰好一个 `<item>`。`.sig` 不声明 version，不做此项校验。
 - 过期的 pending upload 在下次触达（同 app 的 init/finalize）时清除，其已写入的对象一并删除（尽力而为）。
 - API key 与 app 不匹配返回 403；key 已吊销或无效返回 401。
 
@@ -90,7 +91,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Channels 历史行的安装包弹窗只渲染 installer 瓷砖（平台图标 + 架构 + 扩展名）；该版本没有可识别安装包时按钮仍在、弹窗为空状态。下载走 App API 302，不计命中。
 - Release log：创建应用向导第 3 步配置启用开关、locale 列表与回退 locale；app 设置页含「Release log」分区（左侧导航驱动，nuqs `section` 参数）；Channels 标签页历史行在 app 启用时提供 notes 编辑入口，跳转到独立编辑页面 `/apps/{appSlug}/notes/{version}`（Milkdown 所见即所得编辑器，按 locale 切换，编辑器变量映射面板主题 token）。配置与 note 编辑走 `/api/v1/apps/{slug}/...`（不触发 S3 存储探测）；note 的 PUT 为 upsert。
 - 面板 app 详情路由为 `/apps/{appSlug}`，不再使用数字 id。
-- 创建向导第一步选择 `updaterKind`（Electron / Tauri，必选、不预选）并填写名称 / slug；未手改 slug 时由名称经拼音 + GitHub Slugger 自动生成。kind 创建后不改，Settings 不展示。Integration 文案与 snippet 随 `updaterKind` 切换。Tauri Integration 只填入 channel feed URL；签名密钥、`pubkey`、updater 产物开关、仅 HTTP 时的 insecure-transport 标志、updater capability 与可选 relaunch 由使用者按官方 Tauri 文档填写。Shukka 不声称安装 Linux AppImage。
+- 创建向导第一步选择 `updaterKind`（Electron / Tauri / Sparkle，必选、不预选）并填写名称 / slug；未手改 slug 时由名称经拼音 + GitHub Slugger 自动生成。kind 创建后不改，Settings 不展示。Integration 文案与 snippet 随 `updaterKind` 切换。Tauri Integration 只填入 channel feed URL；签名密钥、`pubkey`、updater 产物开关、仅 HTTP 时的 insecure-transport 标志、updater capability 与可选 relaunch 由使用者按官方 Tauri 文档填写。Shukka 不声称安装 Linux AppImage。Sparkle Integration 只填 `SUFeedURL`；`SUPublicEDKey` 由使用者用官方 `generate_keys` 填写。
 
 ### Runtime（自托管进程）
 
@@ -105,12 +106,12 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### GitHub Action
 
 - 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）、可选 `updater-kind`；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。不调用 bash / pwsh / cmd。
-- **Kind**：`updater-kind` / `SHUKKA_UPDATER_KIND` 可覆盖；否则由目录内文件推断（`latest*.yml` → electron；`.sig` / `latest.json` / 已知 Tauri bundle 布局 → tauri）。服务端仍按该 app 的 `updaterKind` 校验清单。
-- **Collect**：Electron 只扫一层扁平目录（安装包、`*.blockmap`、`latest*.yml`），不递归。Tauri 在用户指向 `bundle/` 或已知平台子目录（`appimage` / `macos` / `nsis` / `msi` / `deb` / `rpm` / `dmg` / `updater` 等）时收集成对的 updater 制品 + `.sig` 以及可选的 `latest.json`；只递归已知 bundle 布局；跳过 `*.AppDir/`、解压树与共享库。上传与 feed 只用 **basename**（与 S3 键 `{prefix}/{channel}/{version}/{filename}` 一致）；basename 冲突则失败。
-- **Version**：`version` / `SHUKKA_VERSION` 优先。Electron 省略时读 `latest*.yml` 的 `version:`。Tauri 省略时依次：`latest.json` 的 `version` → 从目录向上最近的 `tauri.conf.json` 的 `version` → 制品文件名中的 `_1.0.0_` 形 token；全部失败则报错并点名这些来源。不要求、不合成 `latest.json`（服务端已能从 `.sig` 对生成 feed）。
+- **Kind**：`updater-kind` / `SHUKKA_UPDATER_KIND` 可覆盖；否则由目录内文件推断（`latest*.yml` → electron；`appcast.xml` 或 Sparkle 制品 + `.sig` → sparkle；`.sig` / `latest.json` / 已知 Tauri bundle 布局 → tauri）。服务端仍按该 app 的 `updaterKind` 校验清单。
+- **Collect**：Electron 只扫一层扁平目录（安装包、`*.blockmap`、`latest*.yml`），不递归。Tauri 在用户指向 `bundle/` 或已知平台子目录（`appimage` / `macos` / `nsis` / `msi` / `deb` / `rpm` / `dmg` / `updater` 等）时收集成对的 updater 制品 + `.sig` 以及可选的 `latest.json`；只递归已知 bundle 布局；跳过 `*.AppDir/`、解压树与共享库。Sparkle 只扫一层扁平目录（`appcast.xml`、zip/dmg/tar.*、匹配的 `.sig`），不递归。上传与 feed 只用 **basename**（与 S3 键 `{prefix}/{channel}/{version}/{filename}` 一致）；basename 冲突则失败。
+- **Version**：`version` / `SHUKKA_VERSION` 优先。Electron 省略时读 `latest*.yml` 的 `version:`。Tauri 省略时依次：`latest.json` 的 `version` → 从目录向上最近的 `tauri.conf.json` 的 `version` → 制品文件名中的 `_1.0.0_` 形 token；全部失败则报错并点名这些来源。不要求、不合成 `latest.json`（服务端已能从 `.sig` 对生成 feed）。Sparkle 省略时依次：`appcast.xml` 的 `sparkle:shortVersionString`（否则 `sparkle:version`）→ 制品文件名中的 `App-1.4.2.zip` 形 token；全部失败则报错并点名这些来源。
 - `action.yml` 与仓库 workflow 必须通过 actionlint。
 - Action e2e 必须在 GitHub-hosted `windows-latest` 上跑通同一条发布路径（init → 直传 → finalize → feed → 宿主平台 electron-updater）。
-- Feed e2e：在真实 MinIO + 已发布版本上，用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`。
+- Feed e2e：在真实 MinIO + 已发布版本上，用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。Sparkle：Linux 上断言生成的单 item appcast、enclosure 302 与 EdDSA 字节；`macos-latest` 上的 Action job 用 Sparkle.framework 做真实 `check` + download（不安装）。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`、`docs/adr/sparkle-updater-e2e.md`。
 
 ### Runtime image
 
@@ -166,10 +167,13 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Verified end to end against MinIO: publish through the action, HTTP feed + 302, a
   host-platform `electron-updater` check/download, and channel rollback via
   `PATCH currentVersion` (`tests/e2e/`, `docs/adr/electron-updater-e2e.md`).
-- Updater adapters: App `updaterKind` (`electron` | `tauri`) per `docs/prd/updater-adapters.md`
-  and `docs/adr/updater-kind-on-app.md`; Action/CLI collect + version per
-  `docs/prd/adapter-upload.md` and `docs/adr/adapter-owned-uploader.md`; Tauri process
-  check/download per `docs/adr/tauri-updater-e2e.md`.
+- Updater adapters: App `updaterKind` (`electron` | `tauri` | `sparkle`) per
+  `docs/prd/updater-adapters.md`, `docs/prd/sparkle-updater.md`,
+  `docs/adr/updater-kind-on-app.md`, and `docs/adr/sparkle-current-only-appcast.md`;
+  Action/CLI collect + version per `docs/prd/adapter-upload.md` and
+  `docs/adr/adapter-owned-uploader.md`; Tauri process check/download per
+  `docs/adr/tauri-updater-e2e.md`; Sparkle Linux XML+EdDSA and macOS
+  Sparkle.framework check per `docs/adr/sparkle-updater-e2e.md`.
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

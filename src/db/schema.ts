@@ -35,7 +35,7 @@ export const apps = sqliteTable('apps', {
   releaseLogLocales: text('release_log_locales').notNull().default('[]'),
   releaseLogFallbackLocale: text('release_log_fallback_locale').notNull().default('en-US'),
   /** Which client feed this app serves. Set at create; not changed afterwards. */
-  updaterKind: text('updater_kind', { enum: ['electron', 'tauri'] }).notNull().default('electron'),
+  updaterKind: text('updater_kind', { enum: ['electron', 'tauri', 'sparkle'] }).notNull().default('electron'),
   createdAt: integer('created_at').notNull().default(now),
 })
 
