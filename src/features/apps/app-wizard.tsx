@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '~/lib/api.ts'
 import { translateError, useT, type Dictionary } from '~/lib/i18n/index.ts'
 import { slugFromName } from '~/lib/slugify.ts'
-import type { UpdaterKind } from '~/lib/updater-kind.ts'
+import { updaterKindLabelKey, type UpdaterKind } from '~/lib/updater-kind.ts'
 import { cn } from '~/lib/utils'
 import { Field } from './field.tsx'
 import { ReleaseLogConfigFields } from './release-log-fields.tsx'
@@ -28,6 +28,15 @@ function SimpleIcon({ path, hex, className }: { path: string; hex: string; class
   return (
     <svg viewBox="0 0 24 24" className={className} fill={`#${hex}`} aria-hidden="true">
       <path d={path} />
+    </svg>
+  )
+}
+
+/** Sparkle project mark — not in simple-icons. Gold 4-point sparkle. */
+function SparkleMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="#F5A623" aria-hidden="true">
+      <path d="M12 1.6 13.9 8.6 21 10.5 13.9 12.4 12 19.4 10.1 12.4 3 10.5 10.1 8.6Z" />
     </svg>
   )
 }
@@ -147,9 +156,10 @@ const EMPTY_STORAGE: StorageFields = {
 
 type IdentityErrors = { name?: string; slug?: string; updaterKind?: string }
 
-const UPDATER_KINDS: { id: UpdaterKind; icon: typeof siElectron }[] = [
-  { id: 'electron', icon: siElectron },
-  { id: 'tauri', icon: siTauri },
+const UPDATER_KINDS: { id: UpdaterKind; icon: 'electron' | 'tauri' | 'sparkle' }[] = [
+  { id: 'electron', icon: 'electron' },
+  { id: 'tauri', icon: 'tauri' },
+  { id: 'sparkle', icon: 'sparkle' },
 ]
 type StorageErrors = Partial<Record<keyof StorageFields, string>>
 
@@ -382,8 +392,14 @@ export function AppWizard({
                     selected ? '-outline-offset-2 outline-2 outline-foreground' : 'hover:bg-accent/50',
                   )}
                 >
-                  <SimpleIcon path={entry.icon.path} hex={entry.icon.hex} className="size-5" />
-                  {entry.id === 'electron' ? t.apps.kindElectron : t.apps.kindTauri}
+                  {entry.icon === 'electron' ? (
+                    <SimpleIcon path={siElectron.path} hex={siElectron.hex} className="size-5" />
+                  ) : entry.icon === 'tauri' ? (
+                    <SimpleIcon path={siTauri.path} hex={siTauri.hex} className="size-5" />
+                  ) : (
+                    <SparkleMark className="size-5" />
+                  )}
+                  {t.apps[updaterKindLabelKey(entry.id)]}
                 </button>
               )
             })}

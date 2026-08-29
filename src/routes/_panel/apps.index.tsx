@@ -7,6 +7,7 @@ import { Button } from '~/components/ui/button'
 import { Skeleton } from '~/components/ui/skeleton'
 import { appsQueryOptions, primeAppsQuery } from '~/features/apps/requests/apps.ts'
 import { useFormatters, useT } from '~/lib/i18n/index.ts'
+import { updaterKindLabelKey } from '~/lib/updater-kind.ts'
 import { useViewRole } from '~/lib/role-context.ts'
 import { canCreateApp } from '~/lib/role.ts'
 
@@ -54,7 +55,7 @@ function AppsPage() {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="truncate">{app.name}</p>
                   <p className="shrink-0 text-xs text-muted-foreground">
-                    {app.updaterKind === 'tauri' ? t.apps.kindTauri : t.apps.kindElectron}
+                    {t.apps[updaterKindLabelKey(app.updaterKind)]}
                   </p>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">

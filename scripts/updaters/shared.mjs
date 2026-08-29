@@ -52,25 +52,62 @@ export function directoryLooksLikeTauri(directory, entries) {
   })
 }
 
+export function isSparkleArchiveName(name) {
+  return /\.(zip|dmg|aar|tgz)$/i.test(name) || /\.tar\.(gz|bz2|xz)$/i.test(name)
+}
+
+/** Official Tauri updater payloads — not a Sparkle zip/dmg. */
+export function isTauriUpdaterArtifactName(name) {
+  const lower = name.toLowerCase()
+  return (
+    lower.endsWith('.appimage') ||
+    lower.endsWith('.app.tar.gz') ||
+    lower.includes('nsis') ||
+    lower.endsWith('.msi') ||
+    lower.endsWith('.deb') ||
+    lower.endsWith('.rpm')
+  )
+}
+
+export function directoryLooksLikeSparkle(entries) {
+  const names = entries.filter((entry) => entry.isFile()).map((entry) => entry.name)
+  if (names.includes('appcast.xml')) return true
+  const hasSparklePair = names.some(
+    (name) => isSparkleArchiveName(name) && names.includes(`${name}.sig`),
+  )
+  return hasSparklePair && !names.some(isTauriUpdaterArtifactName)
+}
+
 export function kindFromFilenames(filenames) {
   if (filenames.some((name) => isYmlName(name))) return 'electron'
-  if (filenames.some((name) => name === 'latest.json' || name.endsWith('.sig'))) return 'tauri'
+  if (filenames.some((name) => name === 'appcast.xml')) return 'sparkle'
+  if (filenames.some((name) => name === 'latest.json')) return 'tauri'
+  const hasSig = filenames.some((name) => name.endsWith('.sig'))
+  if (hasSig) {
+    const sparkleOnly =
+      filenames.some(isSparkleArchiveName) && !filenames.some(isTauriUpdaterArtifactName)
+    if (sparkleOnly) return 'sparkle'
+    return 'tauri'
+  }
   return null
 }
 
 /**
  * Prefer files in the directory. yml wins so an Electron dist/ never becomes a
- * recursive Tauri walk. Override is SHUKKA_UPDATER_KIND / action updater-kind.
+ * recursive Tauri walk. appcast.xml / a Sparkle archive+.sig pair wins over a
+ * lone `.sig` (which still looks like Tauri). Override is SHUKKA_UPDATER_KIND
+ * / action updater-kind.
  */
 export async function detectUpdaterKind(directory, override = '') {
   const requested = String(override ?? '')
     .trim()
     .toLowerCase()
-  if (requested === 'electron' || requested === 'tauri') return requested
-  if (requested) fail(`Unknown updater kind "${override}". Use electron or tauri.`)
+  if (requested === 'electron' || requested === 'tauri' || requested === 'sparkle') return requested
+  if (requested) fail(`Unknown updater kind "${override}". Use electron, tauri, or sparkle.`)
 
   const entries = await readdir(directory, { withFileTypes: true })
   if (entries.some((entry) => entry.isFile() && isYmlName(entry.name))) return 'electron'
+  if (directoryLooksLikeSparkle(entries)) return 'sparkle'
   if (directoryLooksLikeTauri(directory, entries)) return 'tauri'
   return 'electron'
 }

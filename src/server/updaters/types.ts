@@ -1,6 +1,11 @@
 import type { UpdaterKind } from '~/lib/updater-kind.ts'
 
-export type ArtifactRef = { filename: string; s3Key: string; kind: 'metadata' | 'artifact' }
+export type ArtifactRef = {
+  filename: string
+  s3Key: string
+  kind: 'metadata' | 'artifact'
+  size?: number
+}
 
 export type MetadataCheck = {
   version: string

@@ -14,7 +14,7 @@ All request and response bodies are JSON. Errors carry a stable machine-readable
 | `conflict` | 409 | Duplicate version, missing artifact, expired upload |
 | `invalid_request` | 400 | Malformed payload |
 | `storage_error` | 502 | S3 rejected the request |
-| `metadata_error` | 422 | Unparseable or contradictory `latest*.yml` or Tauri `latest.json` |
+| `metadata_error` | 422 | Unparseable or contradictory `latest*.yml`, Tauri `latest.json`, or Sparkle `appcast.xml` |
 | `rate_limited` | 429 | Login failures exceeded the per-IP window |
 
 ## Upload API — `Authorization: Bearer shk_…`
@@ -37,11 +37,14 @@ All request and response bodies are JSON. Errors carry a stable machine-readable
 `app` is optional; when present it must match the key's app. `size` is optional but
 checked at finalize when provided. File rules follow the app's `updaterKind`:
 Electron requires at least one `.yml`; Tauri requires `latest.json` and/or
-artifact + matching `.sig` pairs. `version` and each `filename` must not contain
-path separators or `..`. The publish action reads `version` from `latest*.yml`
-(Electron) when the input is omitted. For Tauri it uses the input / `SHUKKA_VERSION`,
-then `latest.json`, then the nearest `tauri.conf.json`, then a `_1.0.0_` filename
-token — `latest.json` is not required.
+artifact + matching `.sig` pairs; Sparkle requires `appcast.xml` and/or a
+Sparkle archive + matching `.sig` from `sign_update`. `version` and each
+`filename` must not contain path separators or `..`. The publish action reads
+`version` from `latest*.yml` (Electron) when the input is omitted. For Tauri it
+uses the input / `SHUKKA_VERSION`, then `latest.json`, then the nearest
+`tauri.conf.json`, then a `_1.0.0_` filename token — `latest.json` is not
+required. For Sparkle it uses `appcast.xml` (`sparkle:shortVersionString`, else
+`sparkle:version`), then an `App-1.4.2.zip` filename token.
 
 ```json
 {
@@ -60,10 +63,13 @@ URLs expire an hour after `init`.
 { "uploadId": "…", "app": "my-app", "release": false }
 ```
 
-Verifies every object exists (and matches any declared size), parses each yml, and
-requires its `version` to equal the declared version. Default is a **draft** (feed
-unchanged). `"release": true` writes `releasedAt` and flips the channel current
-version atomically.
+Verifies every object exists (and matches any declared size), parses metadata
+that declares a version (Electron yml, Tauri `latest.json`, Sparkle
+`appcast.xml`), and requires that version to equal the upload version. Sparkle
+uses `sparkle:shortVersionString` when present, otherwise `sparkle:version`,
+and rejects an appcast that is not exactly one `<item>`. Default is a **draft**
+(feed unchanged). `"release": true` writes `releasedAt` and flips the channel
+current version atomically.
 
 ```json
 {
@@ -126,7 +132,7 @@ version, trends). Keys may **not** delete the app or manage API keys.
 }
 ```
 
-`updaterKind` is `"electron"` or `"tauri"` (defaults to `"electron"` if omitted).
+`updaterKind` is `"electron"`, `"tauri"`, or `"sparkle"` (defaults to `"electron"` if omitted).
 Kind is chosen at create and is not changed afterwards. `s3Endpoint` is `null` for
 AWS S3. Set `s3ForcePathStyle` for MinIO. Objects land at
 `{s3Prefix}/{channel}/{version}/{filename}`.
@@ -147,6 +153,7 @@ curl "$SHUKKA_URL/api/v1/apps/my-app/channels/stable/notes?from=1.0.0&locale=en-
 |---------|----------|
 | `GET /api/update/{app}/{channel}/{name}.yml` | The current version's metadata, byte-for-byte |
 | `GET /api/update/{app}/{channel}` or `.../latest.json` | Tauri updater JSON for the current version |
+| `GET /api/update/{app}/{channel}` or `.../appcast.xml` | Sparkle one-item appcast for the current version |
 | `GET /api/update/{app}/{channel}/{artifact}` | `302` to a presigned S3 URL, valid for an hour |
 
 Metadata resolves against the channel's current version. Artifacts resolve by

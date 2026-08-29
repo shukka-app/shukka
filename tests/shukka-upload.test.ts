@@ -11,7 +11,7 @@ const { collectFiles, detectUpdaterKind, readInput, versionFromMetadata } = (awa
   '../scripts/shukka-upload.mjs'
 )) as {
   collectFiles: (directory: string, kind?: string) => Promise<CollectedFile[]>
-  detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri'>
+  detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri' | 'sparkle'>
   versionFromMetadata: (
     files: { filename: string; path: string }[],
     directory?: string,
@@ -52,6 +52,22 @@ describe('collectFiles', () => {
 
     const files = await collectFiles(directory)
     expect(files.map((file) => file.filename)).toEqual(['App.exe', 'latest.yml'])
+  })
+
+  it('collects a flat Sparkle directory and does not recurse', async () => {
+    const directory = tempDir()
+    write(join(directory, 'appcast.xml'), '<item/>')
+    write(join(directory, 'App-1.4.2.zip'), 'zip')
+    write(join(directory, 'App-1.4.2.zip.sig'), 'sig')
+    mkdirSync(join(directory, 'Payload'))
+    write(join(directory, 'Payload', 'nested.bin'), 'nope')
+
+    const files = await collectFiles(directory, 'sparkle')
+    expect(files.map((file) => file.filename)).toEqual([
+      'App-1.4.2.zip',
+      'App-1.4.2.zip.sig',
+      'appcast.xml',
+    ])
   })
 
   it('does not recurse into nested junk in an Electron dist', async () => {
@@ -146,6 +162,23 @@ describe('detectUpdaterKind', () => {
     expect(await detectUpdaterKind(mixed)).toBe('electron')
     expect(await detectUpdaterKind(mixed, 'tauri')).toBe('tauri')
     expect(await detectUpdaterKind(mixed, 'electron')).toBe('electron')
+    expect(await detectUpdaterKind(mixed, 'sparkle')).toBe('sparkle')
+  })
+
+  it('infers sparkle from appcast.xml or a zip+.sig pair, not from a lone .sig', async () => {
+    const withAppcast = tempDir()
+    write(join(withAppcast, 'appcast.xml'), '<item/>')
+    expect(await detectUpdaterKind(withAppcast)).toBe('sparkle')
+
+    const withZip = tempDir()
+    write(join(withZip, 'App-1.4.2.zip'), 'zip')
+    write(join(withZip, 'App-1.4.2.zip.sig'), 'sig')
+    expect(await detectUpdaterKind(withZip)).toBe('sparkle')
+
+    const tauriImage = tempDir()
+    write(join(tauriImage, 'demo.AppImage'), 'image')
+    write(join(tauriImage, 'demo.AppImage.sig'), 'sig')
+    expect(await detectUpdaterKind(tauriImage)).toBe('tauri')
   })
 })
 
@@ -203,6 +236,39 @@ describe('versionFromMetadata', () => {
 
     const files = await collectFiles(bundle)
     await expect(versionFromMetadata(files, bundle)).resolves.toBe('2.0.0')
+  })
+
+  it('reads sparkle:shortVersionString from appcast.xml', async () => {
+    const directory = tempDir()
+    const path = join(directory, 'appcast.xml')
+    write(
+      path,
+      '<item><sparkle:version>142</sparkle:version><sparkle:shortVersionString>1.4.2</sparkle:shortVersionString></item>',
+    )
+
+    await expect(versionFromMetadata([{ filename: 'appcast.xml', path }])).resolves.toBe('1.4.2')
+  })
+
+  it('infers a Sparkle version from App-1.4.2.zip when appcast.xml is absent', async () => {
+    const directory = tempDir()
+    write(join(directory, 'App-1.4.2.zip'), 'zip')
+    write(join(directory, 'App-1.4.2.zip.sig'), 'sig')
+    const files = await collectFiles(directory)
+    await expect(versionFromMetadata(files, directory)).resolves.toBe('1.4.2')
+  })
+
+  it('fails naming Sparkle version options when none are available', async () => {
+    const directory = tempDir()
+    write(join(directory, 'App.zip'), 'zip')
+    write(join(directory, 'App.zip.sig'), 'sig')
+    const files = await collectFiles(directory)
+
+    const exit = mockExit()
+    await expect(versionFromMetadata(files, directory)).rejects.toThrow(/process\.exit\(1\)/)
+    expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/SHUKKA_VERSION/))
+    expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/appcast\.xml/))
+    expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/App-1\.4\.2\.zip/))
+    exit.restore()
   })
 
   it('fails with a clear message when an Electron directory has no yml', async () => {

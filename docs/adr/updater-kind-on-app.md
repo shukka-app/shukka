@@ -6,7 +6,7 @@
 
 ## Decision
 
-1. `apps.updater_kind` 为 `electron` | `tauri`。已有行默认 `electron`。创建后不改。
+1. `apps.updater_kind` 为 `electron` | `tauri` | `sparkle`。已有行默认 `electron`。创建后不改。Sparkle 见 `docs/adr/sparkle-current-only-appcast.md`。
 2. `src/server/updaters/` 下每个 kind 一个 adapter：上传分类与校验、feed 文档怎么出、文件名如何映射为 feed target、平台徽标怎么认。Action/CLI 侧每个 kind 另有一份零依赖收集/版本实现（`scripts/updaters/*.mjs`，见 `docs/adr/adapter-owned-uploader.md`），不 import 本目录。
 3. `UpdateAdapter.inferFeedTarget(filename)` 把制品文件名映射为该协议的 feed target 键（或 `null`）。`platformsOf` 仍负责面板徽章。下一种 updater 不得再往 `src/lib/` 加全局文件名解析器。
 4. Electron adapter：yml 原文透传；制品按文件名 302。`inferFeedTarget` 恒为 `null`（Electron feed 没有 `platforms` JSON）。`platformsOf` 继续只读 yml 文件名。
@@ -17,6 +17,7 @@
 9. 面板徽章经 `adapterFor(updaterKind).platformsOf`，不从通用 UI 路径 import Tauri 专用 lib。
 10. Tauri Integration **只填** `plugins.updater.endpoints`（channel 根 URL）。`pubkey`、`bundle.createUpdaterArtifacts`、HTTP 时的 `dangerousInsecureTransportProtocol` 以注释/占位出现，并标成 “you fill these; not Shukka”。签名（`tauri signer generate`、`TAURI_SIGNING_PRIVATE_KEY`）、`updater:default` capability、可选 `relaunch()` 同样是使用者按[官方 Tauri 文档](https://v2.tauri.app/plugin/updater/)填写。不发明 Shukka 替代签名或打包。
 11. Linux AppImage：feed 的 check + download + minisign 是 Shukka 的责任面；`downloadAndInstall()` 替换正在运行的 AppImage，要求 FUSE 挂载且临时目录与 AppImage 同挂载。extract-and-run / overlay / 容器失败属 plugin-updater + 环境。不做 install e2e。见 [tauri-integration](../prd/tauri-integration.md)。
+12. Sparkle adapter：生成单 item appcast（`url` 指向本 channel feed 下的制品）；无 current 时 404。`inferFeedTarget` 对 zip/dmg/tar.*/aar 返回 `macos`，其余 `null`（feed 仍是单 enclosure，不是 `platforms` 图）。`platformsOf` 认 `appcast.xml` 或 Sparkle 制品为 macOS。Action/CLI 收集见 `scripts/updaters/sparkle.mjs`。
 
 ## Alternatives
 

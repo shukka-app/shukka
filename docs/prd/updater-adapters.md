@@ -27,7 +27,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 - Settings 里改 kind。
 - 服务端替 Tauri 判断「有没有更新」（动态 204）。
 - 改写 Electron yml。
-- Sparkle 等第三种客户端（接口预留）。
+- Sparkle 曾是第三种客户端的预留非目标；现已单独成文：`docs/prd/sparkle-updater.md`。
 - 上传器目录收集（collect / version 推断）。
 - 无架构 Windows 文件名的默认 feed target。
 - 发明 Shukka 专用的 Tauri 签名 / 打包替代；替使用者填写 `pubkey` 或私钥。

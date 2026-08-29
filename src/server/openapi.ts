@@ -179,7 +179,7 @@ export function openApiDocument(origin: string) {
         post: {
           tags: ['Upload'],
           summary:
-            'Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs (see spec).',
+            'Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).',
           security: [{ apiKey: [] }],
           requestBody: {
             content: {
@@ -238,7 +238,7 @@ export function openApiDocument(origin: string) {
       '/api/update/{appSlug}/{channel}': {
         get: {
           tags: ['Feed'],
-          summary: 'Channel-root feed. Tauri apps return static updater JSON here.',
+          summary: 'Channel-root feed. Tauri returns JSON; Sparkle returns a one-item appcast.',
           security: [],
           parameters: [slugParam, channelParam],
           responses: { '200': { description: 'Generated feed document' }, '404': { description: 'Missing or draft' } },
@@ -247,7 +247,7 @@ export function openApiDocument(origin: string) {
       '/api/update/{appSlug}/{channel}/{filename}': {
         get: {
           tags: ['Feed'],
-          summary: 'Public feed — Electron yml / Tauri latest.json inline, artifacts 302. Drafts are 404.',
+          summary: 'Public feed — Electron yml / Tauri latest.json / Sparkle appcast, artifacts 302. Drafts are 404.',
           security: [],
           parameters: [slugParam, channelParam, { name: 'filename', in: 'path', required: true, schema: { type: 'string' } }],
           responses: { '200': { description: 'Metadata body' }, '302': { description: 'Artifact redirect' }, '404': { description: 'Missing or draft' } },

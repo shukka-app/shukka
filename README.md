@@ -5,7 +5,7 @@
 <h1 align="center">Shukka</h1>
 
 <p align="center">
-  Self-hosted updates for Electron and Tauri.<br>
+  Self-hosted updates for Electron, Tauri, and Sparkle.<br>
   Your bucket. Your feed. Your panel.
 </p>
 
@@ -19,7 +19,7 @@
 Create an app, point it at a bucket, and Shukka gives you a public update feed
 per channel, API keys for CI, and a record of every version you have shipped.
 
-Desktop clients keep using `electron-updater` or Tauri plugin-updater. Installers
+Desktop clients keep using `electron-updater`, Tauri plugin-updater, or Sparkle. Installers
 never transit the Shukka process — they go straight to your S3-compatible storage.
 
 ## What it does
@@ -31,7 +31,8 @@ never transit the Shukka process — they go straight to your S3-compatible stor
 | **Direct uploads** | Installers go from CI to S3 over presigned URLs. Shukka never proxies the bytes. |
 | **Public Electron feed** | `electron-updater` reads `/api/update/{app}/{channel}` with no credentials. Metadata is served byte-for-byte as `electron-builder` wrote it. |
 | **Public Tauri feed** | plugin-updater reads JSON at the same URL. |
-| **GitHub Action** | One step publishes an `electron-builder` or Tauri output directory. |
+| **Public Sparkle feed** | Sparkle reads a one-item `appcast.xml` at the same URL. |
+| **GitHub Action** | One step publishes an `electron-builder`, Tauri, or Sparkle output directory. |
 | **Drafts by default** | Finalize leaves a draft. Promote — or pass `release: true` — before users see it. |
 | **Agent skill** | `.agents/skills/shukka-ops/` teaches an agent to drive the API. |
 
@@ -40,7 +41,7 @@ flowchart LR
   CI["CI / Action"] -- "presigned PUT" --> S3[(Your S3)]
   Panel[Panel] --> Shukka
   CI --> Shukka
-  App["Electron / Tauri"] -- "public feed" --> Shukka
+  App["Electron / Tauri / Sparkle"] -- "public feed" --> Shukka
   Shukka -- "302" --> S3
 ```
 
@@ -110,11 +111,13 @@ Create an app in the panel, then an API key on its **API keys** tab. In CI:
     release: true   # omit to create a draft the feed cannot see; promote in the panel or PATCH .../channels/{channel} {"currentVersion":"…"}
 ```
 
-Point the whole `electron-builder` `dist/` or Tauri `src-tauri/target/release/bundle`
-directory at it. Electron: installers, `.blockmap`, `latest*.yml` (version from the yml).
-Tauri: updater artifacts + matching `.sig` under `bundle/` or a platform subdir;
-`latest.json` is optional (version from this input, then `latest.json`, then the nearest
-`tauri.conf.json`, then a `_1.0.0_` token in the filename).
+Point the whole `electron-builder` `dist/`, Tauri `src-tauri/target/release/bundle`,
+or Sparkle output directory at it. Electron: installers, `.blockmap`, `latest*.yml`
+(version from the yml). Tauri: updater artifacts + matching `.sig` under `bundle/`
+or a platform subdir; `latest.json` is optional (version from this input, then
+`latest.json`, then the nearest `tauri.conf.json`, then a `_1.0.0_` token in the
+filename). Sparkle: `appcast.xml` and/or a zip/dmg plus a matching `sign_update`
+`.sig` (version from `appcast.xml`, then an `App-1.4.2.zip` filename token).
 
 Outside GitHub Actions, the same uploader runs standalone:
 
@@ -166,6 +169,17 @@ Shukka fills only the feed URL. You fill the rest from [official Tauri updater d
 ```
 
 Linux AppImage: check and download work against this feed. Install replaces the running AppImage and requires a FUSE-mounted AppImage on the same mount as the temp directory. Extract-and-run, overlay filesystems, and many containers fail here — that is plugin-updater and the environment, not the feed. Shukka does not install the AppImage.
+
+**Sparkle**
+
+Shukka fills only the feed URL. You fill `SUPublicEDKey` from official `generate_keys` — not Shukka.
+
+```xml
+<key>SUFeedURL</key>
+<string>https://updates.example.com/api/update/my-app/stable/appcast.xml</string>
+<key>SUPublicEDKey</key>
+<string>YOUR_EDDSA_PUBLIC_KEY</string>
+```
 
 Uploads are atomic: until `finalize` succeeds — and, by default, until the version is
 promoted or finalized with `release: true` — the channel keeps serving the previous
