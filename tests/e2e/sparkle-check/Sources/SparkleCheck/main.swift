@@ -100,13 +100,11 @@ final class SilentDriver: NSObject, SPUUserDriver {
         exit(1)
     }
 
-    func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
+    func showUpdatePermissionRequest(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: false, sendSystemProfile: false))
     }
 
-    func showUserInitiatedUpdateCheck(completion updateCheckStatusCompletion: @escaping (SPUUserUpdateCheckStatus) -> Void) {
-        updateCheckStatusCompletion(.done)
-    }
+    func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {}
 
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
         foundVersion = appcastItem.displayVersionString.isEmpty ? appcastItem.versionString : appcastItem.displayVersionString
@@ -146,7 +144,7 @@ final class SilentDriver: NSObject, SPUUserDriver {
 
     func showExtractionReceivedProgress(_ progress: Double) {}
 
-    func showReady(toInstallAndRelaunch reply: @escaping (SPUUserUpdateChoice) -> Void) {
+    func showReadyToInstallAndRelaunch(_ reply: @escaping (SPUUserUpdateChoice) -> Void) {
         if !downloaded && receivedBytes == 0 {
             fail("ready to install but no bytes were downloaded")
             return
