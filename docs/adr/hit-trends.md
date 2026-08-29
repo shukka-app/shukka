@@ -16,7 +16,7 @@ Accepted.
 ## Decision
 
 - **存储：按 UTC 小时预聚合的 `hit_buckets` 表**。列为 `(id, versionId FK→versions ON DELETE CASCADE, kind ∈ {metadata, artifact}, hourStart, count)`，`hourStart` 为截断到小时的 unix 秒；`(versionId, kind, hourStart)` 唯一索引。永久保留，无清理任务。
-- **写路径：计数器与 bucket 同事务双写**。`recordHit(versionId, kind)` 在一个同步 `db.transaction` 内先递增 `versions.metadata_hits/artifact_hits`，再 `INSERT … ON CONFLICT DO UPDATE count+1` upsert bucket。计数器仍是总量权威；bucket 自部署起累积，**不做历史回溯**。
+- **写路径：计数器与 bucket 同事务双写**。`recordHit(versionId, kind)` 在一个同步 `db.transaction` 内先递增 `versions.metadata_hits/artifact_hits`，再 `INSERT … ON CONFLICT DO UPDATE count+1` upsert bucket。计数器仍是总量权威；bucket 自部署起累积，**不做历史回溯**。云 isolate 上 `recordHit` 为空操作（见 [feed-hits-serverless](feed-hits-serverless.md)）。
 - **时间边界一律 UTC**：小时界 `floor(t/3600)*3600`，天界 `floor(t/86400)*86400`，整数运算；坐标轴标签 `timeZone: 'UTC'` 固定，与分桶一致。
 - **粒度按范围分档**：7 天 → 小时点（168 个）；30 / 90 天 → UTC 天点。无命中时段补零，序列定长并对齐当前小时/天；版本趋势固定 14 天窗口，未来日期直接省略（不补零）。
 - **读取：独立 endpoint + 独立 queryKey**。`GET /api/v1/apps/{appSlug}/channels/{channel}/trend?range=7|30|90` 与 `…/versions/{version}/trend`，session 或绑定该 app 的 API key；不并入 appDetail，不做 SSR priming（图表在 lazy 边界之后，首屏不需要），staleTime 30s，无 mutation 使 trend key 失效。
