@@ -186,9 +186,9 @@ type SettingsSection = (typeof SETTINGS_SECTIONS)[number]
 function AppSettings({ slug, app, channels }: { slug: string; app: PublicApp; channels: ChannelDetail[] }) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const updateApp = useMutation(updateAppMutationOptions({ slug, queryClient }))
-  const deleteApp = useMutation(deleteAppMutationOptions({ queryClient }))
   const t = useT()
+  const updateApp = useMutation(updateAppMutationOptions({ slug, queryClient }))
+  const deleteApp = useMutation(deleteAppMutationOptions({ queryClient, t }))
   const role = useViewRole()
   const [section, setSection] = useQueryState(
     'section',
@@ -263,9 +263,13 @@ function AppSettings({ slug, app, channels }: { slug: string; app: PublicApp; ch
                       variant="destructive"
                       disabled={deleteApp.isPending}
                       onClick={async () => {
-                        await deleteApp.mutateAsync(slug)
-                        setPendingDeleteApp(false)
-                        await router.navigate({ to: '/apps' })
+                        try {
+                          await deleteApp.mutateAsync(slug)
+                          setPendingDeleteApp(false)
+                          await router.navigate({ to: '/apps' })
+                        } catch {
+                          // toast handled by mutation options
+                        }
                       }}
                     >
                       {t.apps.detail.deleteDialogConfirm}
@@ -297,10 +301,10 @@ function AppSettings({ slug, app, channels }: { slug: string; app: PublicApp; ch
  */
 function DeleteChannelSection({ slug, channels }: { slug: string; channels: ChannelDetail[] }) {
   const queryClient = useQueryClient()
-  const deleteChannel = useMutation(deleteChannelMutationOptions({ slug, queryClient }))
+  const t = useT()
+  const deleteChannel = useMutation(deleteChannelMutationOptions({ slug, queryClient, t }))
   const [channelName, setChannelName] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ChannelDetail | null>(null)
-  const t = useT()
 
   const selected = channels.find((channel) => channel.name === channelName)
 
@@ -348,9 +352,13 @@ function DeleteChannelSection({ slug, channels }: { slug: string; channels: Chan
               disabled={deleteChannel.isPending}
               onClick={async () => {
                 if (!pendingDelete) return
-                await deleteChannel.mutateAsync(pendingDelete.name)
-                setPendingDelete(null)
-                setChannelName(null)
+                try {
+                  await deleteChannel.mutateAsync(pendingDelete.name)
+                  setPendingDelete(null)
+                  setChannelName(null)
+                } catch {
+                  // toast handled by mutation options
+                }
               }}
             >
               {t.apps.detail.deleteChannelConfirm}

@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link, useRouter } from '@tanstack/react-router'
 import { Check, ChevronsUpDown, LogOut, Settings, UserRound } from 'lucide-react'
+import { toast } from 'sonner'
 import { LanguageSwitcher } from '~/components/language-switcher.tsx'
 import { ThemeSwitcher } from '~/components/theme-switcher.tsx'
 import {
@@ -13,7 +14,7 @@ import {
 } from '~/components/ui/dropdown-menu'
 import { SidebarMenuButton } from '~/components/ui/sidebar'
 import { logoutMutationOptions } from '~/features/auth/requests/session.ts'
-import { useT } from '~/lib/i18n/index.ts'
+import { translateError, useT } from '~/lib/i18n/index.ts'
 import { useSetViewRole, useViewRole } from '~/lib/role-context.ts'
 import type { ViewRole } from '~/lib/role.ts'
 
@@ -38,8 +39,12 @@ export function RoleMenu() {
   }
 
   async function signOut() {
-    await logout.mutateAsync()
-    await router.navigate({ to: '/login' })
+    try {
+      await logout.mutateAsync()
+      await router.navigate({ to: '/login' })
+    } catch (cause) {
+      toast.error(translateError(t, cause, t.common.requestFailed))
+    }
   }
 
   return (
