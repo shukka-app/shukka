@@ -6,18 +6,16 @@
  *   init -> presigned PUT per file -> direct upload to S3 -> finalize
  *
  * Zero dependencies so the JavaScript action can run it without a build step.
+ * Kind-specific collect/version live in scripts/updaters/*.mjs (do not import ~/server).
  */
 import { createReadStream } from 'node:fs'
-import { readdir, readFile, stat } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { collectElectronFiles, inferElectronVersion } from './updaters/electron.mjs'
+import { detectUpdaterKind, fail, kindFromFilenames } from './updaters/shared.mjs'
+import { collectTauriFiles, inferTauriVersion } from './updaters/tauri.mjs'
 
 const MAX_ATTEMPTS = 3
-
-function fail(message) {
-  process.stdout.write(`::error::${message}\n`)
-  process.exit(1)
-}
 
 function required(name, value) {
   if (!value) fail(`Missing required input: ${name}`)
@@ -32,43 +30,18 @@ export function readInput(actionInput, envName, fallback = '') {
   return process.env[envName] || process.env[`INPUT_${actionInput.toUpperCase()}`] || fallback
 }
 
-/** electron-builder emits blockmaps and yml alongside installers; skip nothing else. */
-const IGNORED = new Set(['.DS_Store', 'builder-debug.yml', 'builder-effective-config.yaml'])
+export { detectUpdaterKind, fail }
 
-export async function collectFiles(directory) {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const files = []
-  for (const entry of entries) {
-    if (!entry.isFile() || IGNORED.has(entry.name) || entry.name.startsWith('.')) continue
-    const path = join(directory, entry.name)
-    files.push({ filename: entry.name, path, size: (await stat(path)).size })
-  }
-  return files.sort((a, b) => a.filename.localeCompare(b.filename))
+export async function collectFiles(directory, kind) {
+  const resolved = kind ?? (await detectUpdaterKind(directory))
+  if (resolved === 'tauri') return collectTauriFiles(directory)
+  return collectElectronFiles(directory)
 }
 
-/** electron-builder writes `version` into latest*.yml; Tauri writes it into latest.json. */
-export async function versionFromMetadata(files) {
-  const metadata = files.find((file) => /\.ya?ml$/i.test(file.filename))
-  if (metadata) {
-    const match = (await readFile(metadata.path, 'utf8')).match(/^version:\s*(.+)$/m)
-    if (!match) fail(`Could not read "version" from ${metadata.filename}`)
-    return match[1].trim().replace(/^['"]|['"]$/g, '')
-  }
-
-  const latestJson = files.find((file) => file.filename === 'latest.json')
-  if (latestJson) {
-    let parsed
-    try {
-      parsed = JSON.parse(await readFile(latestJson.path, 'utf8'))
-    } catch {
-      fail('Could not read "version" from latest.json')
-    }
-    const version = typeof parsed?.version === 'string' ? parsed.version.replace(/^v/, '').trim() : ''
-    if (!version) fail('Could not read "version" from latest.json')
-    return version
-  }
-
-  fail('No electron-updater latest*.yml or Tauri latest.json metadata file found in the directory')
+export async function versionFromMetadata(files, directory, kind) {
+  const resolved = kind ?? kindFromFilenames(files.map((file) => file.filename)) ?? 'electron'
+  if (resolved === 'tauri') return inferTauriVersion(files, directory)
+  return inferElectronVersion(files)
 }
 
 async function callApi(serverUrl, path, apiKey, body) {
@@ -110,11 +83,13 @@ async function main() {
   const directory = resolve(readInput('directory', 'SHUKKA_DIRECTORY', 'dist'))
   const createChannel = readInput('create-channel', 'SHUKKA_CREATE_CHANNEL') === 'true'
   const release = readInput('release', 'SHUKKA_RELEASE') === 'true'
+  const kind = await detectUpdaterKind(directory, readInput('updater-kind', 'SHUKKA_UPDATER_KIND'))
 
-  const files = await collectFiles(directory)
+  const files = await collectFiles(directory, kind)
   if (files.length === 0) fail(`No files to publish in ${directory}`)
 
-  const version = process.env.SHUKKA_VERSION || (await versionFromMetadata(files))
+  const version =
+    readInput('version', 'SHUKKA_VERSION') || (await versionFromMetadata(files, directory, kind))
   process.stdout.write(`Publishing ${app} ${version} to channel ${channel} (${files.length} files)\n`)
 
   const init = await callApi(serverUrl, '/api/v1/upload/init', apiKey, {

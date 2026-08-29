@@ -4,6 +4,8 @@ import type { UpdateAdapter } from './types.ts'
 
 const MANIFEST = 'latest.json'
 
+/** Uploader-side collect/version (no latest.json required) lives in scripts/updaters/tauri.mjs. */
+
 function basename(url: string): string {
   try {
     return decodeURIComponent(new URL(url).pathname.split('/').pop() ?? url)

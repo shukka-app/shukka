@@ -110,9 +110,11 @@ Create an app in the panel, then an API key on its **API keys** tab. In CI:
     # release: true   # omit to leave the version as a draft
 ```
 
-Point the whole `electron-builder` or Tauri output directory at it — installers, `.blockmap`
-files, `latest*.yml`, or Tauri `latest.json` and `.sig` files. The version is read from the
-yml or `latest.json` unless you pass `version`.
+Point the whole `electron-builder` `dist/` or Tauri `src-tauri/target/release/bundle`
+directory at it. Electron: installers, `.blockmap`, `latest*.yml` (version from the yml).
+Tauri: updater artifacts + matching `.sig` under `bundle/` or a platform subdir;
+`latest.json` is optional (version from this input, then `latest.json`, then the nearest
+`tauri.conf.json`, then a `_1.0.0_` token in the filename).
 
 Outside GitHub Actions, the same uploader runs standalone:
 
