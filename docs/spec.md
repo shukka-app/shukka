@@ -63,8 +63,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `GET .../channels/{channel}/versions/{version}/artifacts/{filename}`：对该版本（含 draft）已存文件 302 到短时效 S3 URL；不计入命中。文件不在该版本上 → 404。公开 feed 的 draft≡404 与命中规则不变。
 - `PATCH .../channels/{channel}` 设 `currentVersion`：目标为 draft 时在同一事务写入 `releasedAt` 再切指针（promote）；目标为已发布版本则只切指针（回滚）。
 - 实例级（列/建 app、登录改密、存储探测）与 API key CRUD 仅 session，不在 key 能力面。
-- 公开 API 文档（`/api/v1/openapi.json`，经 `/docs` 渲染）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。
-- 面板 app 详情 **API docs** 入口打开 `/docs`：server route 用 cheerio 把本地 `redoc` standalone bundle 内联进自建 HTML 模板，`Redoc.init` 以 `specUrl` 让浏览器同源 fetch `/api/v1/openapi.json`（带 session cookie），整页无侧栏与顶栏（admin / developer）。HTML 静态、与 origin 无关，进程内组装一次缓存。点击在新浏览器标签打开，当前页标签不切换。未登录重定向到登录。Integration 的 HTTP API 接入说明提供同样打开新标签的按钮。
+- 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。人类可读文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)，不在实例内渲染。
 - 制品字节永不经过 Shukka 进程（上传直传 S3，下载 302）。
 - 错误响应统一为 `{ error, message }`，`error` 取自固定码集：`unauthorized`、`forbidden`、`not_found`、`conflict`、`invalid_request`、`storage_error`、`metadata_error`、`rate_limited`。
 
@@ -76,7 +75,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### Panel
 
-- 除 setup/login 外的面板路由、`/docs` 与管理 API 均要求 session；未认证重定向到登录（未初始化时重定向到 setup）。
+- 除 setup/login 外的面板路由与管理 API 均要求 session；未认证重定向到登录（未初始化时重定向到 setup）。
 - `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。
 - `POST /api/admin/storage/test` 对提交的 S3 配置做写探测（Put+Delete 探针对象）并返回 `{ ok: true }`，不落库；创建与编辑 app 保存前服务端始终重复同一探测，失败拒绝保存。
 - API key 明文仅在创建响应中出现一次，此后不可再取得。
@@ -87,7 +86,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Integration 标签页的 agent 发布方式展示一条 `npx skills add` 命令：安装仓库内 `skills/shukka-publish/` 的发布 skill，URL 固定到构建时注入的 git commit（无 git 元数据时回退 `main`）；skill 为通用协议文档，不含任何 server/app/channel/key 事实。
 - 侧栏底部为单一角色菜单按钮（当前角色名）：菜单内含视图角色切换、语言切换、外观（Light/Dark）切换、设置入口（仅 admin）与退出登录。
 - 趋势接口：`GET /api/v1/apps/{appSlug}/channels/{channel}/trend?range=7|30|90` 与 `GET /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend`，session 或绑定该 app 的 API key；channel 趋势按 UTC 小时（7 天）或 UTC 天（30/90 天）聚合，版本趋势为发布后 14 个 UTC 天（未来日期省略，draft 返回空序列）；面板入口对 admin 与 content 角色可见，developer 隐藏。
-- 视图角色只隐藏面板 UI 入口，不是鉴权：直接访问 URL 不被拦截，服务端不存、不校验角色。可见性矩阵——content：应用列表 + app 详情的 Channels 标签（版本表含 draft 标记、下载/检查计数、趋势图、版本统计入口）与 Settings 标签（仅 Release log 分区），另含版本 release notes 编辑（app 启用 release log 时），无 promote / 版本安装包下载 / 新建 channel / 新建应用 / 设置入口 / Integration / API docs；developer：另有 Integration、API docs（ReDoc）、API keys、新建 channel、新建应用、promote、历史行安装包下载弹窗、app Settings（编辑表单与 Release log 分区；删除应用区块仍仅 admin），不见趋势图、版本统计入口与 release notes 编辑入口；admin：全部，另含删除应用与设置页入口。
+- 视图角色只隐藏面板 UI 入口，不是鉴权：直接访问 URL 不被拦截，服务端不存、不校验角色。可见性矩阵——content：应用列表 + app 详情的 Channels 标签（版本表含 draft 标记、下载/检查计数、趋势图、版本统计入口）与 Settings 标签（仅 Release log 分区），另含版本 release notes 编辑（app 启用 release log 时），无 promote / 版本安装包下载 / 新建 channel / 新建应用 / 设置入口 / Integration；developer：另有 Integration、API keys、新建 channel、新建应用、promote、历史行安装包下载弹窗、app Settings（编辑表单与 Release log 分区；删除应用区块仍仅 admin），不见趋势图、版本统计入口与 release notes 编辑入口；admin：全部，另含删除应用与设置页入口。
 - Channels 历史行的安装包弹窗只渲染 installer 瓷砖（平台图标 + 架构 + 扩展名）；该版本没有可识别安装包时按钮仍在、弹窗为空状态。下载走 App API 302，不计命中。
 - Release log：创建应用向导第 3 步配置启用开关、locale 列表与回退 locale；app 设置页含「Release log」分区（左侧导航驱动，nuqs `section` 参数）；Channels 标签页历史行在 app 启用时提供 notes 编辑入口，跳转到独立编辑页面 `/apps/{appSlug}/notes/{version}`（Milkdown 所见即所得编辑器，按 locale 切换，编辑器变量映射面板主题 token）。配置与 note 编辑走 `/api/v1/apps/{slug}/...`（不触发 S3 存储探测）；note 的 PUT 为 upsert。
 - 面板 app 详情路由为 `/apps/{appSlug}`，不再使用数字 id。
@@ -96,7 +95,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Runtime（自托管进程）
 
 - 面板、`/api/admin`、`/api/v1`、`/api/update` 同一 Node 进程、同一 HTTP 端口。默认端口 `3000`（`PORT` 或 `NITRO_PORT`）。
-- 所有 HTTP 响应带 `X-Frame-Options: DENY`、CSP `frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`；不设含 `script-src` 的严格 CSP（面板与 `/docs` 有内联脚本）。
+- 所有 HTTP 响应带 `X-Frame-Options: DENY`、CSP `frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`；不设含 `script-src` 的严格 CSP（面板有内联脚本）。
 - 启动时若进程 cwd 下存在 `drizzle/`，对 SQLite 自动 migrate；生产不跑 `db:generate`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。

@@ -39,8 +39,8 @@
 
 ### 各角色可见入口
 
-- **content**：应用列表侧栏 + app 详情的 Channels 标签（版本表含 draft、下载/检查计数）与 Settings 标签（仅 Release log 分区，用于维护发布日志语言配置）。无 Integration / API docs / API keys，无 promote，无版本安装包下载，无新建 channel 按钮，无新建应用按钮，无设置入口。
-- **developer**：content 所见 + Integration 标签 + API docs 标签（ReDoc）+ API keys 标签 + 新建 channel + 新建应用入口（/apps 头部按钮与空态 CTA）+ promote + 历史行安装包下载 + app Settings 标签（编辑应用配置；删除应用区块仍仅 admin）。无设置入口；不见趋势图、版本统计入口与 release notes 编辑入口（面向内容与运营，工程视角不需要）。
+- **content**：应用列表侧栏 + app 详情的 Channels 标签（版本表含 draft、下载/检查计数）与 Settings 标签（仅 Release log 分区，用于维护发布日志语言配置）。无 Integration / API keys，无 promote，无版本安装包下载，无新建 channel 按钮，无新建应用按钮，无设置入口。
+- **developer**：content 所见 + Integration 标签 + API keys 标签 + 新建 channel + 新建应用入口（/apps 头部按钮与空态 CTA）+ promote + 历史行安装包下载 + app Settings 标签（编辑应用配置；删除应用区块仍仅 admin）。无设置入口；不见趋势图、版本统计入口与 release notes 编辑入口（面向内容与运营，工程视角不需要）。
 - **admin**：全部，含新建应用按钮、app Settings 标签（编辑 + 删除 app）与设置页入口。
 
 直接输入 URL 访问被隐藏的页面：正常打开，不被拦截。
@@ -60,7 +60,7 @@
 - [x] 侧栏底部为单一按钮（UserRound 图标 + 当前角色名），点击向上弹出菜单；侧栏折叠为图标模式时按钮仍可用（tooltip 显示角色名）。
 - [x] 菜单内含：角色三选（当前项带标记）、语言切换、外观切换、设置入口（仅 admin 可见）、退出登录；语言与外观行点击不关闭菜单。
 - [x] content 角色：app 详情见 Channels 与 Settings 标签，Settings 内仅 Release log 分区；无新建 channel、新建应用按钮与设置入口。
-- [x] developer 角色：另有 Integration、API docs（ReDoc）与 API keys 标签、新建 channel、新建应用入口、promote、历史行安装包下载及 app Settings 标签（编辑表单可见，删除应用区块不可见）；无设置入口；Channels 标签内不见趋势图、版本统计按钮与 release notes 编辑按钮。
+- [x] developer 角色：另有 Integration 与 API keys 标签、新建 channel、新建应用入口、promote、历史行安装包下载及 app Settings 标签（编辑表单可见，删除应用区块不可见）；无设置入口；Channels 标签内不见趋势图、版本统计按钮与 release notes 编辑按钮。
 - [x] content 角色：Channels 可见 draft 行与 notes 编辑，不见 promote 与安装包下载。
 - [x] admin 角色：全部入口可见。
 - [x] 直接访问被隐藏入口的 URL（如 `/settings`、`/apps/new`）正常打开，无重定向。

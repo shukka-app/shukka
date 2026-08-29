@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-推荐分发是仓库根 `Dockerfile` 产出的 `ghcr.io/shukka-app/shukka`（[self-host-runtime](self-host-runtime.md)、[ghcr-on-semver-tag](ghcr-on-semver-tag.md)）。CI 的 `s3` / Action test 在 runner 上 `npm run build && npm start`，不经过镜像。`docker.yml` 只在 `main` 与 semver 标签上构建并推送，PR 不发镜像，也没有人在合并前跑过「按文档 `docker run` 之后的进程」。镜像层（Alpine 运行时、Nitro 追出的 `better-sqlite3` prebuild、`require.resolve` 的 redoc bundle、`/data` 卷、非 root）坏了要到发布后才发现。
+推荐分发是仓库根 `Dockerfile` 产出的 `ghcr.io/shukka-app/shukka`（[self-host-runtime](self-host-runtime.md)、[ghcr-on-semver-tag](ghcr-on-semver-tag.md)）。CI 的 `s3` / Action test 在 runner 上 `npm run build && npm start`，不经过镜像。`docker.yml` 只在 `main` 与 semver 标签上构建并推送，PR 不发镜像，也没有人在合并前跑过「按文档 `docker run` 之后的进程」。镜像层（Alpine 运行时、Nitro 追出的 `better-sqlite3` prebuild、`/data` 卷、非 root）坏了要到发布后才发现。
 
 ## Decision
 

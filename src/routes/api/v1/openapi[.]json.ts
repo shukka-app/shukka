@@ -3,7 +3,7 @@ import { requireAdmin } from '~/lib/auth.ts'
 import { handle } from '~/lib/errors.ts'
 import { openApiDocument } from '~/server/openapi.ts'
 
-/** Panel ReDoc source — session only, not a public docs site. */
+/** Machine-readable OpenAPI document — session only. Human docs live in shukka-app/docs. */
 export const Route = createFileRoute('/api/v1/openapi.json')({
   server: {
     handlers: {
