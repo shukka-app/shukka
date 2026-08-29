@@ -8,9 +8,18 @@ import { table } from '@milkdown/crepe/feature/table'
 import { toolbar } from '@milkdown/crepe/feature/toolbar'
 import { useEffect, useRef } from 'react'
 
-// Structure styles only — colors/fonts come from the --crepe-* mapping in
-// styles.css, so the editor follows the panel theme (ADR: release-log).
-import '@milkdown/crepe/theme/common/style.css'
+// Per-feature structure styles only — colors/fonts come from the --crepe-*
+// mapping in styles.css. Do not import theme/common/style.css: it pulls
+// latex.css → katex fonts into the graph.
+import '@milkdown/crepe/theme/common/prosemirror.css'
+import '@milkdown/crepe/theme/common/reset.css'
+import '@milkdown/crepe/theme/common/placeholder.css'
+import '@milkdown/crepe/theme/common/toolbar.css'
+import '@milkdown/crepe/theme/common/list-item.css'
+import '@milkdown/crepe/theme/common/link-tooltip.css'
+import '@milkdown/crepe/theme/common/cursor.css'
+import '@milkdown/crepe/theme/common/block-edit.css'
+import '@milkdown/crepe/theme/common/table.css'
 
 /**
  * WYSIWYG markdown editor (Milkdown CrepeBuilder). Word pastes arrive as
