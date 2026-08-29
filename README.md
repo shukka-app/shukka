@@ -107,7 +107,7 @@ Create an app in the panel, then an API key on its **API keys** tab. In CI:
     app: my-app
     channel: stable
     directory: dist
-    # release: true   # omit to leave the version as a draft
+    release: true   # omit to create a draft the feed cannot see; promote in the panel or PATCH .../channels/{channel} {"currentVersion":"…"}
 ```
 
 Point the whole `electron-builder` `dist/` or Tauri `src-tauri/target/release/bundle`

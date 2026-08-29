@@ -241,21 +241,24 @@ export const zh = {
       step1Detail: 'generic provider 会在构建时把此 URL 写入应用。无需凭据——更新源是公开的。',
       step2Title: '在主进程中检查更新',
       step2Detail: 'electron-updater 读取更新源、比较版本并通过它下载。',
-      publishDetail: '把 electron-builder 产物目录发布上来的三种方式——按你的流水线任选其一。',
+      publishDetail:
+        '把 electron-builder 产物目录发布上来的三种方式——按你的流水线任选其一。上传成功默认是草稿，更新源看不见；传 release: true 或事后 promote 才会上线。',
     },
     tauri: {
       step1Title: '将 Tauri updater 指向更新源',
       step1Detail: 'plugin-updater 读取这个公开 endpoint。无需凭据——更新源是静态的 platforms JSON。',
       step2Title: '在 Rust / JS 侧检查更新',
       step2Detail: '@tauri-apps/plugin-updater 对构建时写入的 endpoint 调用 check()。',
-      publishDetail: '把 Tauri updater 产物目录发布上来的三种方式——按你的流水线任选其一。',
+      publishDetail:
+        '把 Tauri updater 产物目录发布上来的三种方式——按你的流水线任选其一。上传成功默认是草稿，更新源看不见；传 release: true 或事后 promote 才会上线。',
     },
     publishTitle: '发布版本',
     githubActionTitle: 'GitHub Action',
-    githubActionDetail: '一个 workflow 步骤即可发布产物目录。先在「API key」标签页创建 key，并存为仓库 secret。',
+    githubActionDetail:
+      '一个 workflow 步骤即可发布产物目录。先在「API key」标签页创建 key，并存为仓库 secret。传 release: true 立即上线；省略则是更新源看不见的草稿——在面板 promote，或 PATCH channel 的 currentVersion。',
     httpApiTitle: 'HTTP API',
     httpApiDetail:
-      '任意 CI 或脚本都可以走 HTTP 发布：init 上传事务，用 presigned URL 把每个文件直传到 S3，然后 finalize（默认草稿）。API key 放在 Authorization 头里。完整请求形状见 API 文档。',
+      '任意 CI 或脚本都可以走 HTTP 发布：init 上传事务，用 presigned URL 把每个文件直传到 S3，然后 finalize。默认是更新源看不见的草稿——传 "release": true 立即上线，或事后在面板 / PATCH currentVersion promote。API key 放在 Authorization 头里。完整请求形状见 API 文档。',
     openApiDocs: '打开 API 文档',
     agentTitle: '用 Agent',
     agentDetail:

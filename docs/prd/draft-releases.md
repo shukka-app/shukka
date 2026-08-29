@@ -70,6 +70,7 @@
 - [x] promote 后 `releasedAt` 有值且此后删除 current 指针不会把它变回 draft。
 - [x] 面板 content 角色无 promote 入口；admin / developer 有。
 - [x] Action / 上传脚本 / skill 文档与 `release` 默认 false 一致。
+- [x] Integration 的 Action / HTTP snippet 与 agent prompt 把 live-vs-draft 写清楚：`release: true` 为真实输入，省略则 feed 不可见；事后在面板 promote 或 `PATCH` `currentVersion`。
 - [x] 连续发布两个版本后把 `currentVersion` 指回旧已发布版本：feed 与宿主平台 electron-updater 看到旧版本；被切走的已发布制品仍按文件名 302。
 
 ## Resolved product decisions
@@ -78,3 +79,4 @@
 - 立刻上线口子：`release: true`。
 - 公开面必须完全隐身，防止未发布包被猜文件名下载。
 - 已发布版本保持「按文件名可下载」，避免老客户端中断。
+- Integration 文案把 `release: true` 写成真实输入（不是注释掉的可选项），并一行注明省略则为更新源看不见的 draft；不把 API / Action 默认改成 live。

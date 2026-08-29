@@ -58,7 +58,7 @@ Facts:
 Do all of the following:
 1. In tauri.conf, set plugins.updater.endpoints to the feed URL above (the channel-root URL, not a latest.json path).
 2. Call check() from @tauri-apps/plugin-updater when the app should look for updates.
-3. Add a GitHub Actions workflow that builds the Tauri updater bundles and publishes that directory with the Shukka action (inputs: server-url, api-key, app, channel, directory).
+3. Add a GitHub Actions workflow that builds the Tauri updater bundles and publishes that directory with the Shukka action (inputs: server-url, api-key, app, channel, directory, release). Pass release: true to go live immediately. Omitting it creates a draft the feed cannot see — promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 4. Tell me what manual steps remain (creating the API key, adding the secrets, embedding the updater pubkey).`
       : `Set up electron-updater self-updates for this app using my Shukka instance.
 
@@ -71,7 +71,7 @@ Facts:
 Do all of the following:
 1. In electron-builder config, set publish to the generic provider pointing at the feed URL above. Do not set publish.channel — the feed URL already includes the Shukka channel.
 2. In the Electron main process, configure electron-updater with that feed URL (no channel override) and call checkForUpdatesAndNotify() after app ready.
-3. Add a GitHub Actions workflow that builds the electron-builder output and publishes the dist directory with the Shukka action (inputs: server-url, api-key, app, channel, directory).
+3. Add a GitHub Actions workflow that builds the electron-builder output and publishes the dist directory with the Shukka action (inputs: server-url, api-key, app, channel, directory, release). Pass release: true to go live immediately. Omitting it creates a draft the feed cannot see — promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 4. Verify the config is coherent and tell me what manual steps remain (creating the API key, adding the secrets).`
 
   const httpApiPrompt =
@@ -88,7 +88,7 @@ Facts:
 Upload protocol (JSON bodies; errors are { "error": <code>, "message": <string> }):
 1. POST ${serverUrl}/api/v1/upload/init with { "app": "${app.slug}", "channel": "${channelName}", "version": "<version>", "files": [{ "filename": "<name>", "size": <bytes> }, ...] } — the file list is the updater bundles plus matching .sig files, optionally latest.json. The response contains uploadId and, per file, a presigned uploadUrl.
 2. PUT each file's raw bytes to its uploadUrl (direct to S3; URLs expire one hour after init).
-3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}" } — Shukka verifies the objects and creates a draft. Pass "release": true to go live in the same call. Promote later with PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
+3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}", "release": true } — Shukka verifies the objects. "release": true goes live in the same call. Omit it to create a draft the feed cannot see; promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 
 Do all of the following:
 1. In tauri.conf, set plugins.updater.endpoints to the feed URL above.
@@ -107,7 +107,7 @@ Facts:
 Upload protocol (JSON bodies; errors are { "error": <code>, "message": <string> }):
 1. POST ${serverUrl}/api/v1/upload/init with { "app": "${app.slug}", "channel": "${channelName}", "version": "<version>", "files": [{ "filename": "<name>", "size": <bytes> }, ...] } — the file list is every file in the electron-builder output directory (installers, *.blockmap, latest*.yml) and must include at least one .yml. The response contains uploadId and, per file, a presigned uploadUrl.
 2. PUT each file's raw bytes to its uploadUrl (direct to S3; URLs expire one hour after init).
-3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}" } — Shukka verifies the objects, parses the yml, and creates a draft. Pass "release": true to go live in the same call. Promote later with PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
+3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}", "release": true } — Shukka verifies the objects and parses the yml. "release": true goes live in the same call. Omit it to create a draft the feed cannot see; promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 
 Do all of the following:
 1. In electron-builder config, set publish to the generic provider pointing at the feed URL above. Do not set publish.channel — the feed URL already includes the Shukka channel.
