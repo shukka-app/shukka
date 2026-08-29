@@ -11,9 +11,9 @@ export type HealthReport = {
 }
 
 /** Lightweight liveness probe: process up + SQLite `SELECT 1`. Never throws. */
-export function checkHealth(): HealthReport {
+export async function checkHealth(): Promise<HealthReport> {
   try {
-    db.run(sql`SELECT 1`)
+    await db.run(sql`SELECT 1`)
     return { status: 'ok', db: 'ok', httpStatus: 200 }
   } catch {
     return { status: 'degraded', db: 'down', httpStatus: 503 }

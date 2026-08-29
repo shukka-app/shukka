@@ -23,11 +23,11 @@ export const Route = createFileRoute('/api/admin/apps')({
   server: {
     handlers: {
       GET: handle(async ({ request }) => {
-        requireAdmin(request)
-        return Response.json({ apps: appSummaries() })
+        await requireAdmin(request)
+        return Response.json({ apps: await appSummaries() })
       }),
       POST: handle(async ({ request }) => {
-        requireAdmin(request)
+        await requireAdmin(request)
         const parsed = appInputSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Invalid app payload', parsed.error.issues)
         return Response.json({ app: publicApp(await createApp(parsed.data)) }, { status: 201 })

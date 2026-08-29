@@ -11,17 +11,17 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels/$channel/ve
   server: {
     handlers: {
       PUT: handle(async ({ request, params }) => {
-        const { app } = requireAppActor(request, textParam(params, 'appSlug'))
+        const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
         const parsed = noteSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Invalid note payload', parsed.error.issues)
-        const version = getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
-        const note = upsertNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')), parsed.data.markdown)
+        const version = await getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
+        const note = await upsertNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')), parsed.data.markdown)
         return Response.json({ note })
       }),
       DELETE: handle(async ({ request, params }) => {
-        const { app } = requireAppActor(request, textParam(params, 'appSlug'))
-        const version = getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
-        deleteNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')))
+        const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
+        const version = await getVersion(app.id, textParam(params, 'channel'), textParam(params, 'version'))
+        await deleteNote(app.id, version.id, decodeURIComponent(textParam(params, 'locale')))
         return Response.json({ ok: true })
       }),
     },

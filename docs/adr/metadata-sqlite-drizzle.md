@@ -8,6 +8,8 @@
 
 SQLite 单文件数据库（数据目录 `data/`，可挂卷），Drizzle ORM 管 schema 与迁移，启动时自动迁移。
 
+驱动是 libsql（`@libsql/client` + `drizzle-orm/libsql`），不是 `better-sqlite3`。入口按运行时动态选择：Node 用 `file:`，isolate 用 HTTP web 客户端。见 [libsql-async](libsql-async.md)。
+
 ## Alternatives
 
 - **全部状态存 S3 JSON**：无额外存储，但并发写、计数自增、关联查询都要自造，得不偿失。

@@ -27,22 +27,22 @@ export type HitKind = 'metadata' | 'artifact'
  * counter ≡ SUM(buckets) has no window (ADR: hit-trends). `now` is injectable
  * as a test seam.
  */
-export function recordHit(versionId: number, kind: HitKind, now: number = nowSeconds()): void {
+export async function recordHit(versionId: number, kind: HitKind, now: number = nowSeconds()): Promise<void> {
   if (isCloudFunction()) return
   const hourStart = Math.floor(now / HOUR) * HOUR
-  db.transaction((tx) => {
-    const column = kind === 'metadata' ? versions.metadataHits : versions.artifactHits
-    tx.update(versions)
+  const column = kind === 'metadata' ? versions.metadataHits : versions.artifactHits
+  await db.transaction(async (tx) => {
+    await tx
+      .update(versions)
       .set({ [kind === 'metadata' ? 'metadataHits' : 'artifactHits']: sql`${column} + 1` })
       .where(eq(versions.id, versionId))
-      .run()
-    tx.insert(hitBuckets)
+    await tx
+      .insert(hitBuckets)
       .values({ versionId, kind, hourStart, count: 1 })
       .onConflictDoUpdate({
         target: [hitBuckets.versionId, hitBuckets.kind, hitBuckets.hourStart],
         set: { count: sql`${hitBuckets.count} + 1` },
       })
-      .run()
   })
 }
 
@@ -72,17 +72,17 @@ function fillPoints(rows: { bucket: number; kind: HitKind; count: number }[], st
  * day (30/90d), zero-filled where no hits landed. Day boundaries are integer
  * math on unix seconds, i.e. UTC (ADR: hit-trends).
  */
-export function channelTrend(
+export async function channelTrend(
   appId: number,
   channelId: number,
   range: TrendRange,
   now: number = nowSeconds(),
-): ChannelTrend {
-  const channel = db
-    .select()
+): Promise<ChannelTrend> {
+  const [channel] = await db
+    .select({ id: channels.id })
     .from(channels)
     .where(and(eq(channels.id, channelId), eq(channels.appId, appId)))
-    .get()
+    .limit(1)
   if (!channel) throw new ShukkaError('not_found', 'Channel not found')
 
   const granularity = range === 7 ? ('hour' as const) : ('day' as const)
@@ -91,27 +91,26 @@ export function channelTrend(
   // Inclusive fixed-length window: `range` days' worth of buckets ending now.
   const start = end - range * DAY + step
 
-  // better-sqlite3 binds numbers as REAL, so `/` would be float division;
-  // the CAST forces integer truncation back to the UTC day/hour boundary.
+  // Integer division: CAST forces truncation back to the UTC day/hour boundary
+  // even if the driver binds the step as a real.
   const bucket = sql<number>`cast(${hitBuckets.hourStart} / ${step} as integer) * ${step}`
-  const rows = db
+  const rows = await db
     .select({ bucket, kind: hitBuckets.kind, count: sql<number>`sum(${hitBuckets.count})` })
     .from(hitBuckets)
     .innerJoin(versions, eq(hitBuckets.versionId, versions.id))
     .where(and(eq(versions.channelId, channelId), gte(hitBuckets.hourStart, start)))
     .groupBy(bucket, hitBuckets.kind)
-    .all()
 
   return { granularity, points: fillPoints(rows, start, end, step) }
 }
 
 /** The 14 UTC days after release; days after `now` are omitted, not zero-filled. */
-export function versionTrend(appId: number, versionId: number, now: number = nowSeconds()): VersionTrend {
-  const version = db
+export async function versionTrend(appId: number, versionId: number, now: number = nowSeconds()): Promise<VersionTrend> {
+  const [version] = await db
     .select()
     .from(versions)
     .where(and(eq(versions.id, versionId), eq(versions.appId, appId)))
-    .get()
+    .limit(1)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
   if (version.releasedAt == null) return { points: [] }
 
@@ -120,12 +119,11 @@ export function versionTrend(appId: number, versionId: number, now: number = now
   const end = Math.min(Math.floor(now / DAY) * DAY, windowEnd - DAY)
 
   const bucket = sql<number>`cast(${hitBuckets.hourStart} / ${DAY} as integer) * ${DAY}`
-  const rows = db
+  const rows = await db
     .select({ bucket, kind: hitBuckets.kind, count: sql<number>`sum(${hitBuckets.count})` })
     .from(hitBuckets)
     .where(and(eq(hitBuckets.versionId, versionId), gte(hitBuckets.hourStart, releaseDay), lt(hitBuckets.hourStart, windowEnd)))
     .groupBy(bucket, hitBuckets.kind)
-    .all()
 
   return { points: end < releaseDay ? [] : fillPoints(rows, releaseDay, end, DAY) }
 }

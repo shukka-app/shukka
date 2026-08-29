@@ -12,16 +12,16 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/keys')({
   server: {
     handlers: {
       GET: handle(async ({ request, params }) => {
-        const app = requireSessionApp(request, textParam(params, 'appSlug'))
-        return Response.json({ keys: listApiKeys(app.id) })
+        const app = await requireSessionApp(request, textParam(params, 'appSlug'))
+        return Response.json({ keys: await listApiKeys(app.id) })
       }),
       POST: handle(async ({ request, params }) => {
-        const app = requireSessionApp(request, textParam(params, 'appSlug'))
+        const app = await requireSessionApp(request, textParam(params, 'appSlug'))
         const parsed = bodySchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Key name is required')
 
         const { plaintext, hash, hint } = generateApiKey()
-        const key = db.insert(apiKeys).values({ appId: app.id, name: parsed.data.name, hash, hint }).returning().get()
+        const [key] = await db.insert(apiKeys).values({ appId: app.id, name: parsed.data.name, hash, hint }).returning()
 
         return Response.json(
           { key: { id: key.id, name: key.name, hint: key.hint, createdAt: key.createdAt }, plaintext },

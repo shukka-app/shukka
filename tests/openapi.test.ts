@@ -26,10 +26,10 @@ function routeHandler(route: unknown, method: string) {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('GET /api/v1/openapi.json', () => {
-  beforeEach(() => {
-    db.delete(admin).run()
-    db.delete(sessions).run()
-    auth.initializeAdmin('correct horse battery')
+  beforeEach(async () => {
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
+    await auth.initializeAdmin('correct horse battery')
   })
 
   it('rejects an unauthenticated request', async () => {
@@ -43,7 +43,7 @@ describe('GET /api/v1/openapi.json', () => {
   })
 
   it('returns the OpenAPI document for a session', async () => {
-    const token = auth.login('correct horse battery')
+    const token = await auth.login('correct horse battery')
     const GET = routeHandler(openapiRoute.Route, 'GET')
     const res = await GET({
       request: new Request('https://shukka.test/api/v1/openapi.json', {

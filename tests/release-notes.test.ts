@@ -65,7 +65,7 @@ async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: stri
 /** Creates the app with the release log enabled for en-US + zh-CN. */
 async function enabledApp(locales = ['en-US', 'zh-CN'], fallbackLocale = 'en-US') {
   const app = await createApp(appInput)
-  notesServer.updateNotesConfig(app.id, { enabled: true, locales, fallbackLocale })
+  await notesServer.updateNotesConfig(app.id, { enabled: true, locales, fallbackLocale })
   return app
 }
 
@@ -84,8 +84,8 @@ function routeHandler(route: unknown, method: string) {
   return handler
 }
 
-beforeEach(() => {
-  db.delete(apps).run()
+beforeEach(async () => {
+  await db.delete(apps).run()
   objects.clear()
 })
 
@@ -94,7 +94,7 @@ describe('updateNotesConfig', () => {
     const app = await createApp(appInput)
     vi.mocked(verifyWritable).mockClear()
 
-    const saved = notesServer.updateNotesConfig(app.id, {
+    const saved = await notesServer.updateNotesConfig(app.id, {
       enabled: true,
       locales: ['zh-CN', 'en-US', 'en-US'],
       fallbackLocale: 'zh-CN',
@@ -102,24 +102,24 @@ describe('updateNotesConfig', () => {
 
     expect(verifyWritable).not.toHaveBeenCalled()
     expect(saved).toEqual({ enabled: true, locales: ['zh-CN', 'en-US'], fallbackLocale: 'zh-CN' })
-    const stored = getApp(app.id)
+    const stored = await getApp(app.id)
     expect(stored.releaseLogEnabled).toBe(true)
     expect(stored.releaseLogFallbackLocale).toBe('zh-CN')
   })
 
   it('validates locales and fallback when enabling', async () => {
     const app = await createApp(appInput)
-    expect(() => notesServer.updateNotesConfig(app.id, { enabled: true, locales: [], fallbackLocale: 'en-US' })).toThrow(
+    await expect(notesServer.updateNotesConfig(app.id, { enabled: true, locales: [], fallbackLocale: 'en-US' })).rejects.toThrow(
       /at least one locale/i,
     )
-    expect(() =>
+    await expect(
       notesServer.updateNotesConfig(app.id, { enabled: true, locales: ['en-US'], fallbackLocale: 'fr-FR' }),
-    ).toThrow(/fallback locale/i)
-    expect(() =>
+    ).rejects.toThrow(/fallback locale/i)
+    await expect(
       notesServer.updateNotesConfig(app.id, { enabled: true, locales: ['not a locale'], fallbackLocale: 'en-US' }),
-    ).toThrow(ShukkaError)
+    ).rejects.toThrow(ShukkaError)
     // Disabled apps may hold an empty list; the fallback stays at its default.
-    expect(notesServer.updateNotesConfig(app.id, { enabled: false, locales: [], fallbackLocale: 'en-US' })).toEqual({
+    expect(await notesServer.updateNotesConfig(app.id, { enabled: false, locales: [], fallbackLocale: 'en-US' })).toEqual({
       enabled: false,
       locales: [],
       fallbackLocale: 'en-US',
@@ -128,13 +128,13 @@ describe('updateNotesConfig', () => {
 
   it('stores config locales in canonical form so case variants collapse', async () => {
     const app = await createApp(appInput)
-    const saved = notesServer.updateNotesConfig(app.id, {
+    const saved = await notesServer.updateNotesConfig(app.id, {
       enabled: true,
       locales: ['en-us'],
       fallbackLocale: 'en-US',
     })
     expect(saved).toEqual({ enabled: true, locales: ['en-US'], fallbackLocale: 'en-US' })
-    const stored = getApp(app.id)
+    const stored = await getApp(app.id)
     expect(stored.releaseLogFallbackLocale).toBe('en-US')
     expect(JSON.parse(stored.releaseLogLocales)).toEqual(['en-US'])
   })
@@ -146,7 +146,7 @@ describe('upsertNote', () => {
     const { versionId } = await publish(app, 'stable', '1.0.0')
     const markdown = '# What’s new\n\nSome **bold** fix.\n\n<script>alert(1)</script>'
 
-    const note = notesServer.upsertNote(app.id, versionId, 'en-US', markdown)
+    const note = await notesServer.upsertNote(app.id, versionId, 'en-US', markdown)
 
     expect(note.markdown).toBe(markdown)
     expect(note.html).toContain('<strong>bold</strong>')
@@ -161,43 +161,43 @@ describe('upsertNote', () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
 
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'first')
-    const updated = notesServer.upsertNote(app.id, versionId, 'en-US', '**second**')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'first')
+    const updated = await notesServer.upsertNote(app.id, versionId, 'en-US', '**second**')
 
     expect(updated.markdown).toBe('**second**')
     expect(updated.html).toContain('<strong>second</strong>')
-    expect(notesServer.listNotes(app.id, versionId)).toHaveLength(1)
+    expect(await notesServer.listNotes(app.id, versionId)).toHaveLength(1)
   })
 
   it('collapses case-variant upserts of the same locale into one row', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
 
-    notesServer.upsertNote(app.id, versionId, 'en-us', 'first')
-    const updated = notesServer.upsertNote(app.id, versionId, 'en-US', 'second')
+    await notesServer.upsertNote(app.id, versionId, 'en-us', 'first')
+    const updated = await notesServer.upsertNote(app.id, versionId, 'en-US', 'second')
 
     expect(updated.markdown).toBe('second')
     expect(updated.locale).toBe('en-US')
-    expect(notesServer.listNotes(app.id, versionId)).toHaveLength(1)
+    expect(await notesServer.listNotes(app.id, versionId)).toHaveLength(1)
   })
 
   it('rejects writes while the release log is disabled', async () => {
     const app = await createApp(appInput)
     const { versionId } = await publish(app, 'stable', '1.0.0')
 
-    expect(() => notesServer.upsertNote(app.id, versionId, 'en-US', 'hi')).toThrow(/not enabled/)
-    expect(() => notesServer.deleteNote(app.id, versionId, 'en-US')).toThrow(/not enabled/)
+    await expect(notesServer.upsertNote(app.id, versionId, 'en-US', 'hi')).rejects.toThrow(/not enabled/)
+    await expect(notesServer.deleteNote(app.id, versionId, 'en-US')).rejects.toThrow(/not enabled/)
   })
 
   it('rejects invalid locale tags, empty markdown and foreign versions', async () => {
     const app = await enabledApp()
     const other = await createApp({ ...appInput, name: 'Other', slug: 'other' })
-    notesServer.updateNotesConfig(other.id, { enabled: true, locales: ['en-US'], fallbackLocale: 'en-US' })
+    await notesServer.updateNotesConfig(other.id, { enabled: true, locales: ['en-US'], fallbackLocale: 'en-US' })
     const { versionId } = await publish(app, 'stable', '1.0.0')
 
-    expect(() => notesServer.upsertNote(app.id, versionId, 'not a locale', 'hi')).toThrow(/Invalid locale/)
-    expect(() => notesServer.upsertNote(app.id, versionId, 'en-US', '   ')).toThrow(/must not be empty/)
-    expect(() => notesServer.upsertNote(other.id, versionId, 'en-US', 'hi')).toThrow(/not found/i)
+    await expect(notesServer.upsertNote(app.id, versionId, 'not a locale', 'hi')).rejects.toThrow(/Invalid locale/)
+    await expect(notesServer.upsertNote(app.id, versionId, 'en-US', '   ')).rejects.toThrow(/must not be empty/)
+    await expect(notesServer.upsertNote(other.id, versionId, 'en-US', 'hi')).rejects.toThrow(/not found/i)
   })
 })
 
@@ -206,32 +206,32 @@ describe('publicNotes range semantics', () => {
     const app = await enabledApp()
     for (const version of ['1.1.0', '1.2.0', '1.3.0', '1.4.0']) {
       const { versionId } = await publish(app, 'stable', version)
-      notesServer.upsertNote(app.id, versionId, 'en-US', `notes for ${version}`)
+      await notesServer.upsertNote(app.id, versionId, 'en-US', `notes for ${version}`)
     }
-    createChannel(app.id, 'beta')
+    await createChannel(app.id, 'beta')
     const beta = await publish(app, 'beta', '1.3.5')
-    notesServer.upsertNote(app.id, beta.versionId, 'en-US', 'beta notes')
+    await notesServer.upsertNote(app.id, beta.versionId, 'en-US', 'beta notes')
 
-    const ranged = notesServer.publicNotes('acme', 'stable', { from: '1.2.0', to: '1.4.0', locale: null })
+    const ranged = await notesServer.publicNotes('acme', 'stable', { from: '1.2.0', to: '1.4.0', locale: null })
     expect(ranged.notes.map((note) => note.version)).toEqual(['1.3.0', '1.2.0'])
 
-    const open = notesServer.publicNotes('acme', 'stable', { from: '1.2.0', to: null, locale: null })
+    const open = await notesServer.publicNotes('acme', 'stable', { from: '1.2.0', to: null, locale: null })
     expect(open.notes.map((note) => note.version)).toEqual(['1.4.0', '1.3.0', '1.2.0'])
 
     // The beta channel's versions never mix in.
-    const betaOnly = notesServer.publicNotes('acme', 'beta', { from: null, to: null, locale: null })
+    const betaOnly = await notesServer.publicNotes('acme', 'beta', { from: null, to: null, locale: null })
     expect(betaOnly.notes.map((note) => note.version)).toEqual(['1.3.5'])
   })
 
   it('is loud about unknown range bounds', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'notes')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'notes')
 
-    expect(() => notesServer.publicNotes('acme', 'stable', { from: '9.9.9', to: null, locale: null })).toThrow(
+    await expect(notesServer.publicNotes('acme', 'stable', { from: '9.9.9', to: null, locale: null })).rejects.toThrow(
       ShukkaError,
     )
-    expect(() => notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: '9.9.9', locale: null })).toThrow(
+    await expect(notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: '9.9.9', locale: null })).rejects.toThrow(
       /not found on this channel/,
     )
   })
@@ -241,10 +241,10 @@ describe('publicNotes range semantics', () => {
     for (let index = 1; index <= 12; index += 1) {
       const { versionId } = await publish(app, 'stable', `1.0.${index}`)
       // The newest version carries no note — it must be skipped.
-      if (index <= 11) notesServer.upsertNote(app.id, versionId, 'en-US', `notes ${index}`)
+      if (index <= 11) await notesServer.upsertNote(app.id, versionId, 'en-US', `notes ${index}`)
     }
 
-    const result = notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
+    const result = await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
     expect(result.notes).toHaveLength(10)
     expect(result.notes.map((note) => note.version)).toEqual([
       '1.0.11',
@@ -265,9 +265,9 @@ describe('publicNotes locale fallback chain', () => {
   it('resolves a case-variant stored note via the fallback chain', async () => {
     const app = await enabledApp(['en-US'], 'en-US')
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-us', 'english notes')
+    await notesServer.upsertNote(app.id, versionId, 'en-us', 'english notes')
 
-    const result = notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
+    const result = await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
     expect(result.notes.map((note) => [note.version, note.locale, note.markdown])).toEqual([
       ['1.0.0', 'en-US', 'english notes'],
     ])
@@ -276,9 +276,9 @@ describe('publicNotes locale fallback chain', () => {
   it('resolves a case-variant ?locale query to a stored canonical note', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'english notes')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'english notes')
 
-    const result = notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: 'EN-US' })
+    const result = await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: 'EN-US' })
     expect(result.notes.map((note) => [note.version, note.locale, note.markdown])).toEqual([
       ['1.0.0', 'en-US', 'english notes'],
     ])
@@ -287,25 +287,25 @@ describe('publicNotes locale fallback chain', () => {
   it('resolves requested exact → app fallback → first available → omit', async () => {
     const app = await enabledApp(['en-US', 'zh-CN'], 'en-US')
     const full = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, full.versionId, 'zh-CN', '中文说明')
-    notesServer.upsertNote(app.id, full.versionId, 'en-US', 'english notes')
+    await notesServer.upsertNote(app.id, full.versionId, 'zh-CN', '中文说明')
+    await notesServer.upsertNote(app.id, full.versionId, 'en-US', 'english notes')
     const partial = await publish(app, 'stable', '1.1.0')
-    notesServer.upsertNote(app.id, partial.versionId, 'ja-JP', '日本語メモ')
+    await notesServer.upsertNote(app.id, partial.versionId, 'ja-JP', '日本語メモ')
     await publish(app, 'stable', '1.2.0') // no notes at all — omitted
 
-    const exact = notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: 'zh-CN' })
+    const exact = await notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: 'zh-CN' })
     expect(exact.notes.map((note) => [note.version, note.locale, note.markdown])).toEqual([
       ['1.1.0', 'ja-JP', '日本語メモ'], // requested miss → fallback miss → first available
       ['1.0.0', 'zh-CN', '中文说明'], // requested exact match
     ])
 
-    const fallback = notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: 'fr-FR' })
+    const fallback = await notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: 'fr-FR' })
     expect(fallback.notes.map((note) => [note.version, note.locale])).toEqual([
       ['1.1.0', 'ja-JP'],
       ['1.0.0', 'en-US'], // requested miss → app fallback
     ])
 
-    const absent = notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: null })
+    const absent = await notesServer.publicNotes('acme', 'stable', { from: '1.0.0', to: null, locale: null })
     expect(absent.notes.map((note) => [note.version, note.locale])).toEqual([
       ['1.1.0', 'ja-JP'],
       ['1.0.0', 'en-US'], // no requested locale → app fallback
@@ -317,7 +317,7 @@ describe('publicNotes gating and errors', () => {
   it('omits draft versions even when they have notes', async () => {
     const app = await enabledApp()
     const live = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, live.versionId, 'en-US', 'live notes')
+    await notesServer.upsertNote(app.id, live.versionId, 'en-US', 'live notes')
 
     const init = await initUpload(app, {
       channel: 'stable',
@@ -328,30 +328,30 @@ describe('publicNotes gating and errors', () => {
       objects.set(file.key, file.filename === 'latest.yml' ? metadataFor('2.0.0', 'Acme-Setup-2.0.0.exe') : 'binary')
     }
     const draft = await finalizeUpload(app, init.uploadId)
-    notesServer.upsertNote(app.id, draft.versionId, 'en-US', 'secret draft')
+    await notesServer.upsertNote(app.id, draft.versionId, 'en-US', 'secret draft')
 
     expect(
-      notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null }).notes.map((note) => note.version),
+      (await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })).notes.map((note) => note.version),
     ).toEqual(['1.0.0'])
   })
 
   it('returns no data for apps without the release log enabled', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'notes')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'notes')
 
-    notesServer.updateNotesConfig(app.id, { enabled: false, locales: [], fallbackLocale: 'en-US' })
-    expect(notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })).toEqual({ notes: [] })
+    await notesServer.updateNotesConfig(app.id, { enabled: false, locales: [], fallbackLocale: 'en-US' })
+    expect(await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })).toEqual({ notes: [] })
 
     const plain = await createApp({ ...appInput, name: 'Plain', slug: 'plain' })
     await publish(plain, 'stable', '1.0.0')
-    expect(notesServer.publicNotes('plain', 'stable', { from: null, to: null, locale: null })).toEqual({ notes: [] })
+    expect(await notesServer.publicNotes('plain', 'stable', { from: null, to: null, locale: null })).toEqual({ notes: [] })
   })
 
   it('rejects unknown apps and channels as not_found', async () => {
     await enabledApp()
-    expect(() => notesServer.publicNotes('nope', 'stable', { from: null, to: null, locale: null })).toThrow(ShukkaError)
-    expect(() => notesServer.publicNotes('acme', 'nope', { from: null, to: null, locale: null })).toThrow(/not found/i)
+    await expect(notesServer.publicNotes('nope', 'stable', { from: null, to: null, locale: null })).rejects.toThrow(ShukkaError)
+    await expect(notesServer.publicNotes('acme', 'nope', { from: null, to: null, locale: null })).rejects.toThrow(/not found/i)
   })
 })
 
@@ -359,7 +359,7 @@ describe('public notes route', () => {
   it('serves notes without any session and keeps the feed error envelope', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'hello')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'hello')
     const GET = routeHandler(notesRoute.Route, 'GET')
 
     const ok = await GET({
@@ -384,20 +384,20 @@ describe('release notes lifecycle', () => {
   it('cascades notes when the version is deleted', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'english')
-    notesServer.upsertNote(app.id, versionId, 'zh-CN', '中文')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'english')
+    await notesServer.upsertNote(app.id, versionId, 'zh-CN', '中文')
 
-    await deleteVersion(getApp(app.id), versionId)
-    expect(db.select().from(releaseNotes).where(eq(releaseNotes.versionId, versionId)).all()).toHaveLength(0)
+    await deleteVersion(await getApp(app.id), versionId)
+    expect(await db.select().from(releaseNotes).where(eq(releaseNotes.versionId, versionId)).all()).toHaveLength(0)
   })
 
   it('deletes a single locale note and complains about missing ones', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
-    notesServer.upsertNote(app.id, versionId, 'en-US', 'english')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'english')
 
-    notesServer.deleteNote(app.id, versionId, 'en-US')
-    expect(notesServer.listNotes(app.id, versionId)).toHaveLength(0)
-    expect(() => notesServer.deleteNote(app.id, versionId, 'en-US')).toThrow(/No en-US note/)
+    await notesServer.deleteNote(app.id, versionId, 'en-US')
+    expect(await notesServer.listNotes(app.id, versionId)).toHaveLength(0)
+    await expect(notesServer.deleteNote(app.id, versionId, 'en-US')).rejects.toThrow(/No en-US note/)
   })
 })

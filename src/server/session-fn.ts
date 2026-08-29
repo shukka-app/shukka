@@ -7,5 +7,6 @@ export type SessionState = { initialized: boolean; authenticated: boolean }
 /** Read on the server during SSR so protected routes never flash unauthenticated content. */
 export const getSessionState = createServerFn({ method: 'GET' }).handler(async (): Promise<SessionState> => {
   const token = readSessionCookie(getRequest())
-  return { initialized: isInitialized(), authenticated: sessionIsValid(token) }
+  const [initialized, authenticated] = await Promise.all([isInitialized(), sessionIsValid(token)])
+  return { initialized, authenticated }
 })

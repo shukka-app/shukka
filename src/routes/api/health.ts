@@ -6,7 +6,7 @@ export const Route = createFileRoute('/api/health')({
   server: {
     handlers: {
       GET: async () => {
-        const report = checkHealth()
+        const report = await checkHealth()
         return Response.json(
           { status: report.status, db: report.db },
           { status: report.httpStatus, headers: { 'cache-control': 'no-store' } },

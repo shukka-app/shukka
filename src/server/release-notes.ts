@@ -33,8 +33,8 @@ export function notesConfig(app: App): NotesConfig {
  * Saves the release log config. Deliberately separate from updateApp so this
  * path never triggers the S3 storage probe (ADR: release-log).
  */
-export function updateNotesConfig(appId: number, input: NotesConfig): NotesConfig {
-  getApp(appId)
+export async function updateNotesConfig(appId: number, input: NotesConfig): Promise<NotesConfig> {
+  await getApp(appId)
   const locales = [...new Set(input.locales.map((locale) => canonicalLocale(locale)))]
   const fallbackLocale = canonicalLocale(input.fallbackLocale)
   if (input.enabled && locales.length === 0) {
@@ -44,23 +44,23 @@ export function updateNotesConfig(appId: number, input: NotesConfig): NotesConfi
     throw new ShukkaError('invalid_request', 'The fallback locale must be one of the configured locales')
   }
 
-  db.update(apps)
+  await db
+    .update(apps)
     .set({
       releaseLogEnabled: input.enabled,
       releaseLogLocales: JSON.stringify(locales),
       releaseLogFallbackLocale: fallbackLocale,
     })
     .where(eq(apps.id, appId))
-    .run()
   return { enabled: input.enabled, locales, fallbackLocale }
 }
 
-function getVersionForApp(appId: number, versionId: number): Version {
-  const version = db
+async function getVersionForApp(appId: number, versionId: number): Promise<Version> {
+  const [version] = await db
     .select()
     .from(versions)
     .where(and(eq(versions.id, versionId), eq(versions.appId, appId)))
-    .get()
+    .limit(1)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
   return version
 }
@@ -73,26 +73,25 @@ function assertNotesEnabled(app: App): void {
 }
 
 /** All locales' notes for a version, sorted by locale for a deterministic fallback chain. */
-export function listNotes(appId: number, versionId: number): NoteContent[] {
-  getVersionForApp(appId, versionId)
+export async function listNotes(appId: number, versionId: number): Promise<NoteContent[]> {
+  await getVersionForApp(appId, versionId)
   return db
     .select()
     .from(releaseNotes)
     .where(eq(releaseNotes.versionId, versionId))
     .orderBy(asc(releaseNotes.locale))
-    .all()
 }
 
 /** Upsert: re-saving a locale re-renders html/text with the current pipeline. */
-export function upsertNote(appId: number, versionId: number, locale: string, markdown: string): NoteContent {
-  const app = getApp(appId)
+export async function upsertNote(appId: number, versionId: number, locale: string, markdown: string): Promise<NoteContent> {
+  const app = await getApp(appId)
   assertNotesEnabled(app)
   locale = canonicalLocale(locale)
-  getVersionForApp(appId, versionId)
+  await getVersionForApp(appId, versionId)
   if (!markdown.trim()) throw new ShukkaError('invalid_request', 'Note markdown must not be empty')
 
   const { html, text } = renderMarkdown(markdown)
-  return db
+  const [note] = await db
     .insert(releaseNotes)
     .values({ versionId, locale, markdown, html, text })
     .onConflictDoUpdate({
@@ -100,19 +99,18 @@ export function upsertNote(appId: number, versionId: number, locale: string, mar
       set: { markdown, html, text },
     })
     .returning()
-    .get()
+  return note
 }
 
-export function deleteNote(appId: number, versionId: number, locale: string): void {
-  const app = getApp(appId)
+export async function deleteNote(appId: number, versionId: number, locale: string): Promise<void> {
+  const app = await getApp(appId)
   assertNotesEnabled(app)
-  getVersionForApp(appId, versionId)
+  await getVersionForApp(appId, versionId)
   locale = canonicalLocale(locale)
-  const deleted = db
+  const [deleted] = await db
     .delete(releaseNotes)
     .where(and(eq(releaseNotes.versionId, versionId), eq(releaseNotes.locale, locale)))
     .returning()
-    .get()
   if (!deleted) throw new ShukkaError('not_found', `No ${locale} note on this version`)
 }
 
@@ -124,36 +122,34 @@ export type NotesQuery = { from: string | null; to: string | null; locale: strin
  * log enabled return no data; versions whose fallback chain is exhausted are
  * omitted from the response.
  */
-export function publicNotes(appSlug: string, channelName: string, query: NotesQuery): ReleaseNotesResponse {
-  const app = getAppBySlug(appSlug)
-  const channel = getChannel(app.id, channelName)
+export async function publicNotes(appSlug: string, channelName: string, query: NotesQuery): Promise<ReleaseNotesResponse> {
+  const app = await getAppBySlug(appSlug)
+  const channel = await getChannel(app.id, channelName)
   if (!app.releaseLogEnabled) return { notes: [] }
 
-  const channelVersions = listPublishedVersions(channel.id)
+  const channelVersions = await listPublishedVersions(channel.id)
   let selected: Version[]
   if (query.from !== null) {
     selected = resolveNotesRange(channelVersions, query.from, query.to)
   } else {
-    const noted = new Set(
-      db
-        .selectDistinct({ versionId: releaseNotes.versionId })
-        .from(releaseNotes)
-        .innerJoin(versions, eq(releaseNotes.versionId, versions.id))
-        .where(eq(versions.channelId, channel.id))
-        .all()
-        .map((row) => row.versionId),
-    )
-    selected = channelVersions.filter((version) => noted.has(version.id)).slice(0, LATEST_NOTES_LIMIT)
+    const noted = await db
+      .selectDistinct({ versionId: releaseNotes.versionId })
+      .from(releaseNotes)
+      .innerJoin(versions, eq(releaseNotes.versionId, versions.id))
+      .where(eq(versions.channelId, channel.id))
+    const notedIds = new Set(noted.map((row) => row.versionId))
+    selected = channelVersions.filter((version) => notedIds.has(version.id)).slice(0, LATEST_NOTES_LIMIT)
   }
   if (selected.length === 0) return { notes: [] }
 
-  const byVersion = new Map<number, NoteContent[]>()
-  for (const row of db
+  const noteRows = await db
     .select()
     .from(releaseNotes)
     .where(inArray(releaseNotes.versionId, selected.map((version) => version.id)))
     .orderBy(asc(releaseNotes.locale))
-    .all()) {
+
+  const byVersion = new Map<number, NoteContent[]>()
+  for (const row of noteRows) {
     const list = byVersion.get(row.versionId) ?? []
     list.push(row)
     byVersion.set(row.versionId, list)

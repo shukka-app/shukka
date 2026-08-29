@@ -183,6 +183,9 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   (`docs/prd/feed-hits-serverless.md`, `docs/adr/feed-hits-serverless.md`).
 - S3 talk is aws4fetch (SigV4 + fetch), not `@aws-sdk/client-s3`
   (`docs/prd/s3-js-client.md`, `docs/adr/s3-js-client.md`).
+- Metadata SQLite is libsql (`@libsql/client` + `drizzle-orm/libsql`); Node
+  uses `file:`, isolates use the web client and do not migrate in-process
+  (`docs/prd/libsql-async.md`, `docs/adr/libsql-async.md`).
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

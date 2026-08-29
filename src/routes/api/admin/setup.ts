@@ -11,7 +11,7 @@ export const Route = createFileRoute('/api/admin/setup')({
       POST: handle(async ({ request }) => {
         const parsed = bodySchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Password must be at least 8 characters')
-        const token = initializeAdmin(parsed.data.password)
+        const token = await initializeAdmin(parsed.data.password)
         return Response.json({ ok: true }, { headers: { 'set-cookie': sessionCookieHeader(token, request) } })
       }),
     },

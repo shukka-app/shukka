@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const runtimeState = vi.hoisted(() => ({ cloud: false }))
 
-vi.mock('~/lib/runtime.ts', () => ({
-  isCloudFunction: () => runtimeState.cloud,
-}))
+vi.mock('~/lib/runtime.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/lib/runtime.ts')>()
+  return { ...actual, isCloudFunction: () => runtimeState.cloud }
+})
 
 const { db } = await import('~/db/index.ts')
 const { admin, sessions } = await import('~/db/schema.ts')
@@ -28,12 +29,12 @@ function routeHandler(route: unknown, method: string) {
 }
 
 describe('login rate limit on cloud functions', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     runtimeState.cloud = true
-    db.delete(admin).run()
-    db.delete(sessions).run()
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
     resetRateLimitForTests()
-    auth.initializeAdmin('correct horse battery')
+    await auth.initializeAdmin('correct horse battery')
   })
 
   async function postLogin(password: string) {

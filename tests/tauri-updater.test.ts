@@ -59,7 +59,7 @@ async function publishTauri(
   return finalizeUpload(app, init.uploadId, { release: true })
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   clearObjectCache()
 })
 
@@ -115,8 +115,8 @@ describe('electron inferFeedTarget', () => {
 })
 
 describe('updater kind on create', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -132,8 +132,8 @@ describe('updater kind on create', () => {
 })
 
 describe('tauri upload and feed', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 

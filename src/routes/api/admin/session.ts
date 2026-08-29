@@ -5,12 +5,13 @@ import { handle } from '~/lib/errors.ts'
 export const Route = createFileRoute('/api/admin/session')({
   server: {
     handlers: {
-      GET: handle(async ({ request }) =>
-        Response.json({
-          initialized: isInitialized(),
-          authenticated: sessionIsValid(readSessionCookie(request)),
-        }),
-      ),
+      GET: handle(async ({ request }) => {
+        const [initialized, authenticated] = await Promise.all([
+          isInitialized(),
+          sessionIsValid(readSessionCookie(request)),
+        ])
+        return Response.json({ initialized, authenticated })
+      }),
     },
   },
 })

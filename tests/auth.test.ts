@@ -43,9 +43,9 @@ function makeApp(slug: string) {
   })
 }
 
-function keyFor(appId: number, name = 'ci') {
+async function keyFor(appId: number, name = 'ci') {
   const { plaintext, hash, hint } = auth.generateApiKey()
-  const row = db.insert(apiKeys).values({ appId, name, hash, hint }).returning().get()
+  const row = await db.insert(apiKeys).values({ appId, name, hash, hint }).returning().get()
   return { plaintext, row }
 }
 
@@ -54,47 +54,47 @@ const bearer = (token: string) => new Request('https://shukka.test/api/v1/upload
 })
 
 describe('admin session', () => {
-  beforeEach(() => {
-    db.delete(admin).run()
-    db.delete(sessions).run()
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
+    await db.delete(apps).run()
   })
 
-  it('reports uninitialized until an admin password is set', () => {
-    expect(auth.isInitialized()).toBe(false)
-    auth.initializeAdmin('correct horse battery')
-    expect(auth.isInitialized()).toBe(true)
+  it('reports uninitialized until an admin password is set', async () => {
+    expect(await auth.isInitialized()).toBe(false)
+    await auth.initializeAdmin('correct horse battery')
+    expect(await auth.isInitialized()).toBe(true)
   })
 
-  it('refuses a second initialization', () => {
-    auth.initializeAdmin('correct horse battery')
-    expect(() => auth.initializeAdmin('another one')).toThrow(ShukkaError)
+  it('refuses a second initialization', async () => {
+    await auth.initializeAdmin('correct horse battery')
+    await expect(auth.initializeAdmin('another one')).rejects.toThrow(ShukkaError)
   })
 
-  it('rejects short passwords', () => {
-    expect(() => auth.initializeAdmin('short')).toThrow(/at least 8/)
+  it('rejects short passwords', async () => {
+    await expect(auth.initializeAdmin('short')).rejects.toThrow(/at least 8/)
   })
 
-  it('issues a session only for the right password', () => {
-    auth.initializeAdmin('correct horse battery')
-    expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
-    expect(() => auth.login('wrong')).toThrow(ShukkaError)
+  it('issues a session only for the right password', async () => {
+    await auth.initializeAdmin('correct horse battery')
+    expect(await auth.sessionIsValid(await auth.login('correct horse battery'))).toBe(true)
+    await expect(auth.login('wrong')).rejects.toThrow(ShukkaError)
   })
 
-  it('invalidates every session when the password changes', () => {
-    auth.initializeAdmin('correct horse battery')
-    const old = auth.login('correct horse battery')
-    const fresh = auth.changePassword('correct horse battery', 'a brand new one')
+  it('invalidates every session when the password changes', async () => {
+    await auth.initializeAdmin('correct horse battery')
+    const old = await auth.login('correct horse battery')
+    const fresh = await auth.changePassword('correct horse battery', 'a brand new one')
 
-    expect(auth.sessionIsValid(old)).toBe(false)
-    expect(auth.sessionIsValid(fresh)).toBe(true)
+    expect(await auth.sessionIsValid(old)).toBe(false)
+    expect(await auth.sessionIsValid(fresh)).toBe(true)
   })
 
-  it('drops the session on sign out', () => {
-    auth.initializeAdmin('correct horse battery')
-    const token = auth.login('correct horse battery')
-    auth.destroySession(token)
-    expect(auth.sessionIsValid(token)).toBe(false)
+  it('drops the session on sign out', async () => {
+    await auth.initializeAdmin('correct horse battery')
+    const token = await auth.login('correct horse battery')
+    await auth.destroySession(token)
+    expect(await auth.sessionIsValid(token)).toBe(false)
   })
 
   it('reads the session cookie out of a request', () => {
@@ -104,17 +104,17 @@ describe('admin session', () => {
     expect(auth.readSessionCookie(request)).toBe('abc123')
   })
 
-  it('treats an expired session as invalid and prunes it on createSession', () => {
-    const token = auth.initializeAdmin('correct horse battery')
-    expect(auth.sessionIsValid(token)).toBe(true)
+  it('treats an expired session as invalid and prunes it on createSession', async () => {
+    const token = await auth.initializeAdmin('correct horse battery')
+    expect(await auth.sessionIsValid(token)).toBe(true)
 
-    db.update(sessions).set({ expiresAt: Math.floor(Date.now() / 1000) - 60 }).run()
-    expect(auth.sessionIsValid(token)).toBe(false)
+    await db.update(sessions).set({ expiresAt: Math.floor(Date.now() / 1000) - 60 }).run()
+    expect(await auth.sessionIsValid(token)).toBe(false)
 
-    const next = auth.createSession()
-    expect(auth.sessionIsValid(token)).toBe(false)
-    expect(auth.sessionIsValid(next)).toBe(true)
-    expect(db.select().from(sessions).all()).toHaveLength(1)
+    const next = await auth.createSession()
+    expect(await auth.sessionIsValid(token)).toBe(false)
+    expect(await auth.sessionIsValid(next)).toBe(true)
+    expect(await db.select().from(sessions).all()).toHaveLength(1)
   })
 
   it('returns null when the session cookie is not valid percent-encoding', () => {
@@ -124,93 +124,93 @@ describe('admin session', () => {
     expect(auth.readSessionCookie(request)).toBeNull()
   })
 
-  it('keeps setup, login, and change-password on scrypt$ when the env is unset', () => {
+  it('keeps setup, login, and change-password on scrypt$ when the env is unset', async () => {
     delete process.env.SHUKKA_PASSWORD_HASH
-    auth.initializeAdmin('correct horse battery')
-    const afterSetup = db.select().from(admin).get()
+    await auth.initializeAdmin('correct horse battery')
+    const afterSetup = await db.select().from(admin).get()
     expect(afterSetup?.passwordHash.startsWith('scrypt$')).toBe(true)
-    expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+    expect(await auth.sessionIsValid(await auth.login('correct horse battery'))).toBe(true)
 
-    auth.changePassword('correct horse battery', 'a brand new one')
-    const afterChange = db.select().from(admin).get()
+    await auth.changePassword('correct horse battery', 'a brand new one')
+    const afterChange = await db.select().from(admin).get()
     expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(true)
-    expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+    expect(await auth.sessionIsValid(await auth.login('a brand new one'))).toBe(true)
   })
 
-  it('treats SHUKKA_PASSWORD_HASH=scrypt as the default writer', () => {
+  it('treats SHUKKA_PASSWORD_HASH=scrypt as the default writer', async () => {
     process.env.SHUKKA_PASSWORD_HASH = 'scrypt'
     try {
-      auth.initializeAdmin('correct horse battery')
-      expect(db.select().from(admin).get()?.passwordHash.startsWith('scrypt$')).toBe(true)
+      await auth.initializeAdmin('correct horse battery')
+      expect((await db.select().from(admin).get())?.passwordHash.startsWith('scrypt$')).toBe(true)
     } finally {
       delete process.env.SHUKKA_PASSWORD_HASH
     }
   })
 
-  it('writes pbkdf2$ only when that env is set before first setup', () => {
+  it('writes pbkdf2$ only when that env is set before first setup', async () => {
     process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
     try {
-      auth.initializeAdmin('correct horse battery')
-      const afterSetup = db.select().from(admin).get()
+      await auth.initializeAdmin('correct horse battery')
+      const afterSetup = await db.select().from(admin).get()
       expect(afterSetup?.passwordHash.startsWith('pbkdf2$')).toBe(true)
-      expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+      expect(await auth.sessionIsValid(await auth.login('correct horse battery'))).toBe(true)
 
       process.env.SHUKKA_PASSWORD_HASH = 'scrypt'
-      auth.changePassword('correct horse battery', 'a brand new one')
-      const afterChange = db.select().from(admin).get()
+      await auth.changePassword('correct horse battery', 'a brand new one')
+      const afterChange = await db.select().from(admin).get()
       expect(afterChange?.passwordHash.startsWith('pbkdf2$')).toBe(true)
       expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(false)
-      expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+      expect(await auth.sessionIsValid(await auth.login('a brand new one'))).toBe(true)
     } finally {
       delete process.env.SHUKKA_PASSWORD_HASH
     }
   })
 
-  it('does not write pbkdf2$ after a scrypt setup even if the env flips', () => {
+  it('does not write pbkdf2$ after a scrypt setup even if the env flips', async () => {
     delete process.env.SHUKKA_PASSWORD_HASH
-    auth.initializeAdmin('correct horse battery')
-    expect(db.select().from(admin).get()?.passwordHash.startsWith('scrypt$')).toBe(true)
+    await auth.initializeAdmin('correct horse battery')
+    expect((await db.select().from(admin).get())?.passwordHash.startsWith('scrypt$')).toBe(true)
 
     process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
     try {
-      auth.changePassword('correct horse battery', 'a brand new one')
-      const afterChange = db.select().from(admin).get()
+      await auth.changePassword('correct horse battery', 'a brand new one')
+      const afterChange = await db.select().from(admin).get()
       expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(true)
       expect(afterChange?.passwordHash.startsWith('pbkdf2$')).toBe(false)
-      expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+      expect(await auth.sessionIsValid(await auth.login('a brand new one'))).toBe(true)
     } finally {
       delete process.env.SHUKKA_PASSWORD_HASH
     }
   })
 
-  it('rejects an invalid SHUKKA_PASSWORD_HASH at setup', () => {
+  it('rejects an invalid SHUKKA_PASSWORD_HASH at setup', async () => {
     process.env.SHUKKA_PASSWORD_HASH = 'argon2'
     try {
       try {
-        auth.initializeAdmin('correct horse battery')
+        await auth.initializeAdmin('correct horse battery')
         throw new Error('expected initializeAdmin to reject')
       } catch (error) {
         expect(error).toBeInstanceOf(ShukkaError)
         expect((error as { code: string }).code).toBe('invalid_request')
       }
-      expect(auth.isInitialized()).toBe(false)
+      expect(await auth.isInitialized()).toBe(false)
     } finally {
       delete process.env.SHUKKA_PASSWORD_HASH
     }
   })
 
-  it('logs in against both stored prefixes', () => {
+  it('logs in against both stored prefixes', async () => {
     delete process.env.SHUKKA_PASSWORD_HASH
-    auth.initializeAdmin('correct horse battery')
-    expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+    await auth.initializeAdmin('correct horse battery')
+    expect(await auth.sessionIsValid(await auth.login('correct horse battery'))).toBe(true)
 
-    db.delete(admin).run()
-    db.delete(sessions).run()
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
     process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
     try {
-      auth.initializeAdmin('correct horse battery')
-      expect(db.select().from(admin).get()?.passwordHash.startsWith('pbkdf2$')).toBe(true)
-      expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+      await auth.initializeAdmin('correct horse battery')
+      expect((await db.select().from(admin).get())?.passwordHash.startsWith('pbkdf2$')).toBe(true)
+      expect(await auth.sessionIsValid(await auth.login('correct horse battery'))).toBe(true)
     } finally {
       delete process.env.SHUKKA_PASSWORD_HASH
     }
@@ -242,102 +242,102 @@ describe('admin session', () => {
 })
 
 describe('app actor', () => {
-  beforeEach(() => {
-    db.delete(admin).run()
-    db.delete(sessions).run()
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
+    await db.delete(apps).run()
   })
 
   it('resolves a session actor and a matching key, and rejects a foreign key', async () => {
-    auth.initializeAdmin('correct horse battery')
-    const token = auth.login('correct horse battery')
+    await auth.initializeAdmin('correct horse battery')
+    const token = await auth.login('correct horse battery')
     const acme = await makeApp('acme')
-    const { plaintext } = keyFor(acme.id)
+    const { plaintext } = await keyFor(acme.id)
 
     const session = new Request('https://shukka.test/api/v1/apps/acme', {
       headers: { cookie: `${auth.SESSION_COOKIE}=${token}` },
     })
-    expect(auth.requireAppActor(session, 'acme').via).toBe('session')
-    expect(auth.requireAppActor(session, 'acme').app.slug).toBe('acme')
+    expect((await auth.requireAppActor(session, 'acme')).via).toBe('session')
+    expect((await auth.requireAppActor(session, 'acme')).app.slug).toBe('acme')
 
     const keyReq = new Request('https://shukka.test/api/v1/apps/acme', {
       headers: { authorization: `Bearer ${plaintext}` },
     })
-    expect(auth.requireAppActor(keyReq, 'acme').via).toBe('key')
-    expect(() => auth.requireAppActor(keyReq, 'other')).toThrow(/not authorized/)
+    expect((await auth.requireAppActor(keyReq, 'acme')).via).toBe('key')
+    await expect(auth.requireAppActor(keyReq, 'other')).rejects.toThrow(/not authorized/)
 
-    expect(() => auth.requireSessionApp(keyReq, 'acme')).toThrow(/admin session/)
-    expect(auth.requireSessionApp(session, 'acme').slug).toBe('acme')
-    expect(() => auth.requireSessionApp(session, 'missing')).toThrow(/not found/)
+    await expect(auth.requireSessionApp(keyReq, 'acme')).rejects.toThrow(/admin session/)
+    expect((await auth.requireSessionApp(session, 'acme')).slug).toBe('acme')
+    await expect(auth.requireSessionApp(session, 'missing')).rejects.toThrow(/not found/)
   })
 })
 
 describe('api keys', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
   })
 
   it('authorizes the bound app and rejects any other', async () => {
     const acme = await makeApp('acme')
     const other = await makeApp('other')
-    const { plaintext } = keyFor(acme.id)
+    const { plaintext } = await keyFor(acme.id)
 
-    expect(auth.authenticateApiKey(bearer(plaintext), 'acme').id).toBe(acme.id)
-    expect(() => auth.authenticateApiKey(bearer(plaintext), other.slug)).toThrow(/not authorized/)
+    expect((await auth.authenticateApiKey(bearer(plaintext), 'acme')).id).toBe(acme.id)
+    await expect(auth.authenticateApiKey(bearer(plaintext), other.slug)).rejects.toThrow(/not authorized/)
   })
 
   it('never stores the plaintext key', async () => {
     const app = await makeApp('acme')
-    const { plaintext, row } = keyFor(app.id)
+    const { plaintext, row } = await keyFor(app.id)
     expect(row.hash).not.toBe(plaintext)
     expect(row.hint.length).toBeLessThan(plaintext.length)
-    expect(db.select().from(apiKeys).all().some((key) => key.hash === plaintext)).toBe(false)
+    expect((await db.select().from(apiKeys).all()).some((key) => key.hash === plaintext)).toBe(false)
   })
 
   it('rejects a revoked key immediately', async () => {
     const app = await makeApp('acme')
-    const { plaintext, row } = keyFor(app.id)
-    db.update(apiKeys).set({ revokedAt: Math.floor(Date.now() / 1000) }).run()
+    const { plaintext, row } = await keyFor(app.id)
+    await db.update(apiKeys).set({ revokedAt: Math.floor(Date.now() / 1000) }).run()
     expect(row.revokedAt).toBeNull()
-    expect(() => auth.authenticateApiKey(bearer(plaintext), 'acme')).toThrow(/Invalid or revoked/)
+    await expect(auth.authenticateApiKey(bearer(plaintext), 'acme')).rejects.toThrow(/Invalid or revoked/)
   })
 
-  it('rejects a missing or malformed authorization header', () => {
-    expect(() => auth.authenticateApiKey(new Request('https://shukka.test/'))).toThrow(/Missing Bearer/)
-    expect(() => auth.authenticateApiKey(bearer('shk_nonsense'))).toThrow(/Invalid or revoked/)
+  it('rejects a missing or malformed authorization header', async () => {
+    await expect(auth.authenticateApiKey(new Request('https://shukka.test/'))).rejects.toThrow(/Missing Bearer/)
+    await expect(auth.authenticateApiKey(bearer('shk_nonsense'))).rejects.toThrow(/Invalid or revoked/)
   })
 
   it('records last use', async () => {
     const app = await makeApp('acme')
-    const { plaintext, row } = keyFor(app.id)
-    auth.authenticateApiKey(bearer(plaintext), 'acme')
-    expect(db.select().from(apiKeys).all().find((key) => key.id === row.id)?.lastUsedAt).toBeTypeOf('number')
+    const { plaintext, row } = await keyFor(app.id)
+    await auth.authenticateApiKey(bearer(plaintext), 'acme')
+    expect((await db.select().from(apiKeys).all()).find((key) => key.id === row.id)?.lastUsedAt).toBeTypeOf('number')
   })
 
   it('deletes only revoked keys', async () => {
     const app = await makeApp('acme')
-    const { row } = keyFor(app.id)
+    const { row } = await keyFor(app.id)
 
     // A live key cannot be hard-deleted.
-    expect(() => appsServer.deleteApiKey(app.id, row.id)).toThrow(/Only revoked/)
-    expect(db.select().from(apiKeys).all().some((key) => key.id === row.id)).toBe(true)
+    await expect(appsServer.deleteApiKey(app.id, row.id)).rejects.toThrow(/Only revoked/)
+    expect((await db.select().from(apiKeys).all()).some((key) => key.id === row.id)).toBe(true)
 
     // Once revoked, it can be deleted.
-    appsServer.revokeApiKey(app.id, row.id)
-    appsServer.deleteApiKey(app.id, row.id)
-    expect(db.select().from(apiKeys).all().some((key) => key.id === row.id)).toBe(false)
+    await appsServer.revokeApiKey(app.id, row.id)
+    await appsServer.deleteApiKey(app.id, row.id)
+    expect((await db.select().from(apiKeys).all()).some((key) => key.id === row.id)).toBe(false)
   })
 })
 
 describe('login rate limit', () => {
   const previousTrustProxy = process.env.SHUKKA_TRUST_PROXY
 
-  beforeEach(() => {
-    db.delete(admin).run()
-    db.delete(sessions).run()
+  beforeEach(async () => {
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
     resetRateLimitForTests()
     delete process.env.SHUKKA_TRUST_PROXY
-    auth.initializeAdmin('correct horse battery')
+    await auth.initializeAdmin('correct horse battery')
   })
 
   afterEach(() => {

@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/admin/login')({
         const parsed = bodySchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Password is required')
         try {
-          const token = login(parsed.data.password)
+          const token = await login(parsed.data.password)
           recordSuccess(ip)
           return Response.json({ ok: true }, { headers: { 'set-cookie': sessionCookieHeader(token, request) } })
         } catch (error) {

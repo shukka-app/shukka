@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels/$channel/no
     handlers: {
       GET: handle(async ({ request, params }) => {
         const search = new URL(request.url).searchParams
-        const result = publicNotes(textParam(params, 'appSlug'), textParam(params, 'channel'), {
+        const result = await publicNotes(textParam(params, 'appSlug'), textParam(params, 'channel'), {
           from: search.get('from') || null,
           to: search.get('to') || null,
           locale: search.get('locale') || null,

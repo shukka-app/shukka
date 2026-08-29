@@ -79,9 +79,9 @@ async function upload(
   return { installer, result }
 }
 
-function artifactHits(versionId: number) {
-  const row = db.select().from(versions).where(eq(versions.id, versionId)).get()
-  const buckets = db
+async function artifactHits(versionId: number) {
+  const row = await db.select().from(versions).where(eq(versions.id, versionId)).get()
+  const buckets = await db
     .select({ total: sql<number>`coalesce(sum(${hitBuckets.count}), 0)` })
     .from(hitBuckets)
     .where(and(eq(hitBuckets.versionId, versionId), eq(hitBuckets.kind, 'artifact')))
@@ -93,19 +93,19 @@ function params(filename: string, slug = 'acme', version = '1.0.0') {
   return { appSlug: slug, channel: 'stable', version, filename }
 }
 
-beforeEach(() => {
-  db.delete(admin).run()
-  db.delete(sessions).run()
-  db.delete(apps).run()
+beforeEach(async () => {
+  await db.delete(admin).run()
+  await db.delete(sessions).run()
+  await db.delete(apps).run()
   objects.clear()
-  auth.initializeAdmin('correct horse battery')
+  await auth.initializeAdmin('correct horse battery')
 })
 
 describe('authenticated artifact download', () => {
   it('lets a session download a draft without recording hits', async () => {
     const app = await createApp(appInput)
     const { installer, result } = await upload(app, '1.0.0')
-    const token = auth.login('correct horse battery')
+    const token = await auth.login('correct horse battery')
 
     const response = await GET({
       request: new Request('https://shukka.test/download', {
@@ -116,14 +116,14 @@ describe('authenticated artifact download', () => {
 
     expect(response.status).toBe(302)
     expect(response.headers.get('location')).toMatch(/Acme-Setup-1\.0\.0\.exe\?get$/)
-    expect(artifactHits(result.versionId)).toEqual({ counter: 0, buckets: 0 })
+    expect(await artifactHits(result.versionId)).toEqual({ counter: 0, buckets: 0 })
   })
 
   it('lets a bound API key download a released file without recording hits', async () => {
     const app = await createApp(appInput)
     const { installer, result } = await upload(app, '1.0.0', { release: true })
     const issued = auth.generateApiKey()
-    db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash: issued.hash, hint: issued.hint }).run()
+    await db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash: issued.hash, hint: issued.hint }).run()
 
     const response = await GET({
       request: new Request('https://shukka.test/download', {
@@ -133,16 +133,16 @@ describe('authenticated artifact download', () => {
     })
 
     expect(response.status).toBe(302)
-    expect(artifactHits(result.versionId)).toEqual({ counter: 0, buckets: 0 })
+    expect(await artifactHits(result.versionId)).toEqual({ counter: 0, buckets: 0 })
 
     await resolveFeedRequest('acme', 'stable', installer, 'https://updates.test')
-    expect(artifactHits(result.versionId)).toEqual({ counter: 1, buckets: 1 })
+    expect(await artifactHits(result.versionId)).toEqual({ counter: 1, buckets: 1 })
   })
 
   it('404s an unknown filename on that version', async () => {
     const app = await createApp(appInput)
     await upload(app, '1.0.0')
-    const token = auth.login('correct horse battery')
+    const token = await auth.login('correct horse battery')
 
     const response = await GET({
       request: new Request('https://shukka.test/download', {
@@ -160,7 +160,7 @@ describe('authenticated artifact download', () => {
     const other = await createApp({ ...appInput, name: 'Other', slug: 'other', s3Prefix: 'other' })
     const { installer } = await upload(app, '1.0.0')
     const foreign = auth.generateApiKey()
-    db.insert(apiKeys).values({ appId: other.id, name: 'ci', hash: foreign.hash, hint: foreign.hint }).run()
+    await db.insert(apiKeys).values({ appId: other.id, name: 'ci', hash: foreign.hash, hint: foreign.hint }).run()
 
     const anon = await GET({
       request: new Request('https://shukka.test/download'),
@@ -190,7 +190,7 @@ describe('authenticated artifact download', () => {
     })
     for (const file of init.files) objects.set(file.key, 'binary')
     await finalizeUpload(app, init.uploadId)
-    const token = auth.login('correct horse battery')
+    const token = await auth.login('correct horse battery')
 
     const response = await GET({
       request: new Request('https://shukka.test/download', {

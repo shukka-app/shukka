@@ -54,9 +54,9 @@ function makeApp(slug: string) {
   })
 }
 
-function keyFor(appId: number) {
+async function keyFor(appId: number) {
   const { plaintext, hash, hint } = auth.generateApiKey()
-  db.insert(apiKeys).values({ appId, name: 'ci', hash, hint }).run()
+  await db.insert(apiKeys).values({ appId, name: 'ci', hash, hint }).run()
   return plaintext
 }
 
@@ -71,17 +71,17 @@ const initBody = {
 }
 
 describe('upload init route', () => {
-  beforeEach(() => {
-    db.delete(admin).run()
-    db.delete(sessions).run()
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(admin).run()
+    await db.delete(sessions).run()
+    await db.delete(apps).run()
     objects.clear()
-    auth.initializeAdmin('correct horse battery')
+    await auth.initializeAdmin('correct horse battery')
   })
 
   it('accepts a valid Bearer init and returns uploadId and files', async () => {
     const app = await makeApp('acme')
-    const plaintext = keyFor(app.id)
+    const plaintext = await keyFor(app.id)
     const POST = routeHandler(initRoute.Route, 'POST')
     const response = await POST({
       request: new Request('https://shukka.test/api/v1/upload/init', {
@@ -115,7 +115,7 @@ describe('upload init route', () => {
 
   it('rejects a session cookie without a Bearer key as unauthorized', async () => {
     await makeApp('acme')
-    const token = auth.login('correct horse battery')
+    const token = await auth.login('correct horse battery')
     const POST = routeHandler(initRoute.Route, 'POST')
     const response = await POST({
       request: new Request('https://shukka.test/api/v1/upload/init', {
@@ -131,7 +131,7 @@ describe('upload init route', () => {
 
   it('rejects malformed or missing files as invalid_request', async () => {
     const app = await makeApp('acme')
-    const plaintext = keyFor(app.id)
+    const plaintext = await keyFor(app.id)
     const POST = routeHandler(initRoute.Route, 'POST')
 
     for (const body of [{ ...initBody, files: [] }, { ...initBody, files: undefined }, { app: 'acme', channel: 'stable', version: '1.0.0' }]) {
@@ -150,7 +150,7 @@ describe('upload init route', () => {
 
   it('rejects a key bound to another app as forbidden', async () => {
     const app = await makeApp('acme')
-    const plaintext = keyFor(app.id)
+    const plaintext = await keyFor(app.id)
     const POST = routeHandler(initRoute.Route, 'POST')
     const response = await POST({
       request: new Request('https://shukka.test/api/v1/upload/init', {

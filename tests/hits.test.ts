@@ -70,8 +70,8 @@ async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: stri
   return { init, result: await finalizeUpload(app, init.uploadId, { release: true }), installer }
 }
 
-function bucketSum(versionId: number, kind: 'metadata' | 'artifact'): number {
-  const row = db
+async function bucketSum(versionId: number, kind: 'metadata' | 'artifact') {
+  const row = await db
     .select({ total: sql<number>`coalesce(sum(${hitBuckets.count}), 0)` })
     .from(hitBuckets)
     .where(and(eq(hitBuckets.versionId, versionId), eq(hitBuckets.kind, kind)))
@@ -79,13 +79,13 @@ function bucketSum(versionId: number, kind: 'metadata' | 'artifact'): number {
   return row?.total ?? 0
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   clearObjectCache()
 })
 
 describe('hit buckets', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -93,10 +93,10 @@ describe('hit buckets', () => {
     const app = await createApp(appInput)
     const { result } = await publish(app, 'stable', '1.0.0')
 
-    recordHit(result.versionId, 'metadata', NOW)
-    recordHit(result.versionId, 'metadata', NOW)
+    await recordHit(result.versionId, 'metadata', NOW)
+    await recordHit(result.versionId, 'metadata', NOW)
 
-    const rows = db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
+    const rows = await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ kind: 'metadata', hourStart: NOW, count: 2 })
   })
@@ -105,10 +105,10 @@ describe('hit buckets', () => {
     const app = await createApp(appInput)
     const { result } = await publish(app, 'stable', '1.0.0')
 
-    recordHit(result.versionId, 'artifact', NOW - 1)
-    recordHit(result.versionId, 'artifact', NOW)
+    await recordHit(result.versionId, 'artifact', NOW - 1)
+    await recordHit(result.versionId, 'artifact', NOW)
 
-    const rows = db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
+    const rows = await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
     expect(rows.map((row) => row.hourStart).sort((a, b) => a - b)).toEqual([NOW - HOUR, NOW])
   })
 
@@ -121,9 +121,9 @@ describe('hit buckets', () => {
     await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
 
     expect(getObjectText).toHaveBeenCalledTimes(1)
-    const row = db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
     expect(row?.metadataHits).toBe(2)
-    expect(row?.metadataHits).toBe(bucketSum(result.versionId, 'metadata'))
+    expect(row?.metadataHits).toBe(await bucketSum(result.versionId, 'metadata'))
   })
 
   it('keeps version counters equal to the sum of their buckets through the feed path', async () => {
@@ -134,50 +134,50 @@ describe('hit buckets', () => {
     await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
     await resolveFeedRequest('acme', 'stable', installer, ORIGIN)
 
-    const row = db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
     expect(row?.metadataHits).toBe(2)
     expect(row?.artifactHits).toBe(1)
-    expect(row?.metadataHits).toBe(bucketSum(result.versionId, 'metadata'))
-    expect(row?.artifactHits).toBe(bucketSum(result.versionId, 'artifact'))
+    expect(row?.metadataHits).toBe(await bucketSum(result.versionId, 'metadata'))
+    expect(row?.artifactHits).toBe(await bucketSum(result.versionId, 'artifact'))
   })
 
   it('cascades buckets when a version or channel is deleted', async () => {
     const app = await createApp(appInput)
     const first = await publish(app, 'stable', '1.0.0')
-    createChannel(app.id, 'beta')
+    await createChannel(app.id, 'beta')
     const second = await publish(app, 'beta', '2.0.0')
-    recordHit(first.result.versionId, 'metadata', NOW)
-    recordHit(second.result.versionId, 'metadata', NOW)
+    await recordHit(first.result.versionId, 'metadata', NOW)
+    await recordHit(second.result.versionId, 'metadata', NOW)
 
     await deleteVersion(app, first.result.versionId)
-    expect(db.select().from(hitBuckets).where(eq(hitBuckets.versionId, first.result.versionId)).all()).toHaveLength(0)
-    expect(db.select().from(hitBuckets).where(eq(hitBuckets.versionId, second.result.versionId)).all()).toHaveLength(1)
+    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, first.result.versionId)).all()).toHaveLength(0)
+    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, second.result.versionId)).all()).toHaveLength(1)
 
-    await deleteChannel(app, getChannel(app.id, 'beta').id)
-    expect(db.select().from(hitBuckets).all()).toHaveLength(0)
+    await deleteChannel(app, (await getChannel(app.id, 'beta')).id)
+    expect(await db.select().from(hitBuckets).all()).toHaveLength(0)
   })
 })
 
 describe('channelTrend', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
   it('aggregates, zero-fills and scopes to the range, excluding other channels', async () => {
     const app = await createApp(appInput)
     const { result } = await publish(app, 'stable', '1.0.0')
-    createChannel(app.id, 'beta')
+    await createChannel(app.id, 'beta')
     const other = await publish(app, 'beta', '1.0.0')
-    const channelId = getChannel(app.id, 'stable').id
+    const channelId = (await getChannel(app.id, 'stable')).id
 
-    recordHit(result.versionId, 'metadata', NOW - HOUR)
-    recordHit(result.versionId, 'metadata', NOW - HOUR)
-    recordHit(result.versionId, 'artifact', NOW - 2 * HOUR)
-    recordHit(result.versionId, 'metadata', NOW - 40 * DAY) // outside 7d/30d, inside 90d
-    recordHit(other.result.versionId, 'metadata', NOW - HOUR) // another channel — never counted
+    await recordHit(result.versionId, 'metadata', NOW - HOUR)
+    await recordHit(result.versionId, 'metadata', NOW - HOUR)
+    await recordHit(result.versionId, 'artifact', NOW - 2 * HOUR)
+    await recordHit(result.versionId, 'metadata', NOW - 40 * DAY) // outside 7d/30d, inside 90d
+    await recordHit(other.result.versionId, 'metadata', NOW - HOUR) // another channel — never counted
 
-    const hourly = channelTrend(app.id, channelId, 7, NOW)
+    const hourly = await channelTrend(app.id, channelId, 7, NOW)
     expect(hourly.granularity).toBe('hour')
     expect(hourly.points).toHaveLength(168)
     expect(hourly.points.at(-1)).toEqual({ t: NOW, metadata: 0, artifact: 0 })
@@ -185,14 +185,14 @@ describe('channelTrend', () => {
     expect(hourly.points.find((point) => point.t === NOW - 2 * HOUR)?.artifact).toBe(1)
     expect(hourly.points.reduce((sum, point) => sum + point.metadata + point.artifact, 0)).toBe(3)
 
-    const daily = channelTrend(app.id, channelId, 30, NOW)
+    const daily = await channelTrend(app.id, channelId, 30, NOW)
     expect(daily.granularity).toBe('day')
     expect(daily.points).toHaveLength(30)
     expect(daily.points.at(-1)?.t).toBe(Math.floor(NOW / DAY) * DAY)
     expect(daily.points.reduce((sum, point) => sum + point.metadata, 0)).toBe(2)
     expect(daily.points.reduce((sum, point) => sum + point.artifact, 0)).toBe(1)
 
-    const ninety = channelTrend(app.id, channelId, 90, NOW)
+    const ninety = await channelTrend(app.id, channelId, 90, NOW)
     expect(ninety.points).toHaveLength(90)
     expect(ninety.points.reduce((sum, point) => sum + point.metadata, 0)).toBe(3)
   })
@@ -201,36 +201,36 @@ describe('channelTrend', () => {
     const appA = await createApp(appInput)
     const appB = await createApp({ ...appInput, name: 'Other', slug: 'other' })
 
-    expect(() => channelTrend(appB.id, getChannel(appA.id, 'stable').id, 30, NOW)).toThrow(ShukkaError)
-    expect(() => channelTrend(appB.id, getChannel(appA.id, 'stable').id, 30, NOW)).toThrow(/not found/i)
+    await expect(channelTrend(appB.id, (await getChannel(appA.id, 'stable')).id, 30, NOW)).rejects.toThrow(ShukkaError)
+    await expect(channelTrend(appB.id, (await getChannel(appA.id, 'stable')).id, 30, NOW)).rejects.toThrow(/not found/i)
   })
 })
 
 describe('versionTrend', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
   it('windows to the 14 UTC days after release and omits future days', async () => {
     const app = await createApp(appInput)
     const { result } = await publish(app, 'stable', '1.0.0')
-    const version = db.select().from(versions).where(eq(versions.id, result.versionId)).get()!
+    const version = (await db.select().from(versions).where(eq(versions.id, result.versionId)).get())!
     expect(version.releasedAt).toEqual(expect.any(Number))
     const releasedAt = version.releasedAt as number
     const releaseDay = Math.floor(releasedAt / DAY) * DAY
 
-    recordHit(result.versionId, 'artifact', releasedAt)
-    recordHit(result.versionId, 'artifact', releasedAt + DAY)
+    await recordHit(result.versionId, 'artifact', releasedAt)
+    await recordHit(result.versionId, 'artifact', releasedAt + DAY)
 
-    const trend = versionTrend(app.id, result.versionId, releasedAt + 3 * DAY)
+    const trend = await versionTrend(app.id, result.versionId, releasedAt + 3 * DAY)
     expect(trend.points.at(0)?.t).toBe(releaseDay)
     expect(trend.points).toHaveLength(4)
     expect(trend.points.at(-1)?.t).toBe(releaseDay + 3 * DAY)
     expect(trend.points[0]?.artifact).toBe(1)
     expect(trend.points[1]?.artifact).toBe(1)
 
-    const full = versionTrend(app.id, result.versionId, releasedAt + 30 * DAY)
+    const full = await versionTrend(app.id, result.versionId, releasedAt + 30 * DAY)
     expect(full.points).toHaveLength(14)
     expect(full.points.at(-1)?.t).toBe(releaseDay + 13 * DAY)
   })
@@ -240,8 +240,8 @@ describe('versionTrend', () => {
     const appB = await createApp({ ...appInput, name: 'Other', slug: 'other' })
     const { result } = await publish(appA, 'stable', '1.0.0')
 
-    expect(() => versionTrend(appB.id, result.versionId, NOW)).toThrow(ShukkaError)
-    expect(() => versionTrend(appB.id, result.versionId, NOW)).toThrow(/not found/i)
+    await expect(versionTrend(appB.id, result.versionId, NOW)).rejects.toThrow(ShukkaError)
+    await expect(versionTrend(appB.id, result.versionId, NOW)).rejects.toThrow(/not found/i)
   })
 })
 
