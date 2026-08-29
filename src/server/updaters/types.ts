@@ -32,5 +32,11 @@ export type UpdateAdapter = {
     artifacts: ArtifactRef[]
     getText: (s3Key: string) => Promise<string>
   }): Promise<FeedDocument | null>
+  /**
+   * Map an artifact filename to this protocol's feed target key, or `null`
+   * when the name does not identify a target. Heuristics only; an uploaded
+   * official manifest still supplies declared keys when present.
+   */
+  inferFeedTarget(filename: string): string | null
   platformsOf(artifacts: { filename: string; kind: string }[]): string[]
 }

@@ -109,6 +109,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_DATA_DIR` | `./data`（镜像内 `/data`） | SQLite 与加密密钥目录 |
 | `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径 |
 | `SHUKKA_KEY_PATH` | `{data}/encryption.key` | 覆盖 S3 secret 的 AES 密钥文件 |
+| `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
@@ -124,7 +125,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
   - Electron：yml 原文透传、制品文件名相对；把 `https://…/api/update/{app}/{channel}` 写进 electron-builder 即可。
   - Tauri：`latest.json` 的 `url` 按本次请求的 origin 生成。`curl -sS https://your.host/api/update/{app}/{channel}` 若看到 `http://` 制品 URL，让反代对后端也走 TLS，或给进程配 `NITRO_SSL_CERT` / `NITRO_SSL_KEY`。
 - Tauri 生产客户端默认要求 HTTPS（`docs/adr/updater-kind-on-app.md`）。
-- 登录失败按来源 IP 限速（15 分钟 10 次）。不要把 setup / login 裸露在无防护的公网而不做 TLS。
+- 登录失败按来源 IP 限速（15 分钟 10 次）。反代后面部署时设置 `SHUKKA_TRUST_PROXY=1`，才会采信反代追加的转发头（最右一跳）；未设则忽略 `X-Forwarded-For` / `X-Real-IP`。不要把 setup / login 裸露在无防护的公网而不做 TLS。
 
 ## 对象存储
 

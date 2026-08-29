@@ -15,6 +15,7 @@ on:
       - vite.config.ts
       - tsconfig.json
       - scripts/shukka-upload.mjs
+      - scripts/updaters/**
       - tests/e2e/**
       - deploy/**
       - .github/scripts/**
@@ -31,6 +32,7 @@ on:
       - vite.config.ts
       - tsconfig.json
       - scripts/shukka-upload.mjs
+      - scripts/updaters/**
       - tests/e2e/**
       - deploy/**
       - .github/scripts/**

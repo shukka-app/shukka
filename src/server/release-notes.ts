@@ -5,7 +5,7 @@ import { ShukkaError } from '~/lib/errors.ts'
 import { renderMarkdown } from '~/lib/markdown.ts'
 import {
   LATEST_NOTES_LIMIT,
-  isValidLocale,
+  canonicalLocale,
   resolveNoteLocale,
   resolveNotesRange,
   type NoteContent,
@@ -35,17 +35,12 @@ export function notesConfig(app: App): NotesConfig {
  */
 export function updateNotesConfig(appId: number, input: NotesConfig): NotesConfig {
   getApp(appId)
-  const locales = [...new Set(input.locales)]
-  for (const locale of locales) {
-    if (!isValidLocale(locale)) throw new ShukkaError('invalid_request', `Invalid locale tag: "${locale}"`)
-  }
-  if (!isValidLocale(input.fallbackLocale)) {
-    throw new ShukkaError('invalid_request', `Invalid fallback locale: "${input.fallbackLocale}"`)
-  }
+  const locales = [...new Set(input.locales.map((locale) => canonicalLocale(locale)))]
+  const fallbackLocale = canonicalLocale(input.fallbackLocale)
   if (input.enabled && locales.length === 0) {
     throw new ShukkaError('invalid_request', 'At least one locale is required when the release log is enabled')
   }
-  if (input.enabled && !locales.includes(input.fallbackLocale)) {
+  if (input.enabled && !locales.includes(fallbackLocale)) {
     throw new ShukkaError('invalid_request', 'The fallback locale must be one of the configured locales')
   }
 
@@ -53,11 +48,11 @@ export function updateNotesConfig(appId: number, input: NotesConfig): NotesConfi
     .set({
       releaseLogEnabled: input.enabled,
       releaseLogLocales: JSON.stringify(locales),
-      releaseLogFallbackLocale: input.fallbackLocale,
+      releaseLogFallbackLocale: fallbackLocale,
     })
     .where(eq(apps.id, appId))
     .run()
-  return { enabled: input.enabled, locales, fallbackLocale: input.fallbackLocale }
+  return { enabled: input.enabled, locales, fallbackLocale }
 }
 
 function getVersionForApp(appId: number, versionId: number): Version {
@@ -92,8 +87,8 @@ export function listNotes(appId: number, versionId: number): NoteContent[] {
 export function upsertNote(appId: number, versionId: number, locale: string, markdown: string): NoteContent {
   const app = getApp(appId)
   assertNotesEnabled(app)
+  locale = canonicalLocale(locale)
   getVersionForApp(appId, versionId)
-  if (!isValidLocale(locale)) throw new ShukkaError('invalid_request', `Invalid locale tag: "${locale}"`)
   if (!markdown.trim()) throw new ShukkaError('invalid_request', 'Note markdown must not be empty')
 
   const { html, text } = renderMarkdown(markdown)
@@ -112,6 +107,7 @@ export function deleteNote(appId: number, versionId: number, locale: string): vo
   const app = getApp(appId)
   assertNotesEnabled(app)
   getVersionForApp(appId, versionId)
+  locale = canonicalLocale(locale)
   const deleted = db
     .delete(releaseNotes)
     .where(and(eq(releaseNotes.versionId, versionId), eq(releaseNotes.locale, locale)))

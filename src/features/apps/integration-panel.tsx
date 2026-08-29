@@ -2,9 +2,11 @@ import { Link } from '@tanstack/react-router'
 import { BookOpen, Bot, Braces, Check, Sparkles, Workflow } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { toast } from 'sonner'
 import { CopyBlock } from '~/components/copy-block.tsx'
 import { Button } from '~/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs'
+import { copyText } from '~/lib/clipboard.ts'
 import { useT } from '~/lib/i18n/index.ts'
 import type { IntegrationSnippets, Snippet } from '~/features/apps/integration-snippets.ts'
 import type { ChannelDetail, PublicApp } from '~/server/dashboard.ts'
@@ -209,7 +211,11 @@ function CopyAgentPrompt({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
-    await navigator.clipboard.writeText(value)
+    const ok = await copyText(value)
+    if (!ok) {
+      toast.error(t.common.copyFailed)
+      return
+    }
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }

@@ -20,11 +20,15 @@ inputs:
     required: false
     default: 'stable'
   directory:
-    description: 'electron-builder or Tauri output directory containing artifacts and latest*.yml or latest.json'
+    description: 'Build output directory. Electron: flat dist/ with installers, *.blockmap, and latest*.yml. Tauri: src-tauri/target/release/bundle or a platform subdir (appimage, macos, nsis, msi, …). latest.json is optional; *.AppDir and extract trees are skipped.'
     required: false
     default: 'dist'
   version:
-    description: 'Release version; read from latest*.yml or latest.json when omitted'
+    description: 'Release version. When omitted: Electron reads version: from latest*.yml. Tauri uses this input / SHUKKA_VERSION, then latest.json, then the nearest tauri.conf.json, then a _1.0.0_ token in the artifact filename.'
+    required: false
+    default: ''
+  updater-kind:
+    description: 'Optional electron or tauri override. When omitted, inferred from files (yml → electron; .sig / latest.json / known bundle layout → tauri). The server still validates against the app updaterKind.'
     required: false
     default: ''
   create-channel:

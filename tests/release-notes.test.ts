@@ -125,6 +125,19 @@ describe('updateNotesConfig', () => {
       fallbackLocale: 'en-US',
     })
   })
+
+  it('stores config locales in canonical form so case variants collapse', async () => {
+    const app = await createApp(appInput)
+    const saved = notesServer.updateNotesConfig(app.id, {
+      enabled: true,
+      locales: ['en-us'],
+      fallbackLocale: 'en-US',
+    })
+    expect(saved).toEqual({ enabled: true, locales: ['en-US'], fallbackLocale: 'en-US' })
+    const stored = getApp(app.id)
+    expect(stored.releaseLogFallbackLocale).toBe('en-US')
+    expect(JSON.parse(stored.releaseLogLocales)).toEqual(['en-US'])
+  })
 })
 
 describe('upsertNote', () => {
@@ -153,6 +166,18 @@ describe('upsertNote', () => {
 
     expect(updated.markdown).toBe('**second**')
     expect(updated.html).toContain('<strong>second</strong>')
+    expect(notesServer.listNotes(app.id, versionId)).toHaveLength(1)
+  })
+
+  it('collapses case-variant upserts of the same locale into one row', async () => {
+    const app = await enabledApp()
+    const { versionId } = await publish(app, 'stable', '1.0.0')
+
+    notesServer.upsertNote(app.id, versionId, 'en-us', 'first')
+    const updated = notesServer.upsertNote(app.id, versionId, 'en-US', 'second')
+
+    expect(updated.markdown).toBe('second')
+    expect(updated.locale).toBe('en-US')
     expect(notesServer.listNotes(app.id, versionId)).toHaveLength(1)
   })
 
@@ -237,6 +262,28 @@ describe('publicNotes range semantics', () => {
 })
 
 describe('publicNotes locale fallback chain', () => {
+  it('resolves a case-variant stored note via the fallback chain', async () => {
+    const app = await enabledApp(['en-US'], 'en-US')
+    const { versionId } = await publish(app, 'stable', '1.0.0')
+    notesServer.upsertNote(app.id, versionId, 'en-us', 'english notes')
+
+    const result = notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
+    expect(result.notes.map((note) => [note.version, note.locale, note.markdown])).toEqual([
+      ['1.0.0', 'en-US', 'english notes'],
+    ])
+  })
+
+  it('resolves a case-variant ?locale query to a stored canonical note', async () => {
+    const app = await enabledApp()
+    const { versionId } = await publish(app, 'stable', '1.0.0')
+    notesServer.upsertNote(app.id, versionId, 'en-US', 'english notes')
+
+    const result = notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: 'EN-US' })
+    expect(result.notes.map((note) => [note.version, note.locale, note.markdown])).toEqual([
+      ['1.0.0', 'en-US', 'english notes'],
+    ])
+  })
+
   it('resolves requested exact → app fallback → first available → omit', async () => {
     const app = await enabledApp(['en-US', 'zh-CN'], 'en-US')
     const full = await publish(app, 'stable', '1.0.0')

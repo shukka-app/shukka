@@ -38,8 +38,10 @@ All request and response bodies are JSON. Errors carry a stable machine-readable
 checked at finalize when provided. File rules follow the app's `updaterKind`:
 Electron requires at least one `.yml`; Tauri requires `latest.json` and/or
 artifact + matching `.sig` pairs. `version` and each `filename` must not contain
-path separators or `..`. The publish action reads `version` from `latest*.yml` or
-`latest.json` when the input is omitted.
+path separators or `..`. The publish action reads `version` from `latest*.yml`
+(Electron) when the input is omitted. For Tauri it uses the input / `SHUKKA_VERSION`,
+then `latest.json`, then the nearest `tauri.conf.json`, then a `_1.0.0_` filename
+token — `latest.json` is not required.
 
 ```json
 {

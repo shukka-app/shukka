@@ -26,9 +26,18 @@ const apiKey = required('SHUKKA_API_KEY', process.env.SHUKKA_API_KEY)
 const appSlug = process.env.SHUKKA_APP ?? 'demo-app'
 const channel = process.env.SHUKKA_CHANNEL ?? 'stable'
 const feedUrl = `${serverUrl}/api/update/${appSlug}/${channel}`
-const stamp = process.env.E2E_VERSION_STAMP ?? String(Date.now()).slice(-6)
+const stamp = semverPatchStamp(process.env.E2E_VERSION_STAMP)
 const olderVersion = process.env.E2E_FROM_VERSION ?? `1.2.${stamp}`
 const newerVersion = process.env.E2E_TO_VERSION ?? `2.0.${stamp}`
+
+/** Keep in sync with tests/semver-stamp.ts — this script is plain Node. */
+function semverPatchStamp(raw = String((Date.now() % 900_000) + 100_000)) {
+  const n = Number.parseInt(String(raw), 10)
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`E2E_VERSION_STAMP must be a positive integer, got ${JSON.stringify(raw)}`)
+  }
+  return String(n)
+}
 
 function required(name, value) {
   if (!value) {

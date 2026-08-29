@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Produces a multi-platform Tauri updater directory: one signed-looking
- * archive name per {os}-{arch} that inferTauriTarget understands, plus
+ * archive name per {os}-{arch} that the Tauri adapter's inferFeedTarget
+ * understands, plus
  * matching .sig files written by the caller (`tauri signer sign`).
  */
 import { randomBytes } from 'node:crypto'

@@ -15,12 +15,13 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Artifact**: 版本内的一个文件（安装包、`*.blockmap`、`latest*.yml`、Tauri `.sig` / `latest.json` 等），原样来自该 app 更新系统的构建产物。
 - **Installer**: 面板按文件名识别出的桌面安装包（`.exe` / `.msi` / `.dmg` / `.AppImage` / `.deb` / `.rpm` / `.app.tar.gz`，以及带 mac 标记的 `.zip`）。不是 Artifact 的存储类型；yml、`.blockmap`、`.sig`、`latest.json` 不是 installer。
 - **Feed**: 某 app+channel 的无鉴权更新读取面，base URL 为 `/api/update/{appSlug}/{channel}`。文档形状由该 app 的 `updaterKind` 决定。
-- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、平台识别、接入文档）。Electron 与 Tauri 各一份。
+- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、文件名 → feed target、平台识别、接入文档）。Electron 与 Tauri 各一份。
+- **Feed target**: 某制品在该更新协议 feed 里的平台键（Tauri 为 `platforms` 的 `{{target}}-{{arch}}`，如 `linux-x86_64`）。Electron feed 无此键。
 - **API key**: 形如 `shk_<random>` 的凭证，绑定单个 app；可上传并操作该 app 内资源，不可删 app 或管理 key。
 - **Pending upload**: init 之后、finalize 之前的上传事务，对 feed 不可见。
 - **Hit bucket**: 按 version × kind（metadata/artifact）× UTC 小时预聚合的命中计数；随所属 version 级联删除，永久保留。
 - **Release note**: 挂在单个 version 上的可变元数据，按 locale（BCP-47）一条一记；源文为 Markdown，读取面同时提供 `markdown` / `html`（消毒）/ `text` 三种表示；随所属 version 级联删除。
-- **Locale fallback chain**: notes 查询的 locale 解析顺序——请求 locale 精确匹配 → app 配置的回退 locale（缺省 `en-US`）→ 第一个可用 locale → 该版本省略 note。
+- **Locale fallback chain**: notes 查询的 locale 解析顺序——请求 locale 精确匹配 → app 配置的回退 locale（缺省 `en-US`）→ 第一个可用 locale → 该版本省略 note。比较按 BCP-47 规范化形式进行（`en-us` 与 `en-US` 视为同一 locale）。
 - **Locale**: 面板 UI 语言，`en`（源语言与回退）或 `zh`；per-browser 存于 cookie。
 - **Theme preference**: 面板明暗主题偏好（light / dark）；per-browser 存于 cookie，无记录时跟随系统。
 - **View role**: 面板视图角色（admin / developer / content）；per-browser 存于 cookie，仅控制面板 UI 入口可见性，纯前端，无鉴权语义。
@@ -33,9 +34,10 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### Update feed（无鉴权）
 
-- `GET /api/update/{appSlug}/{channel}/{artifactName}` 对 channel 内**已发布**版本（`releasedAt` 非空）的制品按文件名解析，302 到短时效 S3 URL；draft 的文件名与不存在相同，返回 404。
+- `GET /api/update/{appSlug}/{channel}/{artifactName}` 对 channel 内**已发布**版本（`releasedAt` 非空）的制品按文件名解析，302 到短时效 S3 URL；draft 的文件名与不存在相同，返回 404。同名制品跨版本存在时，当前版本优先，其余按 `releasedAt` 最新优先解析。
 - **Electron**：`GET .../{metadataFile}.yml` 返回当前版本中同名 yml 的原文（不改写）。客户端默认请求 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`。把 Shukka channel 名写进 electron-builder `publish.channel` 会改成请求 `stable.yml` 等，除非产物里真有这些文件。
 - **Tauri**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../latest.json` 返回为当前已发布版本生成的静态 updater JSON（`platforms` 映射；`url` 指向本 feed 下的制品；`signature` 为对应 `.sig` 正文）。无当前版本时 404。
+- **Tauri `platforms` 键**：上传了 `latest.json` 时以其声明的键为准（只改写 `url`、补 `signature`）。未上传时由文件名推断。显式架构 token（`aarch64` / `arm64` → `aarch64`；`amd64` / `x64` / `x86_64` → `x86_64`；`i686` / `ia32` → `i686`；`armv7` → `armv7`）覆盖默认。无架构的 `AppImage` 或文件名含 `linux` 默认为 `linux-x86_64`；无架构的 `*.app.tar.gz` 或文件名含 `mac` / `darwin` 默认为 `darwin-x86_64`。Windows 无架构 token 时不产生键。arm / universal 构建须上传 `latest.json` 或在文件名中写明架构。
 - 元数据是否原文透传是 adapter 不变量，不是全系统不变量。
 - yml 命中与制品 302 分别计入所属版本的下载计数；每次命中在计数器递增的同一事务内 upsert 其 UTC 小时 hit bucket。
 
@@ -50,12 +52,13 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `POST /api/v1/upload/init`：body 含 `channel`、`version`、文件清单；返回 pending upload id 与每文件 presigned PUT URL。同 channel 已存在同 version（含 draft）时拒绝。文件清单必须通过该 app adapter 的元数据要求（Electron：至少一个 `.yml`；Tauri：`latest.json` 和/或成对的制品 + `.sig`）。
 - 目标 channel 不存在时默认拒绝；只有显式 `createChannel: true` 才创建，避免拼写错误静默产生新 channel。新 channel 名必须符合 channel name 规则。
 - `POST /api/v1/upload/finalize`：校验对象齐全（含声明大小）后创建版本。默认 **draft**（不改 current）。`release: true` 时同时写入 `releasedAt` 并原子切换 current。声明了 `version` 的元数据（Electron yml、Tauri `latest.json`）须与上传版本一致；`.sig` 不声明 version，不做此项校验。
+- 过期的 pending upload 在下次触达（同 app 的 init/finalize）时清除，其已写入的对象一并删除（尽力而为）。
 - API key 与 app 不匹配返回 403；key 已吊销或无效返回 401。
 
 ### App API（`/api/v1/apps/{appSlug}`）
 
 - 对外标识为 app slug、channel name、version 字符串；不暴露数字 id。
-- 鉴权：session 或绑定该 slug 的 API key（`requireAppActor`）。Key 可改该 app 设置、CRUD channel / version / note、设 `currentVersion`、读详情与趋势、按版本+文件名领取制品。Key 不可删 app、不可管理 API key。`GET /api/v1/apps/{appSlug}` 仅对 session actor 返回 `keys`；以 API key 鉴权时省略该属性。
+- 鉴权：session 或绑定该 slug 的 API key（`requireAppActor`）。Key 可改 app 的 `name`；slug 与存储配置字段为 session-only（key 提交未变更的原值不视为修改）。存储位置（endpoint/bucket/prefix）变更时，若 app 已有制品，服务端会探测最新制品在新位置是否存在，缺失则拒绝保存。Key 还可 CRUD channel / version / note、设 `currentVersion`、读详情与趋势、按版本+文件名领取制品。Key 不可删 app、不可管理 API key。`GET /api/v1/apps/{appSlug}` 仅对 session actor 返回 `keys`；以 API key 鉴权时省略该属性。
 - `GET .../channels/{channel}/versions/{version}/artifacts/{filename}`：对该版本（含 draft）已存文件 302 到短时效 S3 URL；不计入命中。文件不在该版本上 → 404。公开 feed 的 draft≡404 与命中规则不变。
 - `PATCH .../channels/{channel}` 设 `currentVersion`：目标为 draft 时在同一事务写入 `releasedAt` 再切指针（promote）；目标为已发布版本则只切指针（回滚）。
 - 实例级（列/建 app、登录改密、存储探测）与 API key CRUD 仅 session，不在 key 能力面。
@@ -73,7 +76,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Panel
 
 - 除 setup/login 外的面板路由、`/docs` 与管理 API 均要求 session；未认证重定向到登录（未初始化时重定向到 setup）。
-- `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。
+- `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。
 - `POST /api/admin/storage/test` 对提交的 S3 配置做写探测（Put+Delete 探针对象）并返回 `{ ok: true }`，不落库；创建与编辑 app 保存前服务端始终重复同一探测，失败拒绝保存。
 - API key 明文仅在创建响应中出现一次，此后不可再取得。
 - S3 secret access key 加密存储，密钥在服务数据目录中自动生成。
@@ -92,6 +95,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Runtime（自托管进程）
 
 - 面板、`/api/admin`、`/api/v1`、`/api/update` 同一 Node 进程、同一 HTTP 端口。默认端口 `3000`（`PORT` 或 `NITRO_PORT`）。
+- 所有 HTTP 响应带 `X-Frame-Options: DENY`、CSP `frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`；不设含 `script-src` 的严格 CSP（面板与 `/docs` 有内联脚本）。
 - 启动时若进程 cwd 下存在 `drizzle/`，对 SQLite 自动 migrate；生产不跑 `db:generate`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。
@@ -100,7 +104,10 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### GitHub Action
 
-- 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。`version` 留空时从目录内 `latest*.yml` 或 Tauri `latest.json` 读取。不调用 bash / pwsh / cmd。
+- 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）、可选 `updater-kind`；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。不调用 bash / pwsh / cmd。
+- **Kind**：`updater-kind` / `SHUKKA_UPDATER_KIND` 可覆盖；否则由目录内文件推断（`latest*.yml` → electron；`.sig` / `latest.json` / 已知 Tauri bundle 布局 → tauri）。服务端仍按该 app 的 `updaterKind` 校验清单。
+- **Collect**：Electron 只扫一层扁平目录（安装包、`*.blockmap`、`latest*.yml`），不递归。Tauri 在用户指向 `bundle/` 或已知平台子目录（`appimage` / `macos` / `nsis` / `msi` / `deb` / `rpm` / `dmg` / `updater` 等）时收集成对的 updater 制品 + `.sig` 以及可选的 `latest.json`；只递归已知 bundle 布局；跳过 `*.AppDir/`、解压树与共享库。上传与 feed 只用 **basename**（与 S3 键 `{prefix}/{channel}/{version}/{filename}` 一致）；basename 冲突则失败。
+- **Version**：`version` / `SHUKKA_VERSION` 优先。Electron 省略时读 `latest*.yml` 的 `version:`。Tauri 省略时依次：`latest.json` 的 `version` → 从目录向上最近的 `tauri.conf.json` 的 `version` → 制品文件名中的 `_1.0.0_` 形 token；全部失败则报错并点名这些来源。不要求、不合成 `latest.json`（服务端已能从 `.sig` 对生成 feed）。
 - `action.yml` 与仓库 workflow 必须通过 actionlint。
 - Action e2e 必须在 GitHub-hosted `windows-latest` 上跑通同一条发布路径（init → 直传 → finalize → feed → 宿主平台 electron-updater）。
 - Feed e2e：在真实 MinIO + 已发布版本上，用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`。
@@ -154,14 +161,15 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Panel, instance-level admin API, `/api/v1` App API, upload API and update feed live in one
   TanStack Start app (`src/routes/`), with domain services in `src/server/` and infrastructure
   in `src/lib/`. Nested `/api/admin/apps/:id` routes are gone.
-- GitHub Action is a node24 JavaScript action at repository root `action.yml` + `scripts/shukka-upload.mjs`; agent skill at
-  `.agents/skills/shukka-ops/`.
+- GitHub Action is a node24 JavaScript action at repository root `action.yml` + `scripts/shukka-upload.mjs` with kind-specific collect/version in `scripts/updaters/*.mjs`; agent skill at
+  `.agents/skills/shukka-ops/`. See `docs/prd/adapter-upload.md` and `docs/adr/adapter-owned-uploader.md`.
 - Verified end to end against MinIO: publish through the action, HTTP feed + 302, a
   host-platform `electron-updater` check/download, and channel rollback via
   `PATCH currentVersion` (`tests/e2e/`, `docs/adr/electron-updater-e2e.md`).
 - Updater adapters: App `updaterKind` (`electron` | `tauri`) per `docs/prd/updater-adapters.md`
-  and `docs/adr/updater-kind-on-app.md`; Tauri process check/download per
-  `docs/adr/tauri-updater-e2e.md`.
+  and `docs/adr/updater-kind-on-app.md`; Action/CLI collect + version per
+  `docs/prd/adapter-upload.md` and `docs/adr/adapter-owned-uploader.md`; Tauri process
+  check/download per `docs/adr/tauri-updater-e2e.md`.
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

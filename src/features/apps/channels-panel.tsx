@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ChartColumn, ArrowUpToLine, Check, Copy, FileText, GitBranch, Plus, Trash2 } from 'lucide-react'
 import { parseAsString, useQueryState } from 'nuqs'
 import { useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -21,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip'
 import { Confirm } from '~/components/confirm.tsx'
+import { copyText } from '~/lib/clipboard.ts'
 import { useFormatters, useT } from '~/lib/i18n/index.ts'
 import { useViewRole } from '~/lib/role-context.ts'
 import { canDownloadInstallers, canEditReleaseNotes, canPromote, canSeeTrafficStats } from '~/lib/role.ts'
@@ -185,7 +187,11 @@ function FeedUrlRow({ url, className }: { url: string; className?: string }) {
         className="size-7 shrink-0 text-muted-foreground"
         aria-label={t.channels.copyFeed}
         onClick={async () => {
-          await navigator.clipboard.writeText(url)
+          const ok = await copyText(url)
+          if (!ok) {
+            toast.error(t.common.copyFailed)
+            return
+          }
           setCopied(true)
           setTimeout(() => setCopied(false), 1500)
         }}
@@ -208,9 +214,9 @@ function RowAction({ label, children }: { label: string; children: ReactNode }) 
 
 function HistoryTable({ slug, app, channel }: { slug: string; app: PublicApp; channel: ChannelDetail }) {
   const queryClient = useQueryClient()
-  const setCurrent = useMutation(setCurrentVersionMutationOptions({ slug, queryClient }))
-  const deleteVersion = useMutation(deleteVersionMutationOptions({ slug, queryClient }))
   const t = useT()
+  const setCurrent = useMutation(setCurrentVersionMutationOptions({ slug, queryClient, t }))
+  const deleteVersion = useMutation(deleteVersionMutationOptions({ slug, queryClient, t }))
   const format = useFormatters()
   const role = useViewRole()
 
@@ -370,8 +376,8 @@ function NewChannelDialog({ slug, onCreated }: { slug: string; onCreated: (name:
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const queryClient = useQueryClient()
-  const createChannel = useMutation(createChannelMutationOptions({ slug, queryClient }))
   const t = useT()
+  const createChannel = useMutation(createChannelMutationOptions({ slug, queryClient, t }))
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -384,10 +390,14 @@ function NewChannelDialog({ slug, onCreated }: { slug: string; onCreated: (name:
         <form
           onSubmit={async (event) => {
             event.preventDefault()
-            await createChannel.mutateAsync(name)
-            onCreated(name)
-            setName('')
-            setOpen(false)
+            try {
+              await createChannel.mutateAsync(name)
+              onCreated(name)
+              setName('')
+              setOpen(false)
+            } catch {
+              // toast handled by mutation options
+            }
           }}
         >
           <DialogHeader>

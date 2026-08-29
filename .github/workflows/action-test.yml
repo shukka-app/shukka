@@ -7,13 +7,13 @@ on:
     paths:
       - action.yml
       - scripts/shukka-upload.mjs
+      - scripts/updaters/**
       - src/server/feed.ts
       - src/server/releases.ts
       - src/lib/update-metadata.ts
       - src/routes/api/update/**
       - tests/e2e/**
       - src/server/updaters/**
-      - src/lib/tauri-target.ts
       - src/lib/storage.ts
       - scripts/juicefs-dev.mjs
       - .github/scripts/**
@@ -22,13 +22,13 @@ on:
     paths:
       - action.yml
       - scripts/shukka-upload.mjs
+      - scripts/updaters/**
       - src/server/feed.ts
       - src/server/releases.ts
       - src/lib/update-metadata.ts
       - src/routes/api/update/**
       - tests/e2e/**
       - src/server/updaters/**
-      - src/lib/tauri-target.ts
       - src/lib/storage.ts
       - scripts/juicefs-dev.mjs
       - .github/scripts/**

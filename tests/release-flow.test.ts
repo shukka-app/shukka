@@ -14,7 +14,14 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
     headObject: vi.fn(async (_s3: unknown, key: string) =>
       objects.has(key) ? { size: Buffer.byteLength(objects.get(key)!) } : null,
     ),
-    getObjectText: vi.fn(async (_s3: unknown, key: string) => objects.get(key) ?? ''),
+    getObjectText: vi.fn(async (_s3: unknown, key: string) => {
+      const body = objects.get(key)
+      if (body === undefined) {
+        const { ShukkaError } = await import('~/lib/errors.ts')
+        throw new ShukkaError('storage_error', 'Cannot read update metadata from storage')
+      }
+      return body
+    }),
     deleteObjects: vi.fn(async (_s3: unknown, keys: string[]) => {
       for (const key of keys) objects.delete(key)
     }),
@@ -24,7 +31,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
 const { eq } = await import('drizzle-orm')
 const { db } = await import('~/db/index.ts')
 const { apps, pendingUploads, versions } = await import('~/db/schema.ts')
-const { createApp, DEFAULT_CHANNEL } = await import('~/server/apps.ts')
+const { createApp, DEFAULT_CHANNEL, updateApp } = await import('~/server/apps.ts')
 const { createChannel, deleteChannel, getChannel, listChannelsForApps, listVersionsForChannels } =
   await import('~/server/channels.ts')
 const { deleteVersion, finalizeUpload, initUpload, listArtifactsForVersions } = await import('~/server/releases.ts')
@@ -53,8 +60,12 @@ function metadataFor(version: string, installer: string) {
 }
 
 /** Runs a full init → upload → finalize cycle. */
-async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: string, version: string) {
-  const installer = `Acme-Setup-${version}.exe`
+async function publish(
+  app: Awaited<ReturnType<typeof createApp>>,
+  channel: string,
+  version: string,
+  installer = `Acme-Setup-${version}.exe`,
+) {
   const init = await initUpload(app, {
     channel,
     version,
@@ -242,6 +253,87 @@ describe('release flow', () => {
     ).resolves.toMatchObject({ files: expect.any(Array) })
   })
 
+  it('deletes stored objects when an expired pending upload is purged on init', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }, { filename: 'Acme-Setup-1.0.0.exe' }],
+    })
+    for (const file of first.files) {
+      objects.set(file.key, file.filename === 'latest.yml' ? metadataFor('1.0.0', 'Acme-Setup-1.0.0.exe') : 'binary')
+    }
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const second = await initUpload(app, {
+      channel: 'stable',
+      version: '1.1.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    expect(second.uploadId).toBeTruthy()
+    for (const file of first.files) expect(objects.has(file.key)).toBe(false)
+    expect(db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeUndefined()
+  })
+
+  it('deletes stored objects when finalize rejects an expired upload', async () => {
+    const app = await createApp(appInput)
+    const init = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(init.files[0].key, metadataFor('1.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, init.uploadId)).run()
+
+    await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/expired/)
+    expect(objects.has(init.files[0].key)).toBe(false)
+  })
+
+  it('does not finalize a re-init against leftover bytes from an expired upload', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '2.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(first.files[0].key, metadataFor('2.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const second = await initUpload(app, {
+      channel: 'stable',
+      version: '2.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    await expect(finalizeUpload(app, second.uploadId)).rejects.toThrow(/was not uploaded/)
+  })
+
+  it('keeps expired pending rows when object cleanup fails', async () => {
+    const app = await createApp(appInput)
+    const first = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(first.files[0].key, metadataFor('1.0.0', 'latest.yml'))
+    db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(deleteObjects).mockRejectedValueOnce(new Error('s3 down'))
+    try {
+      await expect(
+        initUpload(app, {
+          channel: 'stable',
+          version: '1.1.0',
+          files: [{ filename: 'latest.yml' }],
+        }),
+      ).resolves.toMatchObject({ files: expect.any(Array) })
+      expect(db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeDefined()
+      expect(objects.has(first.files[0].key)).toBe(true)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
   it('maps a unique version insert during finalize to conflict', async () => {
     const app = await createApp(appInput)
     const init = await initUpload(app, {
@@ -318,6 +410,34 @@ describe('release flow', () => {
     await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(ShukkaError)
   })
 
+  it('rejects metadata larger than the size limit', async () => {
+    const app = await createApp(appInput)
+    const init = await initUpload(app, {
+      channel: 'stable',
+      version: '1.0.0',
+      files: [{ filename: 'latest.yml' }],
+    })
+    objects.set(init.files[0].key, 'version: 1.0.0\n' + 'x'.repeat(1024 * 1024))
+
+    await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/metadata size limit/)
+    expect(db.select().from(versions).all()).toEqual([])
+  })
+
+  it('does not leak storage internals when the public feed cannot read metadata', async () => {
+    const app = await createApp(appInput)
+    await publish(app, 'stable', '1.0.0')
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.delete(ymlKey!)
+
+    const error = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN).catch((err: unknown) => err)
+    expect(error).toBeInstanceOf(ShukkaError)
+    const message = (error as InstanceType<typeof ShukkaError>).message
+    expect(message).not.toContain(ymlKey!)
+    expect(message).toBe('Cannot read update metadata from storage')
+    expect((error as InstanceType<typeof ShukkaError>).details).toBeUndefined()
+  })
+
   it('requires at least one metadata file', async () => {
     const app = await createApp(appInput)
     await expect(
@@ -359,6 +479,59 @@ describe('release flow', () => {
     })
     expect(db.select().from(versions).where(eq(versions.id, first.result.versionId)).get()?.releasedAt).not.toBeNull()
     expect(db.select().from(versions).where(eq(versions.id, second.result.versionId)).get()?.releasedAt).not.toBeNull()
+  })
+
+  it('resolves a shared artifact filename to the current version first', async () => {
+    const app = await createApp(appInput)
+    const first = await publish(app, 'stable', '1.0.0', 'MyApp.AppImage')
+    await publish(app, 'stable', '2.0.0', 'MyApp.AppImage')
+
+    const live = await resolveFeedRequest('acme', 'stable', 'MyApp.AppImage', ORIGIN)
+    expect(live.kind).toBe('redirect')
+    expect((live as { url: string }).url).toContain('/2.0.0/')
+
+    const { setCurrentVersion } = await import('~/server/channels.ts')
+    setCurrentVersion(app.id, 'stable', '1.0.0')
+
+    const rolled = await resolveFeedRequest('acme', 'stable', 'MyApp.AppImage', ORIGIN)
+    expect(rolled.kind).toBe('redirect')
+    expect((rolled as { url: string }).url).toContain('/1.0.0/')
+    expect(db.select().from(versions).where(eq(versions.id, first.result.versionId)).get()?.artifactHits).toBe(1)
+  })
+
+  it('serves fresh metadata after a version is deleted and republished', async () => {
+    const app = await createApp(appInput)
+    const first = await publish(app, 'stable', '1.0.0')
+
+    const warmed = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((warmed as { body: string }).body).toContain('version: 1.0.0')
+
+    await deleteVersion(app, first.result.versionId)
+    await publish(app, 'stable', '1.0.0')
+
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.set(ymlKey!, `${objects.get(ymlKey!)!}#republished\n`)
+
+    const fresh = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((fresh as { body: string }).body).toContain('#republished')
+  })
+
+  it('serves fresh metadata after app storage settings change', async () => {
+    const app = await createApp(appInput)
+    await publish(app, 'stable', '1.0.0')
+
+    const warmed = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((warmed as { body: string }).body).toContain('version: 1.0.0')
+
+    await updateApp(app.id, { ...appInput, s3Bucket: 'other-bucket' })
+
+    const ymlKey = [...objects.keys()].find((key) => key.endsWith('/latest.yml'))
+    expect(ymlKey).toBeDefined()
+    objects.set(ymlKey!, `${objects.get(ymlKey!)!}#repointed\n`)
+
+    const fresh = await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
+    expect((fresh as { body: string }).body).toContain('#repointed')
   })
 
   it('falls back to the previous version when the current one is deleted', async () => {

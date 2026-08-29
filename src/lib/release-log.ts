@@ -49,22 +49,42 @@ export function isValidLocale(locale: string): boolean {
   }
 }
 
+/** BCP-47 canonical form ('en-us' → 'en-US'); throws ShukkaError on malformed tags. */
+export function canonicalLocale(locale: string): string {
+  try {
+    const [canonical] = Intl.getCanonicalLocales(locale)
+    if (!canonical) throw new Error('empty')
+    return canonical
+  } catch {
+    throw new ShukkaError('invalid_request', `Invalid locale tag: "${locale}"`)
+  }
+}
+
 /**
- * Locale fallback chain: exact match on the requested locale, then the app's
+ * Locale fallback chain: canonical match on the requested locale, then the app's
  * fallback locale, then the first available locale (callers pass notes sorted
- * by locale so "first" is deterministic). Null means the chain is exhausted
- * and the version is omitted from the response.
+ * by locale so "first" is deterministic). Comparisons use BCP-47 canonical form
+ * so case variants match; a malformed stored tag is compared as-is so the public
+ * endpoint never throws. Null means the chain is exhausted and the version is
+ * omitted from the response.
  */
 export function resolveNoteLocale(
   notes: NoteContent[],
   requested: string | null,
   fallbackLocale: string,
 ): NoteContent | null {
+  const canon = (tag: string): string => {
+    try {
+      return Intl.getCanonicalLocales(tag)[0] ?? tag
+    } catch {
+      return tag
+    }
+  }
   if (requested) {
-    const exact = notes.find((note) => note.locale === requested)
+    const exact = notes.find((note) => canon(note.locale) === canon(requested))
     if (exact) return exact
   }
-  return notes.find((note) => note.locale === fallbackLocale) ?? notes[0] ?? null
+  return notes.find((note) => canon(note.locale) === canon(fallbackLocale)) ?? notes[0] ?? null
 }
 
 /**
