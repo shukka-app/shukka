@@ -12,6 +12,9 @@ export const electronAdapter: UpdateAdapter = {
     const metadata = parseUpdateMetadata(filename, text)
     return { version: metadata.version, referenced: referencedArtifacts(metadata) }
   },
+  inferFeedTarget() {
+    return null
+  },
   platformsOf(artifacts) {
     const found = new Set<string>()
     for (const artifact of artifacts) {
