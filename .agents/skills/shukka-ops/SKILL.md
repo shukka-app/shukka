@@ -18,8 +18,10 @@ Set `SHUKKA_URL` (e.g. `https://updates.example.com`) before running anything be
 
 ## Publish a release
 
-Prefer the bundled uploader over hand-rolling the protocol. It reads the version
-from `latest*.yml` (Electron) or `latest.json` (Tauri) in the directory:
+Prefer the bundled uploader over hand-rolling the protocol. It infers kind from
+the directory (yml → electron; `.sig` / `latest.json` / Tauri bundle layout → tauri)
+and reads the version from `latest*.yml` (Electron) or, for Tauri, `SHUKKA_VERSION`
+then `latest.json` then the nearest `tauri.conf.json` then a `_1.0.0_` filename token:
 
 ```bash
 SHUKKA_SERVER_URL="$SHUKKA_URL" \
@@ -44,7 +46,9 @@ In CI, use the action instead:
 
 Upload the **whole** electron-builder output directory: installers, `.blockmap`
 files, and every `latest*.yml`. Shukka serves the yml back byte-for-byte, so a
-missing platform yml means that platform silently never sees the update.
+missing platform yml means that platform silently never sees the update. For
+Tauri, point at `src-tauri/target/release/bundle` (or a platform subdir); the
+uploader collects artifact + `.sig` pairs and does not need `latest.json`.
 
 ### The raw protocol
 

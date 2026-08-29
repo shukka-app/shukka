@@ -9,7 +9,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 ## Users
 
 - **管理员 / 开发者**：创建 app 时选这个应用用哪种更新客户端；之后只看见对得上的接入文档与上传规则。
-- **CI**：仍上传整个产物目录；不必传协议名。
+- **CI**：仍上传整个产物目录；不必传协议名（Action/CLI 可从文件推断 kind，见 `docs/prd/adapter-upload.md`）。
 - **终端应用**：Electron 或 Tauri 客户端按各自契约读 feed。
 
 ## Goals
@@ -39,7 +39,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 ### 发布 / 更新
 
 - Electron：builder 目录，`latest*.yml` 透传，制品 302。
-- Tauri：bundle + `.sig`（可带 `latest.json`）；feed 给出静态 `platforms` JSON，`url` 指向本 feed 下的制品，`signature` 为 `.sig` 正文。
+- Tauri：bundle 下成对的制品 + `.sig`（可带 `latest.json`，官方 `tauri build` 默认不写）；feed 给出静态 `platforms` JSON，`url` 指向本 feed 下的制品，`signature` 为 `.sig` 正文。Action/CLI 的收集与版本推断见 `docs/prd/adapter-upload.md`。
 
 ## Acceptance criteria
 

@@ -7,7 +7,7 @@
 ## Decision
 
 1. `apps.updater_kind` 为 `electron` | `tauri`。已有行默认 `electron`。创建后不改。
-2. `src/server/updaters/` 下每个 kind 一个 adapter：上传分类与校验、feed 文档怎么出、平台徽标怎么认。
+2. `src/server/updaters/` 下每个 kind 一个 adapter：上传分类与校验、feed 文档怎么出、平台徽标怎么认。Action/CLI 侧每个 kind 另有一份零依赖收集/版本实现（`scripts/updaters/*.mjs`，见 `docs/adr/adapter-owned-uploader.md`），不 import 本目录。
 3. Electron adapter：yml 原文透传；制品按文件名 302。
 4. Tauri adapter：生成静态 `platforms` JSON（`url` 指向本 channel feed 下的制品，`signature` 读 `.sig`）；无 current 时 404。
 5. 公开路径仍是 `/api/update/{app}/{channel}`；空 path 与 `latest.json` 由 Tauri adapter 解释为 manifest。

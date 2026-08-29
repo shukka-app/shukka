@@ -72,6 +72,7 @@ Layout:
 | `src/features/` | Panel feature UI and TanStack Query hooks |
 | `src/components/ui/` | shadcn primitives, lightly themed (regular-weight titles) — keep close to upstream |
 | `scripts/shukka-upload.mjs` | Zero-dependency uploader shared by the action and manual use |
+| `scripts/updaters/` | Kind-specific collect + version inference for the uploader (plain ESM, no server imports) |
 
 # Code style
 

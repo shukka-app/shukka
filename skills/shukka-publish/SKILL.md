@@ -26,7 +26,7 @@ JSON request bodies; errors come back as `{ "error": <code>, "message": <string>
    ```json
    { "app": "<appSlug>", "channel": "<channel>", "version": "<version>", "files": [{ "filename": "<name>", "size": <bytes> }] }
    ```
-   The file list is every file in the output directory. Electron: installers, `*.blockmap`, `latest*.yml` (at least one `.yml`). Tauri: updater bundles with matching `.sig` files and/or `latest.json`. The response contains `uploadId` and, per file, a presigned `uploadUrl`.
+   The file list is the adapter-collected output. Electron: installers, `*.blockmap`, `latest*.yml` in a flat directory (at least one `.yml`). Tauri: updater artifacts with matching `.sig` (and optional `latest.json`) from `bundle/` or a platform subdir; `*.AppDir` is skipped. The response contains `uploadId` and, per file, a presigned `uploadUrl`.
 2. **Upload** — `PUT` each file's raw bytes to its `uploadUrl` (direct to S3; URLs expire one hour after init). Send the exact byte count as `content-length`.
 3. **Finalize** — `POST {baseUrl}/api/v1/upload/finalize` with the same auth header and body `{ "uploadId": "<id>", "app": "<appSlug>" }`. This creates a **draft** by default (feed unchanged). Pass `"release": true` to write `releasedAt` and flip the channel current version in the same call. A yml whose `version` disagrees with the declared version fails the whole release.
 
@@ -35,7 +35,7 @@ To promote a draft later: `PATCH {baseUrl}/api/v1/apps/{appSlug}/channels/{chann
 ## Steps
 
 1. Build the app with electron-builder; the output directory (usually `dist/`) is what gets published.
-2. Read the version from the `version:` field of `latest*.yml` (Electron) or the `"version"` field of `latest.json` (Tauri) in the output directory, unless the user gave a version explicitly.
+2. Read the version unless the user gave one explicitly. Electron: `version:` in `latest*.yml`. Tauri: `latest.json` `"version"`, else the nearest `tauri.conf.json`, else a `_1.0.0_` token in an artifact filename. Do not invent a `latest.json`.
 3. Run the publish protocol above against the output directory.
 4. If the user asked to go live immediately, pass `release: true` on finalize (or the Action input `release: true`). Otherwise leave it as a draft and say so.
 5. Verify a live release with `GET {baseUrl}/api/update/{appSlug}/{channel}/latest.yml` (no auth). A draft is invisible there — that is expected. Report the version, channel, and whether it is draft or live.

@@ -102,7 +102,10 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### GitHub Action
 
-- 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。`version` 留空时从目录内 `latest*.yml` 或 Tauri `latest.json` 读取。不调用 bash / pwsh / cmd。
+- 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）、可选 `updater-kind`；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。不调用 bash / pwsh / cmd。
+- **Kind**：`updater-kind` / `SHUKKA_UPDATER_KIND` 可覆盖；否则由目录内文件推断（`latest*.yml` → electron；`.sig` / `latest.json` / 已知 Tauri bundle 布局 → tauri）。服务端仍按该 app 的 `updaterKind` 校验清单。
+- **Collect**：Electron 只扫一层扁平目录（安装包、`*.blockmap`、`latest*.yml`），不递归。Tauri 在用户指向 `bundle/` 或已知平台子目录（`appimage` / `macos` / `nsis` / `msi` / `deb` / `rpm` / `dmg` / `updater` 等）时收集成对的 updater 制品 + `.sig` 以及可选的 `latest.json`；只递归已知 bundle 布局；跳过 `*.AppDir/`、解压树与共享库。上传与 feed 只用 **basename**（与 S3 键 `{prefix}/{channel}/{version}/{filename}` 一致）；basename 冲突则失败。
+- **Version**：`version` / `SHUKKA_VERSION` 优先。Electron 省略时读 `latest*.yml` 的 `version:`。Tauri 省略时依次：`latest.json` 的 `version` → 从目录向上最近的 `tauri.conf.json` 的 `version` → 制品文件名中的 `_1.0.0_` 形 token；全部失败则报错并点名这些来源。不要求、不合成 `latest.json`（服务端已能从 `.sig` 对生成 feed）。
 - `action.yml` 与仓库 workflow 必须通过 actionlint。
 - Action e2e 必须在 GitHub-hosted `windows-latest` 上跑通同一条发布路径（init → 直传 → finalize → feed → 宿主平台 electron-updater）。
 - Feed e2e：在真实 MinIO + 已发布版本上，用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`。
@@ -156,14 +159,15 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Panel, instance-level admin API, `/api/v1` App API, upload API and update feed live in one
   TanStack Start app (`src/routes/`), with domain services in `src/server/` and infrastructure
   in `src/lib/`. Nested `/api/admin/apps/:id` routes are gone.
-- GitHub Action is a node24 JavaScript action at repository root `action.yml` + `scripts/shukka-upload.mjs`; agent skill at
-  `.agents/skills/shukka-ops/`.
+- GitHub Action is a node24 JavaScript action at repository root `action.yml` + `scripts/shukka-upload.mjs` with kind-specific collect/version in `scripts/updaters/*.mjs`; agent skill at
+  `.agents/skills/shukka-ops/`. See `docs/prd/adapter-upload.md` and `docs/adr/adapter-owned-uploader.md`.
 - Verified end to end against MinIO: publish through the action, HTTP feed + 302, a
   host-platform `electron-updater` check/download, and channel rollback via
   `PATCH currentVersion` (`tests/e2e/`, `docs/adr/electron-updater-e2e.md`).
 - Updater adapters: App `updaterKind` (`electron` | `tauri`) per `docs/prd/updater-adapters.md`
-  and `docs/adr/updater-kind-on-app.md`; Tauri process check/download per
-  `docs/adr/tauri-updater-e2e.md`.
+  and `docs/adr/updater-kind-on-app.md`; Action/CLI collect + version per
+  `docs/prd/adapter-upload.md` and `docs/adr/adapter-owned-uploader.md`; Tauri process
+  check/download per `docs/adr/tauri-updater-e2e.md`.
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and
