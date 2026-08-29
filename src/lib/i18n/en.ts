@@ -72,8 +72,6 @@ export const en = {
       channels: 'Channels',
       apiKeys: 'API keys',
       integration: 'Integration',
-      apiDocs: 'API docs',
-      apiDocsError: 'Could not load the API description.',
       settings: 'Settings',
       saveChanges: 'Save changes',
       dangerZone: 'Danger zone',
@@ -276,8 +274,7 @@ export const en = {
       'One workflow step publishes the output directory. Create an API key in the API keys tab and store it as a repository secret first. Pass release: true to go live; omitting it creates a draft the feed cannot see — promote in the panel or PATCH the channel currentVersion.',
     httpApiTitle: 'HTTP API',
     httpApiDetail:
-      'Any CI or script can publish over HTTP: init the upload, PUT each file straight to S3 with the presigned URLs, then finalize. Default is a draft the feed cannot see — pass "release": true to go live, or promote later in the panel or with PATCH currentVersion. The API key goes in the Authorization header. Full request shapes live in the API docs.',
-    openApiDocs: 'Open API docs',
+      'Any CI or script can publish over HTTP: init the upload, PUT each file straight to S3 with the presigned URLs, then finalize. Default is a draft the feed cannot see — pass "release": true to go live, or promote later in the panel or with PATCH currentVersion. The API key goes in the Authorization header. Full request shapes live in the published docs (github.com/shukka-app/docs) and GET /api/v1/openapi.json.',
     agentTitle: 'Using agent',
     agentDetail:
       'Hand publishing to your coding agent: one command installs the Shukka publish skill from the Shukka repo, pinned to the commit this server is running. The skill only covers the publish protocol — the agent will ask you for the server URL, app slug, channel, and an API key from the API keys tab.',

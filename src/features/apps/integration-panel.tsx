@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router'
-import { BookOpen, Bot, Braces, Check, Sparkles, Workflow } from 'lucide-react'
+import { Bot, Braces, Check, Sparkles, Workflow } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
@@ -166,17 +165,7 @@ Do all of the following:
             <PublishMethod
               detail={t.integration.httpApiDetail}
               snippet={snippets.httpApi}
-              action={
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/docs" target="_blank" rel="noreferrer">
-                      <BookOpen />
-                      {t.integration.openApiDocs}
-                    </Link>
-                  </Button>
-                  <CopyAgentPrompt value={httpApiPrompt} />
-                </div>
-              }
+              action={<CopyAgentPrompt value={httpApiPrompt} />}
             />
           </TabsContent>
           <TabsContent value="agent" className="mt-4">

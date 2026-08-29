@@ -68,8 +68,6 @@ export const zh = {
       channels: '渠道',
       apiKeys: 'API key',
       integration: '集成',
-      apiDocs: 'API 文档',
-      apiDocsError: '无法加载 API 说明。',
       settings: '设置',
       saveChanges: '保存修改',
       dangerZone: '危险操作',
@@ -262,8 +260,7 @@ export const zh = {
       '一个 workflow 步骤即可发布产物目录。先在「API key」标签页创建 key，并存为仓库 secret。传 release: true 立即上线；省略则是更新源看不见的草稿——在面板 promote，或 PATCH channel 的 currentVersion。',
     httpApiTitle: 'HTTP API',
     httpApiDetail:
-      '任意 CI 或脚本都可以走 HTTP 发布：init 上传事务，用 presigned URL 把每个文件直传到 S3，然后 finalize。默认是更新源看不见的草稿——传 "release": true 立即上线，或事后在面板 / PATCH currentVersion promote。API key 放在 Authorization 头里。完整请求形状见 API 文档。',
-    openApiDocs: '打开 API 文档',
+      '任意 CI 或脚本都可以走 HTTP 发布：init 上传事务，用 presigned URL 把每个文件直传到 S3，然后 finalize。默认是更新源看不见的草稿——传 "release": true 立即上线，或事后在面板 / PATCH currentVersion promote。API key 放在 Authorization 头里。完整请求形状见 github.com/shukka-app/docs 与 GET /api/v1/openapi.json。',
     agentTitle: '用 Agent',
     agentDetail:
       '把发布交给编码 agent：一条命令从 Shukka 仓库安装发布 skill，并固定到本服务器当前运行的提交。skill 只讲发布协议——agent 会向你询问服务器地址、app slug、channel，以及「API key」标签页中创建的 key。',
