@@ -116,6 +116,7 @@ final class SilentDriver: NSObject, SPUUserDriver {
             fail("offered \(foundVersion ?? "?") (build \(appcastItem.versionString)), expected \(expectedVersion)")
             return
         }
+        log("found \(foundVersion ?? expectedVersion)")
         reply(.install)
     }
 
@@ -131,7 +132,11 @@ final class SilentDriver: NSObject, SPUUserDriver {
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
         acknowledgement()
         let ns = error as NSError
-        fail("\(ns.localizedDescription) [\(ns.domain) \(ns.code)]")
+        var detail = "\(ns.localizedDescription) [\(ns.domain) \(ns.code)]"
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            detail += " underlying: \(underlying.localizedDescription) [\(underlying.domain) \(underlying.code)]"
+        }
+        fail(detail)
     }
 
     func showDownloadInitiated(cancellation: @escaping () -> Void) {

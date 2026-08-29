@@ -30,6 +30,12 @@ const directory = resolve(process.env.SHUKKA_DIRECTORY || 'out')
 const version = process.env.SHUKKA_VERSION || `2.0.${Date.now() % 100000}`
 const zipName = `App-${version}.zip`
 
+// Key first so the update Dummy.app can keep SUPublicEDKey. Sparkle rejects
+// an update that drops the host's EdDSA public key (SUInstallationError 4005).
+const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+const pubDer = publicKey.export({ type: 'spki', format: 'der' })
+const sparklePublicKey = pubDer.subarray(pubDer.length - 32).toString('base64')
+
 function crc32(data) {
   let crc = ~0
   for (const byte of data) {
@@ -114,13 +120,15 @@ const plist = `<?xml version="1.0" encoding="UTF-8"?>
   <string>${version}</string>
   <key>CFBundleShortVersionString</key>
   <string>${version}</string>
+  <key>SUPublicEDKey</key>
+  <string>${sparklePublicKey}</string>
 </dict>
 </plist>
 `
 
-const binaryBytes = existsSync('/usr/bin/true')
-  ? readFileSync('/usr/bin/true')
-  : Buffer.from('#!/bin/sh\nexit 0\n')
+// Unsigned stub — do not copy /usr/bin/true (Apple-signed / dyld stub). Host
+// Dummy.app is also unsigned; Sparkle then accepts EdDSA-only validation.
+const binaryBytes = Buffer.from('#!/bin/sh\nexit 0\n')
 
 function writeAppTree(appDir) {
   const macos = join(appDir, 'Contents', 'MacOS')
@@ -163,11 +171,7 @@ function packStored() {
 }
 
 const zipBytes = process.platform === 'darwin' && existsSync('/usr/bin/ditto') ? packWithDitto() : packStored()
-
-const { privateKey, publicKey } = generateKeyPairSync('ed25519')
 const signature = sign(null, zipBytes, privateKey).toString('base64')
-const pubDer = publicKey.export({ type: 'spki', format: 'der' })
-const sparklePublicKey = pubDer.subarray(pubDer.length - 32).toString('base64')
 const sidecar = `sparkle:edSignature="${signature}" length="${zipBytes.length}"\n`
 
 mkdirSync(directory, { recursive: true })

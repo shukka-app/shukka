@@ -24,6 +24,7 @@ describe('prepare-sparkle-release', () => {
     expect(zip.includes(Buffer.from('Dummy.app/Contents/Info.plist'))).toBe(true)
     expect(zip.includes(Buffer.from('CFBundleIdentifier'))).toBe(true)
     expect(zip.includes(Buffer.from('app.shukka.sparkle-check'))).toBe(true)
+    expect(zip.includes(Buffer.from('SUPublicEDKey'))).toBe(true)
 
     const sidecar = readFileSync(join(directory, 'App-2.0.99.zip.sig'), 'utf8')
     expect(sidecar).toMatch(/^sparkle:edSignature="[A-Za-z0-9+/=]+" length="\d+"/)
