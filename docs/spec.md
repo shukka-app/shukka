@@ -90,7 +90,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Channels 历史行的安装包弹窗只渲染 installer 瓷砖（平台图标 + 架构 + 扩展名）；该版本没有可识别安装包时按钮仍在、弹窗为空状态。下载走 App API 302，不计命中。
 - Release log：创建应用向导第 3 步配置启用开关、locale 列表与回退 locale；app 设置页含「Release log」分区（左侧导航驱动，nuqs `section` 参数）；Channels 标签页历史行在 app 启用时提供 notes 编辑入口，跳转到独立编辑页面 `/apps/{appSlug}/notes/{version}`（Milkdown 所见即所得编辑器，按 locale 切换，编辑器变量映射面板主题 token）。配置与 note 编辑走 `/api/v1/apps/{slug}/...`（不触发 S3 存储探测）；note 的 PUT 为 upsert。
 - 面板 app 详情路由为 `/apps/{appSlug}`，不再使用数字 id。
-- 创建向导第一步选择 `updaterKind`（Electron / Tauri，必选、不预选）并填写名称 / slug；未手改 slug 时由名称经拼音 + GitHub Slugger 自动生成。kind 创建后不改，Settings 不展示。Integration 文案与 snippet 随 `updaterKind` 切换。
+- 创建向导第一步选择 `updaterKind`（Electron / Tauri，必选、不预选）并填写名称 / slug；未手改 slug 时由名称经拼音 + GitHub Slugger 自动生成。kind 创建后不改，Settings 不展示。Integration 文案与 snippet 随 `updaterKind` 切换。Tauri Integration 只填入 channel feed URL；签名密钥、`pubkey`、updater 产物开关、仅 HTTP 时的 insecure-transport 标志、updater capability 与可选 relaunch 由使用者按官方 Tauri 文档填写。Shukka 不声称安装 Linux AppImage。
 
 ### Runtime（自托管进程）
 

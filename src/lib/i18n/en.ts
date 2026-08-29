@@ -261,9 +261,12 @@ export const en = {
     tauri: {
       step1Title: 'Point the Tauri updater at the feed',
       step1Detail:
-        'plugin-updater reads this public endpoint. No credentials — the feed is a static platforms JSON document.',
+        'Shukka fills only the feed URL (endpoints). You fill these from official Tauri docs — not Shukka: pubkey (required public-key string, not a file path), bundle.createUpdaterArtifacts: true, and dangerousInsecureTransportProtocol: true only when the feed is HTTP. Production should use HTTPS. Add the updater:default capability (tauri add updater usually does). Generate keys with tauri signer generate and set TAURI_SIGNING_PRIVATE_KEY at build time. The feed is public static platforms JSON — no credentials.',
       step2Title: 'Check for updates in the Rust / JS side',
-      step2Detail: '@tauri-apps/plugin-updater calls check() against the endpoint configured at build time.',
+      step2Detail:
+        '@tauri-apps/plugin-updater calls check() against the endpoint configured at build time. relaunch() after downloadAndInstall() is optional (official Tauri docs).',
+      linuxNote:
+        'Linux AppImage: check and download work against this feed. Install replaces the running AppImage and requires a FUSE-mounted AppImage on the same mount as the temp directory. Extract-and-run, overlay filesystems, and many containers fail here — that is plugin-updater and the environment, not the feed. Shukka does not install the AppImage.',
       publishDetail:
         'Three ways to get the Tauri updater bundle directory up — pick whichever fits your pipeline. A successful upload is a draft the feed cannot see until you pass release: true or promote it.',
     },

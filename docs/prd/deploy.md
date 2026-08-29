@@ -124,7 +124,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 - 面板 Integration 与 Tauri feed JSON 里的绝对 URL 来自 `request.url.origin`。Nitro node-server **默认不信任** `X-Forwarded-Proto`。TLS 终结在反代、回源是 HTTP 时，Shukka 看到的 origin 可能是 `http://…`。
   - Electron：yml 原文透传、制品文件名相对；把 `https://…/api/update/{app}/{channel}` 写进 electron-builder 即可。
   - Tauri：`latest.json` 的 `url` 按本次请求的 origin 生成。`curl -sS https://your.host/api/update/{app}/{channel}` 若看到 `http://` 制品 URL，让反代对后端也走 TLS，或给进程配 `NITRO_SSL_CERT` / `NITRO_SSL_KEY`。
-- Tauri 生产客户端默认要求 HTTPS（`docs/adr/updater-kind-on-app.md`）。
+- Tauri 生产客户端默认要求 HTTPS（`docs/adr/updater-kind-on-app.md`）。本机或无 TLS 的 HTTP feed 必须由**使用者**在 tauri.conf 设置 `plugins.updater.dangerousInsecureTransportProtocol: true`（官方键；不是 Shukka 服务端开关）。生产省略该键，用 HTTPS。接入步骤见 `docs/prd/tauri-integration.md`。
 - 登录失败按来源 IP 限速（15 分钟 10 次）。反代后面部署时设置 `SHUKKA_TRUST_PROXY=1`，才会采信反代追加的转发头（最右一跳）；未设则忽略 `X-Forwarded-For` / `X-Real-IP`。不要把 setup / login 裸露在无防护的公网而不做 TLS。
 
 ## 对象存储
@@ -192,7 +192,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | 能登录但改/建 app 报 storage 错，S3 secret 怪 | 只恢复了 `.db`，没有同目录的 `encryption.key` |
 | 启动后表结构旧 | 进程 cwd 下没有 `drizzle/`（没从应用根启动，或镜像没 `COPY drizzle`） |
 | 创建 app：`storage_error` | 凭证、bucket、endpoint、path-style，或 Shukka 主机到 S3 不通 |
-| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或 Tauri feed 里的 `url` 是 `http://`（见 TLS 节） |
+| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或 Tauri feed 里的 `url` 是 `http://`（见 TLS 节）。HTTP endpoint 还须使用者在 tauri.conf 打开 `dangerousInsecureTransportProtocol` |
 | 登录成功但 cookie 没带上 | 面板 origin 与 API origin 不一致（反代拆了主机名） |
 | 升级后数据没了 | 新容器没挂原来的卷 |
 

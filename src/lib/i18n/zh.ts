@@ -246,9 +246,13 @@ export const zh = {
     },
     tauri: {
       step1Title: '将 Tauri updater 指向更新源',
-      step1Detail: 'plugin-updater 读取这个公开 endpoint。无需凭据——更新源是静态的 platforms JSON。',
+      step1Detail:
+        'Shukka 只填入更新源 URL（endpoints）。其余由你按官方 Tauri 文档填写，不是 Shukka：pubkey（必填公钥字符串，不能是文件路径）、bundle.createUpdaterArtifacts: true，以及仅当更新源是 HTTP 时的 dangerousInsecureTransportProtocol: true。生产环境应使用 HTTPS。加上 updater:default capability（tauri add updater 通常会加）。用 tauri signer generate 生成密钥，构建时设置 TAURI_SIGNING_PRIVATE_KEY。更新源是公开的静态 platforms JSON——无需凭据。',
       step2Title: '在 Rust / JS 侧检查更新',
-      step2Detail: '@tauri-apps/plugin-updater 对构建时写入的 endpoint 调用 check()。',
+      step2Detail:
+        '@tauri-apps/plugin-updater 对构建时写入的 endpoint 调用 check()。downloadAndInstall() 之后的 relaunch() 是可选的（官方 Tauri 文档）。',
+      linuxNote:
+        'Linux AppImage：对本更新源，check 与 download 可用。安装会替换正在运行的 AppImage，且要求以 FUSE 挂载的真实 AppImage，临时目录与 AppImage 必须在同一挂载点。extract-and-run、overlay、容器环境经常失败——这是 plugin-updater 与运行环境的问题，不是 feed。Shukka 不负责安装 AppImage。',
       publishDetail:
         '把 Tauri updater 产物目录发布上来的三种方式——按你的流水线任选其一。上传成功默认是草稿，更新源看不见；传 release: true 或事后 promote 才会上线。',
     },

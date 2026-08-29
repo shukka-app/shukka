@@ -16,7 +16,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 
 1. 创建向导第一步用与 S3 provider 相同的带图标按钮选择更新系统（Electron / Tauri），必选、不预选，和名称 / slug 同一屏。
 2. `updaterKind` 落在 App 上；创建时选定，之后不改；Settings 不出现该选择。
-3. Integration（snippet、Agent 提示）按 kind 换内容，面板结构不变（01 / 02 / 03）。
+3. Integration（snippet、Agent 提示）按 kind 换内容，面板结构不变（01 / 02 / 03）。Tauri Integration 只填 feed URL，其余 updater 配置标成使用者按官方文档填写——见 [tauri-integration](tauri-integration.md)。
 4. 上传与 feed 按 kind 走对应 adapter。Electron 行为与现网一致。
 5. 名称未手改 slug 时，用拼音 + GitHub Slugger 从 name 生成 slug；用户一旦改过 slug 字段，不再跟随 name。
 6. 每种 adapter 自己把制品文件名映射为 feed target（或明确不做）。Tauri 无架构 Linux / Darwin 有文档化默认键；Electron 不推断。
@@ -30,6 +30,8 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 - Sparkle 等第三种客户端（接口预留）。
 - 上传器目录收集（collect / version 推断）。
 - 无架构 Windows 文件名的默认 feed target。
+- 发明 Shukka 专用的 Tauri 签名 / 打包替代；替使用者填写 `pubkey` 或私钥。
+- 真实 Tauri AppImage `install` e2e（见 [tauri-integration](tauri-integration.md)）。
 
 ## Flows
 
@@ -37,7 +39,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 
 1. 选 Electron 或 Tauri → 填名称（slug 自动生成，除非已手改）→ 下一步。
 2. 选存储 → Release log → 提交，kind 随 app 入库。
-3. 打开 Integration，只看到该 kind 的文档。
+3. 打开 Integration，只看到该 kind 的文档。Tauri 页写明 Shukka 只填 endpoints，密钥 / pubkey / 产物开关 / HTTP 标志由使用者补。
 
 ### 发布 / 更新
 
@@ -59,6 +61,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 - [x] Electron 的 yml 透传与平台徽标规则不变；Electron 不为文件名推断 feed target。
 - [x] 面板平台徽标经该 app 的 adapter（`updaterKind`）计算，不从通用 UI 路径直接调用 Tauri 专用文件名解析器。
 - [ ] 真实 Tauri 进程对已发布版本 check + download + minisign 成功；draft 对 updater 不可见。
+- [ ] Tauri Integration / README 标出使用者自填项（签名、pubkey、createUpdaterArtifacts、HTTP 标志、capability、可选 relaunch）；不声称 Shukka 安装 AppImage。见 [tauri-integration](tauri-integration.md)。
 
 ## Resolved product decisions
 
@@ -67,3 +70,4 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 - S3 provider 仍不落库；updater kind 落库。
 - 文件名 → feed target 与面板徽章都属于该 kind 的 adapter，不设全局文件名解析器。
 - Tauri 无架构默认键为 `linux-x86_64` 与 `darwin-x86_64`（对齐 Tauri 常见 `{{target}}-{{arch}}`）；arm / universal 须在文件名写架构或上传 `latest.json`。
+- Tauri Integration 的所有权拆分见 [tauri-integration](tauri-integration.md)：Shukka 只填 feed URL，不代填签名或打包。

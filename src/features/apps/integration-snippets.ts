@@ -106,11 +106,23 @@ function tauriSnippets({
 }): Record<keyof IntegrationSnippets, { code: string; lang: HighlightLang }> {
   return {
     builderConfig: {
-      lang: 'json',
-      code: `{
+      lang: 'jsonc',
+      code: `// tauri.conf.json
+// Shukka fills only endpoints. Everything else: you fill these; not Shukka.
+{
+  "bundle": {
+    // you fill this; not Shukka — required, or the build writes no .sig
+    "createUpdaterArtifacts": true
+  },
   "plugins": {
     "updater": {
-      "endpoints": ["${feedUrl}"]
+      "endpoints": ["${feedUrl}"],
+      // you fill this; not Shukka — minisign public key string from
+      // \`tauri signer generate\`, not a file path. Set TAURI_SIGNING_PRIVATE_KEY at build time.
+      "pubkey": "<YOUR_TAURI_UPDATER_PUBKEY>"
+      // HTTP feeds only (local / non-TLS). You fill this; not Shukka.
+      // Production: HTTPS and omit this key.
+      // "dangerousInsecureTransportProtocol": true
     }
   }
 }`,
@@ -118,10 +130,13 @@ function tauriSnippets({
     mainProcess: {
       lang: 'ts',
       code: `import { check } from '@tauri-apps/plugin-updater'
+// optional — official Tauri docs; you fill this; not Shukka:
+// import { relaunch } from '@tauri-apps/plugin-process'
 
 const update = await check()
 if (update) {
   await update.downloadAndInstall()
+  // optional: await relaunch()
 }`,
     },
     githubAction: {

@@ -8,12 +8,12 @@ import { createHighlighter } from 'shiki'
  */
 const highlighterPromise = createHighlighter({
   themes: ['github-light-default', 'github-dark-default'],
-  langs: ['yaml', 'bash', 'ts', 'json'],
+  langs: ['yaml', 'bash', 'ts', 'json', 'jsonc'],
 })
 
 const htmlCache = new Map<string, string>()
 
-export type HighlightLang = 'yaml' | 'bash' | 'ts' | 'json'
+export type HighlightLang = 'yaml' | 'bash' | 'ts' | 'json' | 'jsonc'
 
 export async function highlightSnippet(code: string, lang: HighlightLang): Promise<string> {
   const key = `${lang}${code}`
