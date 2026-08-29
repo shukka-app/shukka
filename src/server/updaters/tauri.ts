@@ -1,5 +1,4 @@
 import { ShukkaError } from '~/lib/errors.ts'
-import { inferTauriTarget } from '~/lib/tauri-target.ts'
 import type { UpdateAdapter } from './types.ts'
 
 const MANIFEST = 'latest.json'
@@ -36,6 +35,38 @@ function parseLatestJson(text: string): {
       ? (record.platforms as Record<string, { url?: string; signature?: string }>)
       : {}
   return { version, platforms }
+}
+
+/**
+ * Best-effort Tauri updater `platforms` key from an artifact filename.
+ * Explicit arch tokens win. Arch-less Linux / Darwin default to `x86_64`
+ * (see docs/adr/updater-kind-on-app.md). Windows still requires an arch token.
+ */
+export function inferTauriTarget(filename: string): string | null {
+  const name = filename.toLowerCase()
+  const arch =
+    name.includes('aarch64') || name.includes('arm64')
+      ? 'aarch64'
+      : name.includes('i686') || name.includes('ia32')
+        ? 'i686'
+        : name.includes('armv7')
+          ? 'armv7'
+          : name.includes('x64') || name.includes('x86_64') || name.includes('amd64')
+            ? 'x86_64'
+            : null
+
+  const os = name.includes('darwin') || name.includes('mac') || name.endsWith('.app.tar.gz')
+    ? 'darwin'
+    : name.includes('linux') || name.includes('appimage')
+      ? 'linux'
+      : name.includes('win') || name.includes('nsis') || name.includes('msi')
+        ? 'windows'
+        : null
+
+  if (!os) return null
+  if (arch) return `${os}-${arch}`
+  if (os === 'linux' || os === 'darwin') return `${os}-x86_64`
+  return null
 }
 
 export const tauriAdapter: UpdateAdapter = {
@@ -87,7 +118,7 @@ export const tauriAdapter: UpdateAdapter = {
     } else {
       for (const artifact of artifacts) {
         if (artifact.filename.endsWith('.sig') || artifact.filename === MANIFEST) continue
-        const target = inferTauriTarget(artifact.filename)
+        const target = tauriAdapter.inferFeedTarget(artifact.filename)
         const sigFile = artifacts.find((file) => file.filename === `${artifact.filename}.sig`)
         if (!target || !sigFile) continue
         platforms[target] = {
@@ -110,6 +141,7 @@ export const tauriAdapter: UpdateAdapter = {
       })}\n`,
     }
   },
+  inferFeedTarget: inferTauriTarget,
   platformsOf(artifacts) {
     const found = new Set<string>()
     for (const artifact of artifacts) {

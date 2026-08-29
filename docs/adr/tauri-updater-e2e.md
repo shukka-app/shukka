@@ -9,7 +9,7 @@ Shukka 的 Tauri feed 是生成的静态 `platforms` JSON，`url` 为 302 到存
 ## Decision
 
 1. **拉起真正的 Tauri 进程**（`tests/e2e/tauri-app`，无窗口）。在 `setup` 里用 Rust API：`updater_builder().pubkey().endpoints().check()`，再 `download()`。不调用 `install`。
-2. **模拟 updater 产物**：同一版本目录含 darwin / linux / windows 文件名（`inferTauriTarget` 能认出）+ `tauri signer sign` 写出的 `.sig`。一次 finalize 上传整目录，不带 `latest.json`，由 adapter 生成 feed。
+2. **模拟 updater 产物**：同一版本目录含 darwin / linux / windows 文件名（Tauri adapter 的 `inferFeedTarget` 能认出）+ `tauri signer sign` 写出的 `.sig`。一次 finalize 上传整目录，不带 `latest.json`，由 adapter 生成 feed。
 3. **断言到 download + 验签**：`check` 看到新版本，`download` 成功（跟随 302 并用 e2e 公钥校验 minisign）。应用自身版本固定 `1.0.0`。
 4. **HTTP 本机**：`dangerousInsecureTransportProtocol: true`，否则 release 构建拒绝非 HTTPS endpoint。
 5. **密钥每次生成**：`tauri signer generate --ci`，公钥经环境变量注入，不入库。

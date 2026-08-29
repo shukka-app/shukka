@@ -15,7 +15,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Artifact**: 版本内的一个文件（安装包、`*.blockmap`、`latest*.yml`、Tauri `.sig` / `latest.json` 等），原样来自该 app 更新系统的构建产物。
 - **Installer**: 面板按文件名识别出的桌面安装包（`.exe` / `.msi` / `.dmg` / `.AppImage` / `.deb` / `.rpm` / `.app.tar.gz`，以及带 mac 标记的 `.zip`）。不是 Artifact 的存储类型；yml、`.blockmap`、`.sig`、`latest.json` 不是 installer。
 - **Feed**: 某 app+channel 的无鉴权更新读取面，base URL 为 `/api/update/{appSlug}/{channel}`。文档形状由该 app 的 `updaterKind` 决定。
-- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、平台识别、接入文档）。Electron 与 Tauri 各一份。
+- **Update adapter**: 一种更新客户端契约的服务端实现（上传校验、feed 文档、文件名 → feed target、平台识别、接入文档）。Electron 与 Tauri 各一份。
+- **Feed target**: 某制品在该更新协议 feed 里的平台键（Tauri 为 `platforms` 的 `{{target}}-{{arch}}`，如 `linux-x86_64`）。Electron feed 无此键。
 - **API key**: 形如 `shk_<random>` 的凭证，绑定单个 app；可上传并操作该 app 内资源，不可删 app 或管理 key。
 - **Pending upload**: init 之后、finalize 之前的上传事务，对 feed 不可见。
 - **Hit bucket**: 按 version × kind（metadata/artifact）× UTC 小时预聚合的命中计数；随所属 version 级联删除，永久保留。
@@ -36,6 +37,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `GET /api/update/{appSlug}/{channel}/{artifactName}` 对 channel 内**已发布**版本（`releasedAt` 非空）的制品按文件名解析，302 到短时效 S3 URL；draft 的文件名与不存在相同，返回 404。同名制品跨版本存在时，当前版本优先，其余按 `releasedAt` 最新优先解析。
 - **Electron**：`GET .../{metadataFile}.yml` 返回当前版本中同名 yml 的原文（不改写）。客户端默认请求 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`。把 Shukka channel 名写进 electron-builder `publish.channel` 会改成请求 `stable.yml` 等，除非产物里真有这些文件。
 - **Tauri**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../latest.json` 返回为当前已发布版本生成的静态 updater JSON（`platforms` 映射；`url` 指向本 feed 下的制品；`signature` 为对应 `.sig` 正文）。无当前版本时 404。
+- **Tauri `platforms` 键**：上传了 `latest.json` 时以其声明的键为准（只改写 `url`、补 `signature`）。未上传时由文件名推断。显式架构 token（`aarch64` / `arm64` → `aarch64`；`amd64` / `x64` / `x86_64` → `x86_64`；`i686` / `ia32` → `i686`；`armv7` → `armv7`）覆盖默认。无架构的 `AppImage` 或文件名含 `linux` 默认为 `linux-x86_64`；无架构的 `*.app.tar.gz` 或文件名含 `mac` / `darwin` 默认为 `darwin-x86_64`。Windows 无架构 token 时不产生键。arm / universal 构建须上传 `latest.json` 或在文件名中写明架构。
 - 元数据是否原文透传是 adapter 不变量，不是全系统不变量。
 - yml 命中与制品 302 分别计入所属版本的下载计数；每次命中在计数器递增的同一事务内 upsert 其 UTC 小时 hit bucket。
 
