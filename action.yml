@@ -32,7 +32,7 @@ inputs:
     required: false
     default: 'false'
   release:
-    description: 'If true, finalize goes live immediately. Default false leaves a draft.'
+    description: 'If true, the version goes live and the feed can see it. Default false leaves a draft the feed cannot see; promote later in the panel or PATCH the channel currentVersion.'
     required: false
     default: 'false'
 

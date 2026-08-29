@@ -20,6 +20,11 @@ export type IntegrationSnippets = {
   agentCli: Snippet
 }
 
+/** One-line reminder that the API default is draft and invisible to the feed. */
+function draftIfOmitted(channelName: string): string {
+  return `omit to create a draft the feed cannot see; promote in the panel or PATCH .../channels/${channelName} {"currentVersion":"…"}`
+}
+
 function electronSnippets({
   app,
   channelName,
@@ -58,7 +63,7 @@ autoUpdater.checkForUpdatesAndNotify()`,
     app: ${app.slug}
     channel: ${channelName}
     directory: dist
-    # release: true   # omit to leave the version as a draft`,
+    release: true   # ${draftIfOmitted(channelName)}`,
     },
     httpApi: {
       lang: 'bash',
@@ -71,11 +76,11 @@ curl -X POST ${serverUrl}/api/v1/upload/init \\
 # 2. Upload each file's bytes straight to S3
 curl -X PUT --data-binary @latest.yml "<uploadUrl from init>"
 
-# 3. Finalize — creates a draft. Add "release":true to go live immediately.
+# 3. Finalize — "release":true goes live now; ${draftIfOmitted(channelName)}.
 curl -X POST ${serverUrl}/api/v1/upload/finalize \\
   -H "Authorization: Bearer $SHUKKA_API_KEY" \\
   -H "content-type: application/json" \\
-  -d '{"uploadId":"<uploadId>","app":"${app.slug}"}'
+  -d '{"uploadId":"<uploadId>","app":"${app.slug}","release":true}'
 
 # Release notes (public, no auth) — only if the app enabled Release log
 curl "${serverUrl}/api/v1/apps/${app.slug}/channels/${channelName}/notes?from=1.0.0&locale=en-US"`,
@@ -128,7 +133,7 @@ if (update) {
     app: ${app.slug}
     channel: ${channelName}
     directory: src-tauri/target/release/bundle
-    # release: true   # omit to leave the version as a draft`,
+    release: true   # ${draftIfOmitted(channelName)}`,
     },
     httpApi: {
       lang: 'bash',
@@ -141,11 +146,11 @@ curl -X POST ${serverUrl}/api/v1/upload/init \\
 # 2. Upload each file's bytes straight to S3
 curl -X PUT --data-binary @latest.json "<uploadUrl from init>"
 
-# 3. Finalize — creates a draft. Add "release":true to go live immediately.
+# 3. Finalize — "release":true goes live now; ${draftIfOmitted(channelName)}.
 curl -X POST ${serverUrl}/api/v1/upload/finalize \\
   -H "Authorization: Bearer $SHUKKA_API_KEY" \\
   -H "content-type: application/json" \\
-  -d '{"uploadId":"<uploadId>","app":"${app.slug}"}'
+  -d '{"uploadId":"<uploadId>","app":"${app.slug}","release":true}'
 
 # Release notes (public, no auth) — only if the app enabled Release log
 curl "${serverUrl}/api/v1/apps/${app.slug}/channels/${channelName}/notes?from=1.0.0&locale=en-US"`,

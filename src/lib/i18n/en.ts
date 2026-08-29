@@ -254,7 +254,8 @@ export const en = {
       step1Detail: 'The generic provider writes this URL into the app at build time. No credentials — the feed is public.',
       step2Title: 'Check for updates in the main process',
       step2Detail: 'electron-updater reads the feed, compares versions, and downloads through it.',
-      publishDetail: 'Three ways to get the electron-builder output directory up — pick whichever fits your pipeline.',
+      publishDetail:
+        'Three ways to get the electron-builder output directory up — pick whichever fits your pipeline. A successful upload is a draft the feed cannot see until you pass release: true or promote it.',
     },
     tauri: {
       step1Title: 'Point the Tauri updater at the feed',
@@ -262,15 +263,16 @@ export const en = {
         'plugin-updater reads this public endpoint. No credentials — the feed is a static platforms JSON document.',
       step2Title: 'Check for updates in the Rust / JS side',
       step2Detail: '@tauri-apps/plugin-updater calls check() against the endpoint configured at build time.',
-      publishDetail: 'Three ways to get the Tauri updater bundle directory up — pick whichever fits your pipeline.',
+      publishDetail:
+        'Three ways to get the Tauri updater bundle directory up — pick whichever fits your pipeline. A successful upload is a draft the feed cannot see until you pass release: true or promote it.',
     },
     publishTitle: 'Publish a release',
     githubActionTitle: 'GitHub Action',
     githubActionDetail:
-      'One workflow step publishes the output directory. Create an API key in the API keys tab and store it as a repository secret first.',
+      'One workflow step publishes the output directory. Create an API key in the API keys tab and store it as a repository secret first. Pass release: true to go live; omitting it creates a draft the feed cannot see — promote in the panel or PATCH the channel currentVersion.',
     httpApiTitle: 'HTTP API',
     httpApiDetail:
-      'Any CI or script can publish over HTTP: init the upload, PUT each file straight to S3 with the presigned URLs, then finalize (draft by default). The API key goes in the Authorization header. Full request shapes live in the API docs.',
+      'Any CI or script can publish over HTTP: init the upload, PUT each file straight to S3 with the presigned URLs, then finalize. Default is a draft the feed cannot see — pass "release": true to go live, or promote later in the panel or with PATCH currentVersion. The API key goes in the Authorization header. Full request shapes live in the API docs.',
     openApiDocs: 'Open API docs',
     agentTitle: 'Using agent',
     agentDetail:
