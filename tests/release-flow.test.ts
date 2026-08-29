@@ -53,8 +53,12 @@ function metadataFor(version: string, installer: string) {
 }
 
 /** Runs a full init → upload → finalize cycle. */
-async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: string, version: string) {
-  const installer = `Acme-Setup-${version}.exe`
+async function publish(
+  app: Awaited<ReturnType<typeof createApp>>,
+  channel: string,
+  version: string,
+  installer = `Acme-Setup-${version}.exe`,
+) {
   const init = await initUpload(app, {
     channel,
     version,
@@ -359,6 +363,24 @@ describe('release flow', () => {
     })
     expect(db.select().from(versions).where(eq(versions.id, first.result.versionId)).get()?.releasedAt).not.toBeNull()
     expect(db.select().from(versions).where(eq(versions.id, second.result.versionId)).get()?.releasedAt).not.toBeNull()
+  })
+
+  it('resolves a shared artifact filename to the current version first', async () => {
+    const app = await createApp(appInput)
+    const first = await publish(app, 'stable', '1.0.0', 'MyApp.AppImage')
+    await publish(app, 'stable', '2.0.0', 'MyApp.AppImage')
+
+    const live = await resolveFeedRequest('acme', 'stable', 'MyApp.AppImage', ORIGIN)
+    expect(live.kind).toBe('redirect')
+    expect((live as { url: string }).url).toContain('/2.0.0/')
+
+    const { setCurrentVersion } = await import('~/server/channels.ts')
+    setCurrentVersion(app.id, 'stable', '1.0.0')
+
+    const rolled = await resolveFeedRequest('acme', 'stable', 'MyApp.AppImage', ORIGIN)
+    expect(rolled.kind).toBe('redirect')
+    expect((rolled as { url: string }).url).toContain('/1.0.0/')
+    expect(db.select().from(versions).where(eq(versions.id, first.result.versionId)).get()?.artifactHits).toBe(1)
   })
 
   it('serves fresh metadata after a version is deleted and republished', async () => {
