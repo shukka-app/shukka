@@ -190,6 +190,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   Cloudflare Workers is a second full-panel deploy (`docs/prd/dual-runtime.md`,
   `docs/adr/dual-runtime.md`). Worker requires `SHUKKA_DB_URL` and
   `SHUKKA_ENCRYPTION_KEY`; first setup should set `SHUKKA_PASSWORD_HASH=pbkdf2`.
+  The Worker script gzip (`wrangler deploy --dry-run` Total Upload) must stay
+  at or under the Cloudflare Free 3 MiB limit.
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

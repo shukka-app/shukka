@@ -30,6 +30,7 @@ Worker 的 vars / secrets 是 bindings。Shukka 在模块加载时读 `process.e
 ## Trade-offs & failure bounds
 
 - 两套构建：Worker 插件变更不自动等于 Node 产物仍好。两边都要能 `vite build`。
+- Cloudflare Workers Free 拒绝超过 3 MiB gzip 的脚本（静态资源不计）。CI 用 `wrangler deploy --dry-run` 的 Total Upload gzip 卡这个上限（`npm run check:worker-size`）。
 - 若有人忘了 `applyWorkerEnv`，Worker 会在缺 `SHUKKA_DB_URL` / 密钥时启动失败。
 - `nodejs_compat` 不加载原生 addon；依赖的是 libsql web + aws4fetch + `node:crypto`。
 - 本 PR 不代替一次真实账号上的 setup→发版走查。
