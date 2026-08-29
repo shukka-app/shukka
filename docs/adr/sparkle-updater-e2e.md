@@ -31,3 +31,4 @@ They cannot prove Sparkle’s own `SPUUpdater` request shape or ATS behavior.
 - A Sparkle release that changes how the client picks `sparkle:version` vs `shortVersionString` would not be caught on Linux. The mapping is pinned in `docs/adr/sparkle-current-only-appcast.md` and enforced at finalize. The macOS job publishes a version newer than the dummy bundle’s `CFBundleVersion` so Sparkle offers it.
 - ATS / HTTPS is a deploy constraint. The dummy bundle sets `NSAllowsLocalNetworking` / `NSAllowsArbitraryLoads` so `http://localhost` works on the runner.
 - `SPUUserDriver` dismisses at `showReady(toInstallAndRelaunch:)` after download/extract. Extraction into a temp directory is part of Sparkle’s download path, not install.
+- The Swift package pins Sparkle **2.9.6** (SPM binary) so the overlay method names (`show(_:reply:)`, `showReady(toInstallAndRelaunch:)`) stay compile-stable on `macos-latest`.

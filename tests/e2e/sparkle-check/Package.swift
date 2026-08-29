@@ -8,7 +8,7 @@ let package = Package(
         .executable(name: "sparkle-check", targets: ["SparkleCheck"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.0"),
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
     ],
     targets: [
         .executableTarget(
