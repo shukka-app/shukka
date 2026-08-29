@@ -6,7 +6,7 @@
 
 ## Decision
 
-- **面板**：首次启动进入 setup 页设置管理员密码（argon2/scrypt hash 落库）；登录换 HttpOnly session cookie（session 表存 SQLite，带过期）；面板内可改密，改密使既有 session 失效。
+- **面板**：首次启动进入 setup 页设置管理员密码（`scrypt$` 或 `pbkdf2$` hash 落库，scheme 在首次 setup 锁定，见 [password-kdf](password-kdf.md)）；登录换 HttpOnly session cookie（session 表存 SQLite，带过期）；面板内可改密，改密使既有 session 失效且沿用已存 scheme。
 - **上传 API**：API key 形如 `shk_<random>`，明文只在创建响应出现一次，库中存 SHA-256 hash；每个 key 绑定一个 app，只能操作该 app；可吊销，吊销即时生效。
 - **更新 feed**：`/api/update/*` 完全无鉴权，这是产品契约（electron-updater 无凭证读取）。
 

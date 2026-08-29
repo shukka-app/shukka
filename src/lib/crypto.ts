@@ -2,6 +2,7 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  pbkdf2Sync,
   randomBytes,
   scryptSync,
   timingSafeEqual,
@@ -109,18 +110,79 @@ export function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16)
-  const derived = scryptSync(password, salt, 64)
-  return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`
+export type PasswordHashScheme = 'scrypt' | 'pbkdf2'
+
+/** New `pbkdf2$` hashes use this iteration count. Modest for a single admin and for later CF Free (~10ms). */
+export const PBKDF2_ITERATIONS = 100_000
+
+/** Verify rejects a stored iteration count above this to avoid a hung login from a hand-edited row. */
+export const PBKDF2_MAX_ITERATIONS = 10_000_000
+
+const PASSWORD_SALT_BYTES = 16
+const SCRYPT_KEYLEN = 64
+const PBKDF2_KEYLEN = 32
+const PBKDF2_DIGEST = 'sha256'
+
+export function passwordHashSchemeOf(stored: string): PasswordHashScheme {
+  const scheme = stored.split('$', 1)[0]
+  if (scheme === 'scrypt' || scheme === 'pbkdf2') return scheme
+  throw new ShukkaError('invalid_request', 'Stored admin password hash uses an unknown scheme')
+}
+
+export function hashPassword(password: string, scheme: PasswordHashScheme): string {
+  const salt = randomBytes(PASSWORD_SALT_BYTES)
+  if (scheme === 'scrypt') {
+    const derived = scryptSync(password, salt, SCRYPT_KEYLEN)
+    return `scrypt$${salt.toString('hex')}$${derived.toString('hex')}`
+  }
+  const derived = pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST)
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${salt.toString('hex')}$${derived.toString('hex')}`
+}
+
+function parseHex(value: string | undefined): Buffer | null {
+  if (!value || value.length === 0 || value.length % 2 !== 0 || /[^0-9a-fA-F]/.test(value)) return null
+  return Buffer.from(value, 'hex')
+}
+
+function equalDerived(derived: Buffer, expected: Buffer): boolean {
+  return derived.length === expected.length && timingSafeEqual(derived, expected)
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
-  const [scheme, salt, expected] = stored.split('$')
-  if (scheme !== 'scrypt' || !salt || !expected) return false
-  const derived = scryptSync(password, Buffer.from(salt, 'hex'), 64)
-  const expectedBuf = Buffer.from(expected, 'hex')
-  return derived.length === expectedBuf.length && timingSafeEqual(derived, expectedBuf)
+  const parts = stored.split('$')
+  const [scheme, first, second, third] = parts
+  if (scheme === 'scrypt') {
+    const salt = parseHex(first)
+    const expected = parseHex(second)
+    if (parts.length !== 3 || !salt || !expected) return false
+    try {
+      return equalDerived(scryptSync(password, salt, expected.length), expected)
+    } catch {
+      return false
+    }
+  }
+  if (scheme === 'pbkdf2') {
+    const iterations = Number(first)
+    const salt = parseHex(second)
+    const expected = parseHex(third)
+    if (
+      parts.length !== 4 ||
+      !Number.isInteger(iterations) ||
+      iterations < 1 ||
+      iterations > PBKDF2_MAX_ITERATIONS ||
+      String(iterations) !== first ||
+      !salt ||
+      !expected
+    ) {
+      return false
+    }
+    try {
+      return equalDerived(pbkdf2Sync(password, salt, iterations, expected.length, PBKDF2_DIGEST), expected)
+    } catch {
+      return false
+    }
+  }
+  return false
 }
 
 export function randomToken(bytes = 32): string {

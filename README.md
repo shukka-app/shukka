@@ -99,6 +99,7 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 | `SHUKKA_ENCRYPTION_KEY_FILEPATH` | unset | Read the 32-byte hex AES key from this file (do not set together with `SHUKKA_ENCRYPTION_KEY`) |
 | `SHUKKA_ENCRYPTION_KEY` | unset | The same hex key as a value (never writes a key file) |
 | `SHUKKA_SECURE_COOKIES` | unset | Set `1` to force `Secure` on the session cookie (or terminate TLS and forward `X-Forwarded-Proto: https`) |
+| `SHUKKA_PASSWORD_HASH` | unset (`scrypt`) | Password KDF for **first setup only**: unset/`scrypt` → `scrypt$…`; `pbkdf2` → `pbkdf2$…`. Locked after init |
 
 ## Publish a release
 

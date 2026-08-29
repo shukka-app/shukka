@@ -124,6 +124,98 @@ describe('admin session', () => {
     expect(auth.readSessionCookie(request)).toBeNull()
   })
 
+  it('keeps setup, login, and change-password on scrypt$ when the env is unset', () => {
+    delete process.env.SHUKKA_PASSWORD_HASH
+    auth.initializeAdmin('correct horse battery')
+    const afterSetup = db.select().from(admin).get()
+    expect(afterSetup?.passwordHash.startsWith('scrypt$')).toBe(true)
+    expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+
+    auth.changePassword('correct horse battery', 'a brand new one')
+    const afterChange = db.select().from(admin).get()
+    expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(true)
+    expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+  })
+
+  it('treats SHUKKA_PASSWORD_HASH=scrypt as the default writer', () => {
+    process.env.SHUKKA_PASSWORD_HASH = 'scrypt'
+    try {
+      auth.initializeAdmin('correct horse battery')
+      expect(db.select().from(admin).get()?.passwordHash.startsWith('scrypt$')).toBe(true)
+    } finally {
+      delete process.env.SHUKKA_PASSWORD_HASH
+    }
+  })
+
+  it('writes pbkdf2$ only when that env is set before first setup', () => {
+    process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
+    try {
+      auth.initializeAdmin('correct horse battery')
+      const afterSetup = db.select().from(admin).get()
+      expect(afterSetup?.passwordHash.startsWith('pbkdf2$')).toBe(true)
+      expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+
+      process.env.SHUKKA_PASSWORD_HASH = 'scrypt'
+      auth.changePassword('correct horse battery', 'a brand new one')
+      const afterChange = db.select().from(admin).get()
+      expect(afterChange?.passwordHash.startsWith('pbkdf2$')).toBe(true)
+      expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(false)
+      expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+    } finally {
+      delete process.env.SHUKKA_PASSWORD_HASH
+    }
+  })
+
+  it('does not write pbkdf2$ after a scrypt setup even if the env flips', () => {
+    delete process.env.SHUKKA_PASSWORD_HASH
+    auth.initializeAdmin('correct horse battery')
+    expect(db.select().from(admin).get()?.passwordHash.startsWith('scrypt$')).toBe(true)
+
+    process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
+    try {
+      auth.changePassword('correct horse battery', 'a brand new one')
+      const afterChange = db.select().from(admin).get()
+      expect(afterChange?.passwordHash.startsWith('scrypt$')).toBe(true)
+      expect(afterChange?.passwordHash.startsWith('pbkdf2$')).toBe(false)
+      expect(auth.sessionIsValid(auth.login('a brand new one'))).toBe(true)
+    } finally {
+      delete process.env.SHUKKA_PASSWORD_HASH
+    }
+  })
+
+  it('rejects an invalid SHUKKA_PASSWORD_HASH at setup', () => {
+    process.env.SHUKKA_PASSWORD_HASH = 'argon2'
+    try {
+      try {
+        auth.initializeAdmin('correct horse battery')
+        throw new Error('expected initializeAdmin to reject')
+      } catch (error) {
+        expect(error).toBeInstanceOf(ShukkaError)
+        expect((error as { code: string }).code).toBe('invalid_request')
+      }
+      expect(auth.isInitialized()).toBe(false)
+    } finally {
+      delete process.env.SHUKKA_PASSWORD_HASH
+    }
+  })
+
+  it('logs in against both stored prefixes', () => {
+    delete process.env.SHUKKA_PASSWORD_HASH
+    auth.initializeAdmin('correct horse battery')
+    expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+
+    db.delete(admin).run()
+    db.delete(sessions).run()
+    process.env.SHUKKA_PASSWORD_HASH = 'pbkdf2'
+    try {
+      auth.initializeAdmin('correct horse battery')
+      expect(db.select().from(admin).get()?.passwordHash.startsWith('pbkdf2$')).toBe(true)
+      expect(auth.sessionIsValid(auth.login('correct horse battery'))).toBe(true)
+    } finally {
+      delete process.env.SHUKKA_PASSWORD_HASH
+    }
+  })
+
   it('sets Secure only for https, forwarded proto, or SHUKKA_SECURE_COOKIES', () => {
     expect(auth.cookieShouldBeSecure(new Request('http://localhost:3000/'))).toBe(false)
     expect(auth.cookieShouldBeSecure(new Request('https://shukka.test/'))).toBe(true)

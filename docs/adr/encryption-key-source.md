@@ -22,7 +22,7 @@ S3 secret 用 AES-256-GCM 加密后落库（[per-app-s3-and-secrets](per-app-s3-
 
 密钥材料格式不变：64 个 hex 字符，与现有 `encryption.key` 文件一致。AES-GCM 密文格式不变。`SHUKKA_KEY_PATH` 只保留一个版本。
 
-不在本决策里改口令哈希（`hashPassword` 仍是 scrypt）。
+不在本决策里改口令哈希（管理员密码 KDF 见 [password-kdf](password-kdf.md)）。
 
 ## Alternatives
 
