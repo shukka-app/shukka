@@ -2,13 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { FileText } from 'lucide-react'
 import { useQueryState } from 'nuqs'
-import { lazy, Suspense, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '~/components/page-header.tsx'
 import { Button } from '~/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
-import { Skeleton } from '~/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs'
+import { NotesEditor } from '~/features/apps/notes-editor.tsx'
 import { appDetailQueryOptions, primeAppDetailQuery } from '~/features/apps/requests/apps.ts'
 import {
   deleteNoteMutationOptions,
@@ -17,8 +17,6 @@ import {
 } from '~/features/apps/requests/notes.ts'
 import { Confirm } from '~/components/confirm.tsx'
 import { translateError, useFormatters, useT } from '~/lib/i18n/index.ts'
-
-const NotesEditor = lazy(() => import('~/features/apps/notes-editor.tsx').then((m) => ({ default: m.NotesEditor })))
 
 export const Route = createFileRoute('/_panel/apps/$appSlug_/notes/$version')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -183,9 +181,7 @@ function VersionNotesPage() {
         </div>
 
         <div className="mt-4 rounded-2xl bg-card px-6 py-5">
-          <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
-            <NotesEditor key={locale} defaultValue={markdown} placeholder={t.releaseLog.noteEmpty} onChange={edit} />
-          </Suspense>
+          <NotesEditor key={locale} defaultValue={markdown} placeholder={t.releaseLog.noteEmpty} onChange={edit} />
         </div>
 
         <div className="mt-4 space-y-3">
