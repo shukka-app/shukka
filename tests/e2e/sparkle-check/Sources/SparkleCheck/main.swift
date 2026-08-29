@@ -100,6 +100,10 @@ final class SilentDriver: NSObject, SPUUserDriver {
         exit(1)
     }
 
+    func log(_ message: String) {
+        FileHandle.standardOutput.write(Data("sparkle-check: \(message)\n".utf8))
+    }
+
     func show(_ request: SPUUpdatePermissionRequest, reply: @escaping (SUUpdatePermissionResponse) -> Void) {
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: false, sendSystemProfile: false))
     }
@@ -126,12 +130,17 @@ final class SilentDriver: NSObject, SPUUserDriver {
 
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
         acknowledgement()
-        fail(error.localizedDescription)
+        let ns = error as NSError
+        fail("\(ns.localizedDescription) [\(ns.domain) \(ns.code)]")
     }
 
-    func showDownloadInitiated(cancellation: @escaping () -> Void) {}
+    func showDownloadInitiated(cancellation: @escaping () -> Void) {
+        log("download started")
+    }
 
-    func showDownloadDidReceiveExpectedContentLength(_ expectedContentLength: UInt64) {}
+    func showDownloadDidReceiveExpectedContentLength(_ expectedContentLength: UInt64) {
+        log("expected \(expectedContentLength) bytes")
+    }
 
     func showDownloadDidReceiveData(ofLength length: UInt64) {
         receivedBytes += length
@@ -140,6 +149,7 @@ final class SilentDriver: NSObject, SPUUserDriver {
 
     func showDownloadDidStartExtractingUpdate() {
         downloaded = true
+        log("extracting after \(receivedBytes) bytes")
     }
 
     func showExtractionReceivedProgress(_ progress: Double) {}
