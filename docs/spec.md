@@ -186,6 +186,10 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Metadata SQLite is libsql (`@libsql/client` + `drizzle-orm/libsql`); Node
   uses `file:`, isolates use the web client and do not migrate in-process
   (`docs/prd/libsql-async.md`, `docs/adr/libsql-async.md`).
+- Dual runtime: Node/Nitro self-host stays the recommended Docker path;
+  Cloudflare Workers is a second full-panel deploy (`docs/prd/dual-runtime.md`,
+  `docs/adr/dual-runtime.md`). Worker requires `SHUKKA_DB_URL` and
+  `SHUKKA_ENCRYPTION_KEY`; first setup should set `SHUKKA_PASSWORD_HASH=pbkdf2`.
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

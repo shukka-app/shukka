@@ -89,7 +89,7 @@ Forgot the admin password: delete the singleton `admin` row (`id = 1`) and reope
 `/setup`. That is the ADR recovery path (`docs/adr/auth-model.md`) — there is no
 reset CLI.
 
-Full operator guide — reverse proxy, backups, upgrades, env vars, what not to host on: [`docs/prd/deploy.md`](docs/prd/deploy.md). Compose and Ansible examples: [`deploy/compose.yaml`](deploy/compose.yaml), [`deploy/ansible/playbook.yml`](deploy/ansible/playbook.yml).
+Full operator guide — reverse proxy, backups, upgrades, env vars, what not to host on: [`docs/prd/deploy.md`](docs/prd/deploy.md). Compose and Ansible examples: [`deploy/compose.yaml`](deploy/compose.yaml), [`deploy/ansible/playbook.yml`](deploy/ansible/playbook.yml). Cloudflare Workers (same panel, remote libsql): `npm run deploy:worker` — see `docs/prd/dual-runtime.md`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -100,6 +100,8 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 | `SHUKKA_ENCRYPTION_KEY` | unset | The same hex key as a value (never writes a key file) |
 | `SHUKKA_SECURE_COOKIES` | unset | Set `1` to force `Secure` on the session cookie (or terminate TLS and forward `X-Forwarded-Proto: https`) |
 | `SHUKKA_PASSWORD_HASH` | unset (`scrypt`) | Password KDF for **first setup only**: unset/`scrypt` → `scrypt$…`; `pbkdf2` → `pbkdf2$…`. Locked after init |
+| `SHUKKA_DB_URL` | unset | Remote libsql URL (**cloud isolates only**) |
+| `SHUKKA_DB_AUTH_TOKEN` | unset | Remote libsql token (cloud isolates, optional) |
 
 ## Publish a release
 

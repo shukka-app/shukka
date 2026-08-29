@@ -19,6 +19,7 @@ S3 secret 用 AES-256-GCM 加密后落库（[per-app-s3-and-secrets](per-app-s3-
 3. 只设 `SHUKKA_ENCRYPTION_KEY` → 把值当 64 位 hex（trim 后）解析为 32 字节。不写任何密钥文件。空或非法 hex → 抛错。
 4. 只设 filepath（新名或别名）→ 只读该文件，不自动创建，也不往 `./data` 另写一份（除非该路径就是那个文件）。文件不存在、空、非法 hex → 抛错。
 5. 都未设 → 今天的默认：读 `{SHUKKA_DATA_DIR}/encryption.key`，没有则生成 `randomBytes(32).toString('hex')` 并 `0600` 写入。
+6. 云 isolate（`isCloudFunction()`）：只接受 `SHUKKA_ENCRYPTION_KEY`。filepath / 默认写文件不受支持。见 [dual-runtime](dual-runtime.md)。
 
 密钥材料格式不变：64 个 hex 字符，与现有 `encryption.key` 文件一致。AES-GCM 密文格式不变。`SHUKKA_KEY_PATH` 只保留一个版本。
 

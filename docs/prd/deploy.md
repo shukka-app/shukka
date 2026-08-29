@@ -13,7 +13,7 @@ Shukka 是单管理员自托管服务。仓库已有 `Dockerfile` 和 README 里
 
 1. 一份可跟着做的部署指南：前置条件、环境变量、构建启动、迁移、对象存储、TLS、备份、升级、探活、常见失败。
 2. 推荐路径与现有架构一致：单进程 Node + 一块持久化数据卷 + 每 app 自配 S3（见 `docs/adr/self-host-runtime.md`）。
-3. 明确不适合的托管形态（无持久盘、多副本抢同一 SQLite、serverless）。
+3. 明确不适合的托管形态（无持久盘且无远程库、多副本抢同一 `file:` SQLite）。Cloudflare Workers 是第二路径，见 `docs/prd/dual-runtime.md`。
 4. 所有环境变量、端口、探活路径都来自代码或 Nitro 运行时，不臆造。
 
 ## Non-goals
@@ -113,13 +113,30 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
+| `SHUKKA_DB_URL` | 未设 | **仅云 isolate**：远程 libsql HTTP URL。Node 自托管不读。 |
+| `SHUKKA_DB_AUTH_TOKEN` | 未设 | **仅云 isolate**：远程库 token（可选）。 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
 
 `SHUKKA_ENCRYPTION_KEY` 与 `SHUKKA_ENCRYPTION_KEY_FILEPATH` **只能设其中一个**。都未设则保持今天的默认：首次启动在 `{SHUKKA_DATA_DIR}/encryption.key` 生成密钥。空值或非法 hex 拒绝启动。
 
-`SHUKKA_PASSWORD_HASH` 在首次 setup **锁定**：默认 scrypt，现有 Docker / VPS 不用改。已写入的 `scrypt$` 不会因为后来改成 `pbkdf2` 而转换。要把已有实例迁到只适合 pbkdf2 的运行时（如日后 Cloudflare Workers Free），删除 `admin` 与 `sessions` 后设 `SHUKKA_PASSWORD_HASH=pbkdf2` 再走 setup。
+`SHUKKA_PASSWORD_HASH` 在首次 setup **锁定**：默认 scrypt，现有 Docker / VPS 不用改。已写入的 `scrypt$` 不会因为后来改成 `pbkdf2` 而转换。要把已有实例迁到只适合 pbkdf2 的运行时（如 Cloudflare Workers Free），删除 `admin` 与 `sessions` 后设 `SHUKKA_PASSWORD_HASH=pbkdf2` 再走 setup。
+
+## Cloudflare Workers（第二路径）
+
+同一份面板，不是 feed-only。`npm run build` 仍是 Docker 用的 Nitro 产物。Worker：
+
+```bash
+# 远程库先施加仓库根 drizzle/（Turso CLI 或等价），不要在 isolate 内 migrate
+npx wrangler secret put SHUKKA_ENCRYPTION_KEY
+npx wrangler secret put SHUKKA_DB_URL
+npx wrangler secret put SHUKKA_DB_AUTH_TOKEN   # 若远程库需要
+npx wrangler secret put SHUKKA_PASSWORD_HASH   # 首次 setup 用 pbkdf2
+npm run deploy:worker
+```
+
+Worker 必填 `SHUKKA_ENCRYPTION_KEY`（不要 filepath）与 `SHUKKA_DB_URL`。登录限速与 feed 命中在 isolate 上关闭，用量看平台日志。人类安装文案在 [shukka-app/docs](https://github.com/shukka-app/docs) 跟进。见 `docs/prd/dual-runtime.md`。
 
 仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
 
@@ -219,10 +236,11 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 - [x] 写明 serverless / 无持久盘 / 多副本 SQLite 不适合。云 isolate 上登录限速关闭，防爆破靠主机防火墙。
 - [x] 写明命中计数与趋势是自托管专有，云 isolate 不记 feed 命中。
 - [x] 写明 cwd 与 `./drizzle` 自动迁移的关系。
+- [x] 写明 Cloudflare Workers 是第二路径：远程库 + `SHUKKA_ENCRYPTION_KEY`，`npm run deploy:worker`。
 
 ## Resolved product decisions
 
-- 主路径是自建单机 Docker，不是 PaaS 优先。
+- 主路径是自建单机 Docker，不是 PaaS 优先。Cloudflare Workers 是第二路径（全面板，远程 libsql），见 `docs/prd/dual-runtime.md`。
 - S3 加密密钥默认仍自动生成到数据目录；运维可改用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 或 `SHUKKA_ENCRYPTION_KEY` 二选一（见 `docs/adr/encryption-key-source.md`）。`SHUKKA_KEY_PATH` 保留一个版本作 filepath 别名。
 - 管理员密码只在面板首次设置，不从环境变量注入（与 `docs/adr/auth-model.md` 一致）。口令哈希算法可在 setup 前用 `SHUKKA_PASSWORD_HASH` 选定，初始化后锁定（见 `docs/prd/password-kdf.md`）。
 - Compose / Ansible 示例见 `docs/prd/deploy-examples.md`。健康探针与 GHCR 发布已另立 PRD。

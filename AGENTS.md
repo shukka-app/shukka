@@ -34,6 +34,8 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite via
 |---------|---------|
 | `npm run dev` | Panel and API on :3000 |
 | `npm run build` | Vite + Nitro build into `.output/` |
+| `npm run build:worker` | Cloudflare Worker build (`vite.config.worker.ts`) |
+| `npm run deploy:worker` | Worker build + `wrangler deploy` |
 | `npm start` | Run the built server |
 | `npm run check` | `lint` + `typecheck` + `test` — run before commit |
 | `npm run lint` | oxlint |

@@ -1,6 +1,8 @@
 import './setup-db.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+process.env.SHUKKA_ENCRYPTION_KEY = 'ab'.repeat(32)
+
 const objects = new Map<string, string>()
 
 vi.mock('~/lib/runtime.ts', async (importOriginal) => {
