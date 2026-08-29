@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ChartColumn, ArrowUpToLine, Check, Copy, FileText, GitBranch, Plus, Trash2 } from 'lucide-react'
 import { parseAsString, useQueryState } from 'nuqs'
 import { useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Badge } from '~/components/ui/badge'
 import { Button } from '~/components/ui/button'
 import {
@@ -21,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip'
 import { Confirm } from '~/components/confirm.tsx'
+import { copyText } from '~/lib/clipboard.ts'
 import { useFormatters, useT } from '~/lib/i18n/index.ts'
 import { useViewRole } from '~/lib/role-context.ts'
 import { canDownloadInstallers, canEditReleaseNotes, canPromote, canSeeTrafficStats } from '~/lib/role.ts'
@@ -185,7 +187,11 @@ function FeedUrlRow({ url, className }: { url: string; className?: string }) {
         className="size-7 shrink-0 text-muted-foreground"
         aria-label={t.channels.copyFeed}
         onClick={async () => {
-          await navigator.clipboard.writeText(url)
+          const ok = await copyText(url)
+          if (!ok) {
+            toast.error(t.common.copyFailed)
+            return
+          }
           setCopied(true)
           setTimeout(() => setCopied(false), 1500)
         }}

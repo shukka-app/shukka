@@ -286,7 +286,16 @@ function AppSettings({ slug, app, channels }: { slug: string; app: PublicApp; ch
             submitLabel={t.apps.detail.saveChanges}
             secretOptional
             section={activeSection}
-            onSubmit={(values) => updateApp.mutateAsync(values)}
+            onSubmit={async (values) => {
+              const data = await updateApp.mutateAsync(values)
+              if (data.app.slug !== slug) {
+                await router.navigate({
+                  to: '/apps/$appSlug',
+                  params: { appSlug: data.app.slug },
+                  search: (prev) => prev,
+                })
+              }
+            }}
           />
         )}
       </div>

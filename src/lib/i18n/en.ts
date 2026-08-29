@@ -14,6 +14,7 @@ export const en = {
     testingConnection: 'Testing…',
     testPassed: 'Connection verified — bucket is writable.',
     copyToClipboard: 'Copy to clipboard',
+    copyFailed: 'Could not copy to clipboard',
     delete: 'Delete',
     cancel: 'Cancel',
     confirm: 'Confirm',

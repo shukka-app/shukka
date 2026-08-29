@@ -22,6 +22,7 @@ import {
 import { Confirm, Prompt } from '~/components/confirm.tsx'
 import { useT } from '~/lib/i18n/index.ts'
 import { getSessionState } from '~/server/session-fn.ts'
+import { getSidebarState } from '~/server/sidebar-fn.ts'
 
 export const Route = createFileRoute('/_panel')({
   beforeLoad: async () => {
@@ -29,15 +30,19 @@ export const Route = createFileRoute('/_panel')({
     if (!session.initialized) throw redirect({ to: '/setup' })
     if (!session.authenticated) throw redirect({ to: '/login' })
   },
+  loader: async () => ({
+    sidebarState: await getSidebarState(),
+  }),
   component: PanelLayout,
 })
 
 function PanelLayout() {
+  const { sidebarState } = Route.useLoaderData()
   const t = useT()
   const brandIconRef = useRef<AnimatedPackageIconHandle>(null)
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={sidebarState !== 'false'}>
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-0">
           <Link
