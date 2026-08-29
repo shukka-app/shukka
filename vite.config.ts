@@ -24,7 +24,11 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      importProtection: {
+        server: { specifiers: ['recharts'] },
+      },
+    }),
     viteReact(),
     nitro({
       routeRules: {

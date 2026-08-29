@@ -20,7 +20,11 @@ export default defineConfig({
   plugins: [
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      importProtection: {
+        server: { specifiers: ['recharts'] },
+      },
+    }),
     viteReact(),
   ],
 })
