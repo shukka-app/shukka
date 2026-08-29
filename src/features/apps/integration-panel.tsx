@@ -56,10 +56,10 @@ Facts:
 - Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.0.2) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
 
 Do all of the following:
-1. In tauri.conf, set plugins.updater.endpoints to the feed URL above (the channel-root URL, not a latest.json path).
-2. Call check() from @tauri-apps/plugin-updater when the app should look for updates.
+1. In tauri.conf, set plugins.updater.endpoints to the feed URL above (the channel-root URL, not a latest.json path). Shukka fills only that URL. You must also fill from official Tauri docs (not Shukka): bundle.createUpdaterArtifacts: true; plugins.updater.pubkey as the minisign public key string (not a file path); dangerousInsecureTransportProtocol: true only if the feed is HTTP — production must be HTTPS and omit that key. Generate keys with \`tauri signer generate\` and set TAURI_SIGNING_PRIVATE_KEY at build time. Ensure the updater:default capability is present (\`tauri add updater\` usually adds it).
+2. Call check() from @tauri-apps/plugin-updater when the app should look for updates. downloadAndInstall() applies the update; relaunch() afterwards is optional (official Tauri docs).
 3. Add a GitHub Actions workflow that builds the Tauri updater bundles and publishes that directory with the Shukka action (inputs: server-url, api-key, app, channel, directory, release). Pass release: true to go live immediately. Omitting it creates a draft the feed cannot see — promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
-4. Tell me what manual steps remain (creating the API key, adding the secrets, embedding the updater pubkey).`
+4. Tell me what manual steps remain (creating the API key, adding the secrets, generating signer keys, embedding the pubkey, enabling createUpdaterArtifacts, choosing HTTPS vs the HTTP flag, granting updater:default). Do not invent Shukka substitutes for signing or bundling.`
       : `Set up electron-updater self-updates for this app using my Shukka instance.
 
 Facts:
@@ -91,10 +91,10 @@ Upload protocol (JSON bodies; errors are { "error": <code>, "message": <string> 
 3. POST ${serverUrl}/api/v1/upload/finalize with { "uploadId": "<id>", "app": "${app.slug}", "release": true } — Shukka verifies the objects. "release": true goes live in the same call. Omit it to create a draft the feed cannot see; promote later in the panel or PATCH /api/v1/apps/${app.slug}/channels/${channelName} { "currentVersion": "<version>" }.
 
 Do all of the following:
-1. In tauri.conf, set plugins.updater.endpoints to the feed URL above.
-2. Call check() from @tauri-apps/plugin-updater when the app should look for updates.
+1. In tauri.conf, set plugins.updater.endpoints to the feed URL above (the channel-root URL, not a latest.json path). Shukka fills only that URL. You must also fill from official Tauri docs (not Shukka): bundle.createUpdaterArtifacts: true; plugins.updater.pubkey as the minisign public key string (not a file path); dangerousInsecureTransportProtocol: true only if the feed is HTTP — production must be HTTPS and omit that key. Generate keys with \`tauri signer generate\` and set TAURI_SIGNING_PRIVATE_KEY at build time. Ensure the updater:default capability is present (\`tauri add updater\` usually adds it).
+2. Call check() from @tauri-apps/plugin-updater when the app should look for updates. downloadAndInstall() applies the update; relaunch() afterwards is optional (official Tauri docs).
 3. Write a publish script (or CI step) that follows the upload protocol above against the updater bundle directory.
-4. Tell me what manual steps remain (creating the API key, wiring it into CI, embedding the updater pubkey).`
+4. Tell me what manual steps remain (creating the API key, wiring it into CI, generating signer keys, embedding the pubkey, enabling createUpdaterArtifacts, choosing HTTPS vs the HTTP flag, granting updater:default). Do not invent Shukka substitutes for signing or bundling.`
       : `Set up electron-updater self-updates for this app using my Shukka instance, publishing over the raw HTTP API (no GitHub Action).
 
 Facts:
@@ -131,6 +131,10 @@ Do all of the following:
           </li>
         ))}
       </ol>
+
+      {app.updaterKind === 'tauri' ? (
+        <p className="pl-8 text-sm text-muted-foreground">{t.integration.tauri.linuxNote}</p>
+      ) : null}
 
       <section className="grid gap-2.5">
         <div className="flex items-baseline gap-3">

@@ -141,15 +141,31 @@ publish:
 
 **Tauri**
 
-```json
+Shukka fills only the feed URL. You fill the rest from [official Tauri updater docs](https://v2.tauri.app/plugin/updater/) — not Shukka: `tauri signer generate` and `TAURI_SIGNING_PRIVATE_KEY` at build time; `plugins.updater.pubkey` (required public-key string, not a file path); `bundle.createUpdaterArtifacts: true` (otherwise no `.sig`); `dangerousInsecureTransportProtocol: true` only when the feed is HTTP (local / non-TLS) — production should use HTTPS and omit that key; the `updater:default` capability (`tauri add updater` usually adds it); optional `relaunch()` after `downloadAndInstall()`.
+
+```jsonc
+// tauri.conf.json
+// Shukka fills only endpoints. Everything else: you fill these; not Shukka.
 {
+  "bundle": {
+    // you fill this; not Shukka — required, or the build writes no .sig
+    "createUpdaterArtifacts": true
+  },
   "plugins": {
     "updater": {
-      "endpoints": ["https://updates.example.com/api/update/my-app/stable"]
+      "endpoints": ["https://updates.example.com/api/update/my-app/stable"],
+      // you fill this; not Shukka — minisign public key string from
+      // `tauri signer generate`, not a file path. Set TAURI_SIGNING_PRIVATE_KEY at build time.
+      "pubkey": "<YOUR_TAURI_UPDATER_PUBKEY>"
+      // HTTP feeds only (local / non-TLS). You fill this; not Shukka.
+      // Production: HTTPS and omit this key.
+      // "dangerousInsecureTransportProtocol": true
     }
   }
 }
 ```
+
+Linux AppImage: check and download work against this feed. Install replaces the running AppImage and requires a FUSE-mounted AppImage on the same mount as the temp directory. Extract-and-run, overlay filesystems, and many containers fail here — that is plugin-updater and the environment, not the feed. Shukka does not install the AppImage.
 
 Uploads are atomic: until `finalize` succeeds — and, by default, until the version is
 promoted or finalized with `release: true` — the channel keeps serving the previous
