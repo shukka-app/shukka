@@ -22,5 +22,21 @@ export default defineConfig({
   define: { __GIT_SHA__: JSON.stringify(gitSha) },
   server: { port: 3000 },
   resolve: { tsconfigPaths: true },
-  plugins: [tailwindcss(), tanstackStart(), viteReact(), nitro()],
+  plugins: [
+    tailwindcss(),
+    tanstackStart(),
+    viteReact(),
+    nitro({
+      routeRules: {
+        '/**': {
+          headers: {
+            'x-frame-options': 'DENY',
+            'content-security-policy': "frame-ancestors 'none'",
+            'x-content-type-options': 'nosniff',
+            'referrer-policy': 'same-origin',
+          },
+        },
+      },
+    }),
+  ],
 })
