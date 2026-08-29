@@ -73,7 +73,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Panel
 
 - 除 setup/login 外的面板路由、`/docs` 与管理 API 均要求 session；未认证重定向到登录（未初始化时重定向到 setup）。
-- `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。
+- `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。
 - `POST /api/admin/storage/test` 对提交的 S3 配置做写探测（Put+Delete 探针对象）并返回 `{ ok: true }`，不落库；创建与编辑 app 保存前服务端始终重复同一探测，失败拒绝保存。
 - API key 明文仅在创建响应中出现一次，此后不可再取得。
 - S3 secret access key 加密存储，密钥在服务数据目录中自动生成。
