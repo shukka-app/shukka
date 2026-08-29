@@ -4,7 +4,16 @@ import { db } from '~/db/index.ts'
 import { artifacts, channels, pendingUploads, versions } from '~/db/schema.ts'
 import { isUniqueConstraint, ShukkaError } from '~/lib/errors.ts'
 import { clearObjectCache } from '~/lib/object-cache.ts'
-import { deleteObjects, getObjectText, headObject, objectKey, presignGet, presignPut, settingsFromApp } from '~/lib/storage.ts'
+import {
+  deleteObjects,
+  getObjectText,
+  headObject,
+  objectKey,
+  presignGet,
+  presignPut,
+  settingsFromApp,
+  type S3Settings,
+} from '~/lib/storage.ts'
 import { createChannel, getChannel, getVersion } from './channels.ts'
 import { adapterFor } from './updaters/index.ts'
 import type { App } from '~/db/schema.ts'
@@ -45,6 +54,30 @@ function assertVersion(version: string): void {
   }
 }
 
+/**
+ * Purges this app's expired pending uploads and best-effort deletes the
+ * objects they may have written. Scoped to one app because S3 deletion
+ * needs the app's credentials; other apps clean up on their own next call.
+ */
+async function purgeExpiredUploads(app: App, s3: S3Settings): Promise<void> {
+  const expired = db
+    .select()
+    .from(pendingUploads)
+    .where(and(eq(pendingUploads.appId, app.id), sql`${pendingUploads.expiresAt} < ${nowSeconds()}`))
+    .all()
+  if (expired.length === 0) return
+  const keys = expired.flatMap((row) => (JSON.parse(row.files) as PendingFile[]).map((file) => file.s3Key))
+  try {
+    await deleteObjects(s3, keys)
+  } catch (error) {
+    console.error('Expired-upload cleanup failed; objects may be orphaned:', error)
+    return
+  }
+  db.delete(pendingUploads)
+    .where(inArray(pendingUploads.id, expired.map((row) => row.id)))
+    .run()
+}
+
 export async function initUpload(app: App, input: InitInput): Promise<InitResult> {
   assertVersion(input.version)
   if (input.files.length === 0) throw new ShukkaError('invalid_request', 'At least one file is required')
@@ -80,7 +113,7 @@ export async function initUpload(app: App, input: InitInput): Promise<InitResult
 
   const uploadId = randomToken(16)
   const expiresAt = nowSeconds() + PENDING_TTL_SECONDS
-  db.delete(pendingUploads).where(sql`${pendingUploads.expiresAt} < ${nowSeconds()}`).run()
+  await purgeExpiredUploads(app, s3)
 
   const livePending = db
     .select()
@@ -136,7 +169,7 @@ export async function finalizeUpload(
   if (!pending) throw new ShukkaError('not_found', 'Upload not found or already finalized')
   if (pending.appId !== app.id) throw new ShukkaError('forbidden', 'Upload belongs to another app')
   if (pending.expiresAt < nowSeconds()) {
-    db.delete(pendingUploads).where(eq(pendingUploads.id, uploadId)).run()
+    await purgeExpiredUploads(app, settingsFromApp(app))
     throw new ShukkaError('conflict', 'Upload expired; start a new upload')
   }
 
