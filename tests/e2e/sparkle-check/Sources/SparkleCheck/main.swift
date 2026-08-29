@@ -169,7 +169,14 @@ final class SilentDriver: NSObject, SPUUserDriver {
     }
 
     func showInstallingUpdate(withApplicationTerminated applicationTerminated: Bool, retryTerminatingApplication: @escaping () -> Void) {
-        fail("Sparkle started installing; e2e must dismiss before install")
+        // Dummy.app is not the running process, so Sparkle skips showReady and
+        // starts install immediately. Exit here after a successful download;
+        // do not call retryTerminatingApplication (that would continue install).
+        if !downloaded && receivedBytes == 0 {
+            fail("install started but no bytes were downloaded")
+            return
+        }
+        succeed(reason: "downloaded-no-install")
     }
 
     func showUpdateInstalledAndRelaunched(_ relaunched: Bool, acknowledgement: @escaping () -> Void) {
