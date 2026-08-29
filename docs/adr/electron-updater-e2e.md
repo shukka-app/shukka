@@ -15,7 +15,7 @@ Shukka 的硬契约是 feed 与 electron-updater generic provider 兼容。现�
 5. **宿主平台只消费对应 yml**。CI 是 Ubuntu → `latest-linux.yml`；本机 macOS → `latest-mac.yml`。三份元数据仍全部上传，证明多平台产物能落在同一 version。
 6. **依赖隔离**：`electron` / `electron-updater` 装在 `tests/e2e/`，不进根 `npm ci`，避免拖慢 `npm run check`。
 7. **electron-builder `publish.channel` 与 Shukka channel 不是同一个名字**：feed URL 已经是 `/api/update/{app}/{shukkaChannel}`；updater 默认再请求 `latest*.yml`。集成片段不再把 Shukka channel 写进 builder/updater 的 `channel` 字段。
-8. **回退另走 `tests/e2e/run-rollback.mjs`**：连续 `release: true` 两版，`PATCH` channel `currentVersion` 指回旧已发布版本，再断言 feed yml、electron-updater check+download、以及被切走版本按文件名仍 302。客户端 `package.json` 版本保持 `1.0.0`，两版都取 `> 1.0.0` 的唯一 semver，否则 updater 不会 offer 回退后的旧 current。不测已装更新版本的客户端主动降级——那是 electron-updater 的「只升不降」，不是 Shukka 的回退契约。
+8. **回退另走 `tests/e2e/run-rollback.mjs`**：连续 `release: true` 两版，`PATCH` channel `currentVersion` 指回旧已发布版本，再断言 feed yml、electron-updater check+download、以及被切走版本按文件名仍 302。客户端 `package.json` 版本保持 `1.0.0`，两版都取 `> 1.0.0` 的唯一 semver，否则 updater 不会 offer 回退后的旧 current。时间戳 patch 必须是无前导零的数字（`2.0.023294` 会被 electron-updater 判为非法 semver）。不测已装更新版本的客户端主动降级——那是 electron-updater 的「只升不降」，不是 Shukka 的回退契约。
 
 ## Alternatives
 
