@@ -75,9 +75,11 @@ npm start          # http://localhost:3000
 ```
 
 Open the panel and set the admin password on first visit. Everything Shukka persists —
-the SQLite database and `encryption.key` — lives in `/data` (`SHUKKA_DATA_DIR`,
-default `./data`). Back up that whole directory. Restore is copy the directory back;
-a database without the key cannot decrypt stored S3 secrets.
+the SQLite database and, by default, `encryption.key` — lives in `/data`
+(`SHUKKA_DATA_DIR`, default `./data`). Back up that whole directory. You can instead
+supply the S3-secret AES key with **one** of `SHUKKA_ENCRYPTION_KEY_FILEPATH` (hex
+file) or `SHUKKA_ENCRYPTION_KEY` (hex value); if you use the value, back up that
+secret as well. A database without the key cannot decrypt stored S3 secrets.
 
 `GET /api/health` is the liveness probe (`200 { status: "ok", db: "ok" }`, or
 `503` when SQLite is down). The image runs as `node` and health-checks that path.
@@ -91,8 +93,10 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PORT` | `3000` | HTTP port |
-| `SHUKKA_DATA_DIR` | `./data` | Database and encryption key location |
+| `SHUKKA_DATA_DIR` | `./data` | Database location; default `encryption.key` is created here when neither key env var is set |
 | `SHUKKA_DB_PATH` | `{data}/shukka.db` | Override the database file |
+| `SHUKKA_ENCRYPTION_KEY_FILEPATH` | unset | Read the 32-byte hex AES key from this file (do not set together with `SHUKKA_ENCRYPTION_KEY`) |
+| `SHUKKA_ENCRYPTION_KEY` | unset | The same hex key as a value (never writes a key file) |
 | `SHUKKA_SECURE_COOKIES` | unset | Set `1` to force `Secure` on the session cookie (or terminate TLS and forward `X-Forwarded-Proto: https`) |
 
 ## Publish a release
