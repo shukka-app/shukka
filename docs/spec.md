@@ -76,7 +76,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Panel
 
 - 除 setup/login 外的面板路由与管理 API 均要求 session；未认证重定向到登录（未初始化时重定向到 setup）。
-- `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。
+- `POST /api/admin/login` 在自托管 Node 上对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。`std-env` 判定为云 isolate（Workers / Edge / Netlify / Fastly）时本模块不限速，登录不因它返回 `rate_limited`；滥用交给平台防火墙。
 - `POST /api/admin/storage/test` 对提交的 S3 配置做写探测（Put+Delete 探针对象）并返回 `{ ok: true }`，不落库；创建与编辑 app 保存前服务端始终重复同一探测，失败拒绝保存。
 - API key 明文仅在创建响应中出现一次，此后不可再取得。
 - S3 secret access key 加密存储。加密密钥默认在数据目录自动生成；也可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（或弃用别名 `SHUKKA_KEY_PATH`）或 `SHUKKA_ENCRYPTION_KEY` 二选一注入，同时设置或非法 hex 则进程拒绝启动。
@@ -177,6 +177,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Admin password KDF is scrypt or pbkdf2, chosen at first setup via
   `SHUKKA_PASSWORD_HASH` and locked to the stored `scheme$` prefix
   (`docs/prd/password-kdf.md`, `docs/adr/password-kdf.md`).
+- In-app login rate limit is Node-only; cloud isolates skip it
+  (`docs/prd/login-rate-limit.md`, `docs/adr/login-rate-limit.md`).
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

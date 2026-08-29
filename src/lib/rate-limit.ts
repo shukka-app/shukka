@@ -1,3 +1,5 @@
+import { isCloudFunction } from './runtime.ts'
+
 const WINDOW_MS = 15 * 60 * 1000
 const MAX_FAILURES = 10
 const GLOBAL_MAX_FAILURES = 100
@@ -45,6 +47,7 @@ function evictOldest(): void {
 }
 
 export function isLimited(ip: string): boolean {
+  if (isCloudFunction()) return false
   const now = Date.now()
   const global = prune(GLOBAL_KEY, now)
   if (global && global.count >= GLOBAL_MAX_FAILURES) return true
@@ -63,13 +66,14 @@ function bump(ip: string, now: number): void {
 }
 
 export function recordFailure(ip: string): void {
+  if (isCloudFunction()) return
   const now = Date.now()
   bump(ip, now)
   if (ip !== GLOBAL_KEY) bump(GLOBAL_KEY, now)
 }
 
 export function recordSuccess(ip: string): void {
-  if (ip === GLOBAL_KEY) return
+  if (isCloudFunction() || ip === GLOBAL_KEY) return
   failures.delete(ip)
 }
 

@@ -18,4 +18,4 @@
 ## Trade-offs & failure bounds
 
 - 忘记密码的恢复路径：删除数据库中 admin 记录（文档提供 CLI/SQL 一行），重走 setup；不做邮箱找回。
-- 无速率限制之外的防爆破设计，登录接口做固定窗口限速即可。
+- 无速率限制之外的防爆破设计。自托管 Node 的登录接口做固定窗口限速；云 isolate 关掉该模块，交给平台防火墙（见 [login-rate-limit](login-rate-limit.md)）。
