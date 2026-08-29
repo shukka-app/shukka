@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { semverPatchStamp } from './e2e/semver-stamp.mjs'
+import { semverPatchStamp } from './semver-stamp.ts'
 
 describe('semverPatchStamp', () => {
   it('strips leading zeroes so electron-updater accepts the patch', () => {

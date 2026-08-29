@@ -15,7 +15,6 @@ import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { semverPatchStamp } from './semver-stamp.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
@@ -30,6 +29,15 @@ const feedUrl = `${serverUrl}/api/update/${appSlug}/${channel}`
 const stamp = semverPatchStamp(process.env.E2E_VERSION_STAMP)
 const olderVersion = process.env.E2E_FROM_VERSION ?? `1.2.${stamp}`
 const newerVersion = process.env.E2E_TO_VERSION ?? `2.0.${stamp}`
+
+/** Keep in sync with tests/semver-stamp.ts — this script is plain Node. */
+function semverPatchStamp(raw = String((Date.now() % 900_000) + 100_000)) {
+  const n = Number.parseInt(String(raw), 10)
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(`E2E_VERSION_STAMP must be a positive integer, got ${JSON.stringify(raw)}`)
+  }
+  return String(n)
+}
 
 function required(name, value) {
   if (!value) {
