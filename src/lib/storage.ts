@@ -87,7 +87,8 @@ export async function getObjectText(s3: S3Settings, key: string): Promise<string
     const result = await client(s3).send(new GetObjectCommand({ Bucket: s3.bucket, Key: key }))
     return (await result.Body?.transformToString()) ?? ''
   } catch (error) {
-    throw new ShukkaError('storage_error', `Cannot read ${key} from bucket`, String(error))
+    console.error(`getObjectText failed for ${key}:`, error)
+    throw new ShukkaError('storage_error', 'Cannot read update metadata from storage')
   }
 }
 
