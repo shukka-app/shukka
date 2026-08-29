@@ -18,6 +18,10 @@
 - **`/api/admin` 兼收 Bearer**：文档混进 cookie 与数字 id，拒绝。
 - **对外 UUID**：改名更稳，但 channel 不能改名、version 不可变，额外列无收益，拒绝。
 
+## Revisited 2026-08
+
+A leaked app-scoped API key must not steer server-originated signed S3 probes or silently repoint artifact storage. PATCH of `slug` and storage-identity fields (`s3Endpoint`, `s3Region`, `s3Bucket`, `s3Prefix`, `s3AccessKeyId`, `s3SecretAccessKey`, `s3ForcePathStyle`) is session-only; keys may still change `name`, and resubmitting unchanged values is not a modification. Independently, changing endpoint/bucket/prefix while artifacts exist probes the newest stored key against the **new** settings and refuses the save if it is missing.
+
 ## Trade-offs & failure bounds
 
 - 改 app slug 后旧 `/apps/{old}` 与旧 API 路径 404；调用方需用新 slug。

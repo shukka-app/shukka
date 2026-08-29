@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '~/db/index.ts'
 import { artifacts, channels, versions } from '~/db/schema.ts'
 import { ShukkaError } from '~/lib/errors.ts'
+import { clearObjectCache } from '~/lib/object-cache.ts'
 import { deleteObjects, settingsFromApp } from '~/lib/storage.ts'
 import type { App, Channel, Version } from '~/db/schema.ts'
 
@@ -62,6 +63,7 @@ export async function deleteChannel(app: App, channelId: number): Promise<void> 
 
   if (keys.length > 0) await deleteObjects(settingsFromApp(app), keys)
   db.delete(channels).where(eq(channels.id, channelId)).run()
+  clearObjectCache()
 }
 
 export async function deleteChannelByName(app: App, name: string): Promise<void> {

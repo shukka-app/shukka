@@ -208,9 +208,9 @@ function RowAction({ label, children }: { label: string; children: ReactNode }) 
 
 function HistoryTable({ slug, app, channel }: { slug: string; app: PublicApp; channel: ChannelDetail }) {
   const queryClient = useQueryClient()
-  const setCurrent = useMutation(setCurrentVersionMutationOptions({ slug, queryClient }))
-  const deleteVersion = useMutation(deleteVersionMutationOptions({ slug, queryClient }))
   const t = useT()
+  const setCurrent = useMutation(setCurrentVersionMutationOptions({ slug, queryClient, t }))
+  const deleteVersion = useMutation(deleteVersionMutationOptions({ slug, queryClient, t }))
   const format = useFormatters()
   const role = useViewRole()
 
@@ -370,8 +370,8 @@ function NewChannelDialog({ slug, onCreated }: { slug: string; onCreated: (name:
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const queryClient = useQueryClient()
-  const createChannel = useMutation(createChannelMutationOptions({ slug, queryClient }))
   const t = useT()
+  const createChannel = useMutation(createChannelMutationOptions({ slug, queryClient, t }))
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -384,10 +384,14 @@ function NewChannelDialog({ slug, onCreated }: { slug: string; onCreated: (name:
         <form
           onSubmit={async (event) => {
             event.preventDefault()
-            await createChannel.mutateAsync(name)
-            onCreated(name)
-            setName('')
-            setOpen(false)
+            try {
+              await createChannel.mutateAsync(name)
+              onCreated(name)
+              setName('')
+              setOpen(false)
+            } catch {
+              // toast handled by mutation options
+            }
           }}
         >
           <DialogHeader>
