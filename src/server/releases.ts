@@ -60,11 +60,10 @@ function assertVersion(version: string): void {
  * needs the app's credentials; other apps clean up on their own next call.
  */
 async function purgeExpiredUploads(app: App, s3: S3Settings): Promise<void> {
-  const expired = db
+  const expired = await db
     .select()
     .from(pendingUploads)
     .where(and(eq(pendingUploads.appId, app.id), sql`${pendingUploads.expiresAt} < ${nowSeconds()}`))
-    .all()
   if (expired.length === 0) return
   const keys = expired.flatMap((row) => (JSON.parse(row.files) as PendingFile[]).map((file) => file.s3Key))
   try {
@@ -73,9 +72,7 @@ async function purgeExpiredUploads(app: App, s3: S3Settings): Promise<void> {
     console.error('Expired-upload cleanup failed; objects may be orphaned:', error)
     return
   }
-  db.delete(pendingUploads)
-    .where(inArray(pendingUploads.id, expired.map((row) => row.id)))
-    .run()
+  await db.delete(pendingUploads).where(inArray(pendingUploads.id, expired.map((row) => row.id)))
 }
 
 export async function initUpload(app: App, input: InitInput): Promise<InitResult> {
@@ -89,17 +86,17 @@ export async function initUpload(app: App, input: InitInput): Promise<InitResult
 
   let channel
   try {
-    channel = getChannel(app.id, input.channel)
+    channel = await getChannel(app.id, input.channel)
   } catch (error) {
     if (!input.createChannel) throw error
-    channel = createChannel(app.id, input.channel)
+    channel = await createChannel(app.id, input.channel)
   }
 
-  const clash = db
-    .select()
+  const [clash] = await db
+    .select({ id: versions.id })
     .from(versions)
     .where(and(eq(versions.channelId, channel.id), eq(versions.version, input.version)))
-    .get()
+    .limit(1)
   if (clash) {
     throw new ShukkaError('conflict', `Version ${input.version} already exists on channel ${channel.name}`)
   }
@@ -115,26 +112,24 @@ export async function initUpload(app: App, input: InitInput): Promise<InitResult
   const expiresAt = nowSeconds() + PENDING_TTL_SECONDS
   await purgeExpiredUploads(app, s3)
 
-  const livePending = db
-    .select()
+  const [livePending] = await db
+    .select({ id: pendingUploads.id })
     .from(pendingUploads)
     .where(and(eq(pendingUploads.channelId, channel.id), eq(pendingUploads.version, input.version)))
-    .get()
+    .limit(1)
   if (livePending) {
     throw new ShukkaError('conflict', `Version ${input.version} already has a pending upload`)
   }
 
   try {
-    db.insert(pendingUploads)
-      .values({
-        id: uploadId,
-        appId: app.id,
-        channelId: channel.id,
-        version: input.version,
-        files: JSON.stringify(pendingFiles),
-        expiresAt,
-      })
-      .run()
+    await db.insert(pendingUploads).values({
+      id: uploadId,
+      appId: app.id,
+      channelId: channel.id,
+      version: input.version,
+      files: JSON.stringify(pendingFiles),
+      expiresAt,
+    })
   } catch (error) {
     if (isUniqueConstraint(error)) {
       throw new ShukkaError('conflict', `Version ${input.version} already has a pending upload`)
@@ -165,7 +160,7 @@ export async function finalizeUpload(
   uploadId: string,
   options: { release?: boolean } = {},
 ): Promise<FinalizeResult> {
-  const pending = db.select().from(pendingUploads).where(eq(pendingUploads.id, uploadId)).get()
+  const [pending] = await db.select().from(pendingUploads).where(eq(pendingUploads.id, uploadId)).limit(1)
   if (!pending) throw new ShukkaError('not_found', 'Upload not found or already finalized')
   if (pending.appId !== app.id) throw new ShukkaError('forbidden', 'Upload belongs to another app')
   if (pending.expiresAt < nowSeconds()) {
@@ -173,7 +168,7 @@ export async function finalizeUpload(
     throw new ShukkaError('conflict', 'Upload expired; start a new upload')
   }
 
-  const channel = db.select().from(channels).where(eq(channels.id, pending.channelId)).get()
+  const [channel] = await db.select().from(channels).where(eq(channels.id, pending.channelId)).limit(1)
   if (!channel) throw new ShukkaError('not_found', 'Channel was deleted during upload')
 
   const s3 = settingsFromApp(app)
@@ -220,8 +215,8 @@ export async function finalizeUpload(
   const release = options.release === true
   let created
   try {
-    created = db.transaction((tx) => {
-      const version = tx
+    created = await db.transaction(async (tx) => {
+      const [version] = await tx
         .insert(versions)
         .values({
           appId: app.id,
@@ -231,24 +226,21 @@ export async function finalizeUpload(
           releasedAt: release ? now : null,
         })
         .returning()
-        .get()
 
-      tx.insert(artifacts)
-        .values(
-          verified.map((file) => ({
-            versionId: version.id,
-            filename: file.filename,
-            s3Key: file.s3Key,
-            size: file.size,
-            kind: file.kind,
-          })),
-        )
-        .run()
+      await tx.insert(artifacts).values(
+        verified.map((file) => ({
+          versionId: version.id,
+          filename: file.filename,
+          s3Key: file.s3Key,
+          size: file.size,
+          kind: file.kind,
+        })),
+      )
 
       if (release) {
-        tx.update(channels).set({ currentVersionId: version.id }).where(eq(channels.id, channel.id)).run()
+        await tx.update(channels).set({ currentVersionId: version.id }).where(eq(channels.id, channel.id))
       }
-      tx.delete(pendingUploads).where(eq(pendingUploads.id, uploadId)).run()
+      await tx.delete(pendingUploads).where(eq(pendingUploads.id, uploadId))
       return version
     })
   } catch (error) {
@@ -274,54 +266,53 @@ export async function presignVersionArtifact(
   filename: string,
 ): Promise<string> {
   assertFilename(filename)
-  const version = getVersion(app.id, channelName, versionName)
-  const artifact = listArtifacts(version.id).find((entry) => entry.filename === filename)
+  const version = await getVersion(app.id, channelName, versionName)
+  const artifact = (await listArtifacts(version.id)).find((entry) => entry.filename === filename)
   if (!artifact) throw new ShukkaError('not_found', `${filename} not found on version ${versionName}`)
   return presignGet(settingsFromApp(app), artifact.s3Key)
 }
 
-export function listArtifacts(versionId: number) {
-  return db.select().from(artifacts).where(eq(artifacts.versionId, versionId)).orderBy(artifacts.filename).all()
+export async function listArtifacts(versionId: number) {
+  return db.select().from(artifacts).where(eq(artifacts.versionId, versionId)).orderBy(artifacts.filename)
 }
 
-export function listArtifactsForVersions(versionIds: number[]) {
+export async function listArtifactsForVersions(versionIds: number[]) {
   if (versionIds.length === 0) return []
   return db
     .select()
     .from(artifacts)
     .where(inArray(artifacts.versionId, versionIds))
     .orderBy(artifacts.filename)
-    .all()
 }
 
 export async function deleteVersionByName(app: App, channelName: string, version: string): Promise<void> {
-  await deleteVersion(app, getVersion(app.id, channelName, version).id)
+  await deleteVersion(app, (await getVersion(app.id, channelName, version)).id)
 }
 
 /** Removes a version, its stored objects, and repoints the channel if it was current. */
 export async function deleteVersion(app: App, versionId: number): Promise<void> {
-  const version = db
+  const [version] = await db
     .select()
     .from(versions)
     .where(and(eq(versions.id, versionId), eq(versions.appId, app.id)))
-    .get()
+    .limit(1)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
 
-  const keys = listArtifacts(versionId).map((artifact) => artifact.s3Key)
+  const keys = (await listArtifacts(versionId)).map((artifact) => artifact.s3Key)
   await deleteObjects(settingsFromApp(app), keys)
 
-  db.transaction((tx) => {
-    const channel = tx.select().from(channels).where(eq(channels.id, version.channelId)).get()
-    tx.delete(versions).where(eq(versions.id, versionId)).run()
+  await db.transaction(async (tx) => {
+    const [channel] = await tx.select().from(channels).where(eq(channels.id, version.channelId)).limit(1)
+    await tx.delete(versions).where(eq(versions.id, versionId))
 
     if (channel?.currentVersionId === versionId) {
-      const fallback = tx
+      const [fallback] = await tx
         .select()
         .from(versions)
         .where(and(eq(versions.channelId, version.channelId), isNotNull(versions.releasedAt)))
         .orderBy(desc(versions.releasedAt))
-        .get()
-      tx.update(channels).set({ currentVersionId: fallback?.id ?? null }).where(eq(channels.id, channel.id)).run()
+        .limit(1)
+      await tx.update(channels).set({ currentVersionId: fallback?.id ?? null }).where(eq(channels.id, channel.id))
     }
   })
   clearObjectCache()

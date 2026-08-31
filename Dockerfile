@@ -1,21 +1,11 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-# better-sqlite3 ships prebuilds but its install script still invokes node-gyp.
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build \
-    && node -e "\
-      const fs = require('fs');\
-      const dir = '.output/server/node_modules/better-sqlite3/prebuilds';\
-      for (const name of fs.readdirSync(dir)) {\
-        if (name !== 'linuxmusl-' + process.arch + '.node') fs.rmSync(dir + '/' + name);\
-      }\
-    "
+RUN npm run build
 
 FROM node:24-alpine AS runtime
 WORKDIR /app
@@ -32,8 +22,8 @@ RUN apk add --no-cache ca-certificates wget \
     && wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${arch}.tar.gz" \
        | tar -xz -C /usr/local/bin
 
-# Nitro traces better-sqlite3 (native prebuilds) into .output. Do not copy
-# the rest of production node_modules into the runtime image.
+# Nitro traces libsql into .output. Do not copy the rest of production
+# node_modules into the runtime image.
 COPY --from=build --chown=node:node /app/.output ./.output
 COPY --chown=node:node drizzle ./drizzle
 COPY deploy/litestream/litestream.yml /etc/litestream.yml

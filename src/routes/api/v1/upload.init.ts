@@ -20,7 +20,7 @@ export const Route = createFileRoute('/api/v1/upload/init')({
         if (!parsed.success) {
           throw new ShukkaError('invalid_request', 'Invalid upload init payload', parsed.error.issues)
         }
-        const app = authenticateApiKey(request, parsed.data.app)
+        const app = await authenticateApiKey(request, parsed.data.app)
         return Response.json(await initUpload(app, parsed.data))
       }),
     },

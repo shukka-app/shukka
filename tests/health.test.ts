@@ -20,8 +20,8 @@ function routeHandler(route: unknown, method: string) {
 }
 
 describe('checkHealth', () => {
-  it('reports ok when SQLite responds', () => {
-    const report = checkHealth()
+  it('reports ok when SQLite responds', async () => {
+    const report = await checkHealth()
     expect(report).toEqual({ status: 'ok', db: 'ok', httpStatus: 200 })
   })
 
@@ -31,12 +31,12 @@ describe('checkHealth', () => {
       throw new Error('database is locked')
     })
     try {
-      expect(checkHealth()).toEqual({ status: 'degraded', db: 'down', httpStatus: 503 })
+      expect(await checkHealth()).toEqual({ status: 'degraded', db: 'down', httpStatus: 503 })
     } finally {
       spy.mockRestore()
     }
     // sanity: real db works again after restore
-    expect(checkHealth().status).toBe('ok')
+    expect((await checkHealth()).status).toBe('ok')
   })
 })
 

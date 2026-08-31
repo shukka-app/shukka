@@ -10,11 +10,11 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug')({
     handlers: {
       GET: handle(async ({ request, params }) => {
         const slug = textParam(params, 'appSlug')
-        const { via } = requireAppActor(request, slug)
-        return Response.json(appDetailBySlug(slug, new URL(request.url).origin, { includeKeys: via === 'session' }))
+        const { via } = await requireAppActor(request, slug)
+        return Response.json(await appDetailBySlug(slug, new URL(request.url).origin, { includeKeys: via === 'session' }))
       }),
       PATCH: handle(async ({ request, params }) => {
-        const { app, via } = requireAppActor(request, textParam(params, 'appSlug'))
+        const { app, via } = await requireAppActor(request, textParam(params, 'appSlug'))
         const parsed = appInputSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Invalid app payload', parsed.error.issues)
         if (via === 'key') {
@@ -26,7 +26,7 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug')({
         return Response.json({ app: publicApp(await updateApp(app.id, parsed.data)) })
       }),
       DELETE: handle(async ({ request, params }) => {
-        const app = requireSessionApp(request, textParam(params, 'appSlug'))
+        const app = await requireSessionApp(request, textParam(params, 'appSlug'))
         await deleteApp(app.id)
         return Response.json({ ok: true })
       }),

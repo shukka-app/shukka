@@ -9,7 +9,7 @@ export const Route = createFileRoute(
   server: {
     handlers: {
       GET: handle(async ({ request, params }) => {
-        const { app } = requireAppActor(request, textParam(params, 'appSlug'))
+        const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
         const url = await presignVersionArtifact(
           app,
           textParam(params, 'channel'),

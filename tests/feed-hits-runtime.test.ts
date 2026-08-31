@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const objects = new Map<string, string>()
 
-vi.mock('~/lib/runtime.ts', () => ({
-  isCloudFunction: () => true,
-}))
+vi.mock('~/lib/runtime.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/lib/runtime.ts')>()
+  return { ...actual, isCloudFunction: () => true }
+})
 
 vi.mock('~/lib/storage.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('~/lib/storage.ts')>()
@@ -52,8 +53,8 @@ async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: stri
 }
 
 describe('feed hits on cloud functions', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -76,12 +77,12 @@ describe('feed hits on cloud functions', () => {
     expect(metadata).toMatchObject({ kind: 'document' })
     expect(artifact).toMatchObject({ kind: 'redirect' })
 
-    recordHit(result.versionId, 'metadata')
-    recordHit(result.versionId, 'artifact')
+    await recordHit(result.versionId, 'metadata')
+    await recordHit(result.versionId, 'artifact')
 
-    const row = db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
     expect(row?.metadataHits).toBe(0)
     expect(row?.artifactHits).toBe(0)
-    expect(db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()).toHaveLength(0)
+    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()).toHaveLength(0)
   })
 })

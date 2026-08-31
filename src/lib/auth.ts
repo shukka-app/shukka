@@ -17,8 +17,9 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14
 
 const nowSeconds = () => Math.floor(Date.now() / 1000)
 
-export function isInitialized(): boolean {
-  return db.select().from(admin).limit(1).all().length > 0
+export async function isInitialized(): Promise<boolean> {
+  const [row] = await db.select({ id: admin.id }).from(admin).limit(1)
+  return row !== undefined
 }
 
 /** Consulted only by first setup. Later env flips are ignored. */
@@ -30,17 +31,15 @@ function setupPasswordHashScheme(): PasswordHashScheme {
   throw new ShukkaError('invalid_request', 'SHUKKA_PASSWORD_HASH must be "scrypt" or "pbkdf2"')
 }
 
-export function initializeAdmin(password: string): string {
-  if (isInitialized()) throw new ShukkaError('conflict', 'Shukka is already initialized')
+export async function initializeAdmin(password: string): Promise<string> {
+  if (await isInitialized()) throw new ShukkaError('conflict', 'Shukka is already initialized')
   assertPasswordStrength(password)
-  db.insert(admin)
-    .values({ id: 1, passwordHash: hashPassword(password, setupPasswordHashScheme()) })
-    .run()
+  await db.insert(admin).values({ id: 1, passwordHash: hashPassword(password, setupPasswordHashScheme()) })
   return createSession()
 }
 
-export function login(password: string): string {
-  const row = db.select().from(admin).limit(1).get()
+export async function login(password: string): Promise<string> {
+  const [row] = await db.select().from(admin).limit(1)
   if (!row || !verifyPassword(password, row.passwordHash)) {
     throw new ShukkaError('unauthorized', 'Incorrect password')
   }
@@ -48,16 +47,18 @@ export function login(password: string): string {
 }
 
 /** Changing the password invalidates every existing session (ADR: auth-model). */
-export function changePassword(currentPassword: string, newPassword: string): string {
-  const row = db.select().from(admin).limit(1).get()
+export async function changePassword(currentPassword: string, newPassword: string): Promise<string> {
+  const [row] = await db.select().from(admin).limit(1)
   if (!row || !verifyPassword(currentPassword, row.passwordHash)) {
     throw new ShukkaError('unauthorized', 'Incorrect current password')
   }
   assertPasswordStrength(newPassword)
-  db.update(admin)
-    .set({ passwordHash: hashPassword(newPassword, passwordHashSchemeOf(row.passwordHash)), updatedAt: nowSeconds() })
-    .run()
-  db.delete(sessions).run()
+  await db.transaction(async (tx) => {
+    await tx
+      .update(admin)
+      .set({ passwordHash: hashPassword(newPassword, passwordHashSchemeOf(row.passwordHash)), updatedAt: nowSeconds() })
+    await tx.delete(sessions)
+  })
   return createSession()
 }
 
@@ -67,22 +68,20 @@ function assertPasswordStrength(password: string): void {
   }
 }
 
-export function createSession(): string {
-  db.delete(sessions).where(lt(sessions.expiresAt, nowSeconds())).run()
+export async function createSession(): Promise<string> {
   const token = randomToken()
-  db.insert(sessions)
-    .values({ tokenHash: sha256(token), expiresAt: nowSeconds() + SESSION_TTL_SECONDS })
-    .run()
+  await db.delete(sessions).where(lt(sessions.expiresAt, nowSeconds()))
+  await db.insert(sessions).values({ tokenHash: sha256(token), expiresAt: nowSeconds() + SESSION_TTL_SECONDS })
   return token
 }
 
-export function destroySession(token: string | null): void {
-  if (token) db.delete(sessions).where(eq(sessions.tokenHash, sha256(token))).run()
+export async function destroySession(token: string | null): Promise<void> {
+  if (token) await db.delete(sessions).where(eq(sessions.tokenHash, sha256(token)))
 }
 
-export function sessionIsValid(token: string | null): boolean {
+export async function sessionIsValid(token: string | null): Promise<boolean> {
   if (!token) return false
-  const row = db.select().from(sessions).where(eq(sessions.tokenHash, sha256(token))).get()
+  const [row] = await db.select().from(sessions).where(eq(sessions.tokenHash, sha256(token))).limit(1)
   return Boolean(row && row.expiresAt > nowSeconds())
 }
 
@@ -127,8 +126,8 @@ export function clearSessionCookieHeader(source: CookieSecureSource = {}): strin
 }
 
 /** Throws unless the request carries a valid admin session. */
-export function requireAdmin(request: Request): void {
-  if (!sessionIsValid(readSessionCookie(request))) {
+export async function requireAdmin(request: Request): Promise<void> {
+  if (!(await sessionIsValid(readSessionCookie(request)))) {
     throw new ShukkaError('unauthorized', 'Admin session required')
   }
 }
@@ -141,25 +140,25 @@ export function generateApiKey(): { plaintext: string; hash: string; hint: strin
 }
 
 /** Resolves the app an upload request is authorized for; 401 unknown/revoked, 403 wrong app. */
-export function authenticateApiKey(request: Request, appSlug?: string): App {
+export async function authenticateApiKey(request: Request, appSlug?: string): Promise<App> {
   const header = request.headers.get('authorization') ?? ''
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
   if (!token) throw new ShukkaError('unauthorized', 'Missing Bearer API key')
 
-  const key = db
+  const [key] = await db
     .select()
     .from(apiKeys)
     .where(and(eq(apiKeys.hash, sha256(token)), isNull(apiKeys.revokedAt)))
-    .get()
+    .limit(1)
   if (!key) throw new ShukkaError('unauthorized', 'Invalid or revoked API key')
 
-  const app = db.select().from(apps).where(eq(apps.id, key.appId)).get()
+  const [app] = await db.select().from(apps).where(eq(apps.id, key.appId)).limit(1)
   if (!app) throw new ShukkaError('unauthorized', 'API key references a deleted app')
   if (appSlug && app.slug !== appSlug) {
     throw new ShukkaError('forbidden', `API key is not authorized for app "${appSlug}"`)
   }
 
-  db.update(apiKeys).set({ lastUsedAt: nowSeconds() }).where(eq(apiKeys.id, key.id)).run()
+  await db.update(apiKeys).set({ lastUsedAt: nowSeconds() }).where(eq(apiKeys.id, key.id))
   return app
 }
 
@@ -169,25 +168,25 @@ export type AppActor = { app: App; via: 'session' | 'key' }
  * App-scoped actor: Bearer key if `Authorization` is present, otherwise the
  * admin session. The key must be bound to `slug`.
  */
-function appBySlug(slug: string): App {
-  const app = db.select().from(apps).where(eq(apps.slug, slug)).get()
+async function appBySlug(slug: string): Promise<App> {
+  const [app] = await db.select().from(apps).where(eq(apps.slug, slug)).limit(1)
   if (!app) throw new ShukkaError('not_found', `App "${slug}" not found`)
   return app
 }
 
-export function requireAppActor(request: Request, slug: string): AppActor {
+export async function requireAppActor(request: Request, slug: string): Promise<AppActor> {
   if (request.headers.get('authorization')) {
-    return { app: authenticateApiKey(request, slug), via: 'key' }
+    return { app: await authenticateApiKey(request, slug), via: 'key' }
   }
-  requireAdmin(request)
-  return { app: appBySlug(slug), via: 'session' }
+  await requireAdmin(request)
+  return { app: await appBySlug(slug), via: 'session' }
 }
 
 /** Session-only app ops (delete app, API key CRUD). Keys are rejected even if valid. */
-export function requireSessionApp(request: Request, slug: string): App {
+export async function requireSessionApp(request: Request, slug: string): Promise<App> {
   if (request.headers.get('authorization')) {
     throw new ShukkaError('forbidden', 'This operation requires an admin session')
   }
-  requireAdmin(request)
+  await requireAdmin(request)
   return appBySlug(slug)
 }

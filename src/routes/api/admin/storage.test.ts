@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/admin/storage/test')({
   server: {
     handlers: {
       POST: handle(async ({ request }) => {
-        requireAdmin(request)
+        await requireAdmin(request)
         const parsed = storageTestSchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Invalid storage test payload', parsed.error.issues)
         await verifyWritable({

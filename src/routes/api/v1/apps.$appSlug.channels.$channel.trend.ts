@@ -8,10 +8,10 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels/$channel/tr
   server: {
     handlers: {
       GET: handle(async ({ request, params }) => {
-        const { app } = requireAppActor(request, textParam(params, 'appSlug'))
-        const channel = getChannel(app.id, textParam(params, 'channel'))
+        const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
+        const channel = await getChannel(app.id, textParam(params, 'channel'))
         const range = parseTrendRange(new URL(request.url).searchParams.get('range'))
-        return Response.json(channelTrend(app.id, channel.id, range))
+        return Response.json(await channelTrend(app.id, channel.id, range))
       }),
     },
   },

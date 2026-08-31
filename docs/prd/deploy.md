@@ -61,7 +61,7 @@ docker exec minio mkdir -p /data/releases
 
 ### 运维：从源码 + systemd
 
-需要 Node 24（与 CI / `Dockerfile` 一致）和能编译 `better-sqlite3` 原生绑定的环境。
+需要 Node 24（与 CI / `Dockerfile` 一致）。SQLite 走 libsql 的 `file:`，不再编译 `better-sqlite3`。
 
 ```bash
 npm ci
@@ -193,7 +193,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | Compose：Shukka + 可选 MinIO | 可行；用 `deploy/compose.yaml`，MinIO 要对 CI/客户端可达 |
 | Fly.io / Railway / Render 等带持久盘的单实例 PaaS | 可以，必须挂持久卷到 `SHUKKA_DATA_DIR`，**副本数 = 1** |
 | 多副本 / 滚动两实例共用一块 SQLite | 不要 |
-| Vercel / Netlify / Cloudflare Workers / 无盘 Lambda | 不适合：文件系统短暂、`better-sqlite3` 原生绑定、SQLite 单写者 |
+| Vercel / Netlify / Cloudflare Workers / 无盘 Lambda | 不适合：文件系统短暂、SQLite 单写者（serverless 运行时属后续议题） |
 
 ## 常见失败
 

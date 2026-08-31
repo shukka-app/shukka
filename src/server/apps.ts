@@ -50,30 +50,30 @@ export function changedProtectedFields(app: App, input: AppInput): string[] {
   return changed
 }
 
-export function listApps() {
-  return db.select().from(apps).orderBy(desc(apps.createdAt)).all()
+export async function listApps() {
+  return db.select().from(apps).orderBy(desc(apps.createdAt))
 }
 
-export function getApp(id: number): App {
-  const app = db.select().from(apps).where(eq(apps.id, id)).get()
+export async function getApp(id: number): Promise<App> {
+  const [app] = await db.select().from(apps).where(eq(apps.id, id)).limit(1)
   if (!app) throw new ShukkaError('not_found', 'App not found')
   return app
 }
 
-export function getAppBySlug(slug: string): App {
-  const app = db.select().from(apps).where(eq(apps.slug, slug)).get()
+export async function getAppBySlug(slug: string): Promise<App> {
+  const [app] = await db.select().from(apps).where(eq(apps.slug, slug)).limit(1)
   if (!app) throw new ShukkaError('not_found', `App "${slug}" not found`)
   return app
 }
 
 export async function createApp(input: AppInput): Promise<App> {
   assertSlug(input.slug)
-  if (!input.s3SecretAccessKey) {
+  const secretAccessKey = input.s3SecretAccessKey
+  if (!secretAccessKey) {
     throw new ShukkaError('invalid_request', 'S3 secret access key is required')
   }
-  if (db.select().from(apps).where(eq(apps.slug, input.slug)).get()) {
-    throw new ShukkaError('conflict', `App "${input.slug}" already exists`)
-  }
+  const [clash] = await db.select({ id: apps.id }).from(apps).where(eq(apps.slug, input.slug)).limit(1)
+  if (clash) throw new ShukkaError('conflict', `App "${input.slug}" already exists`)
 
   await verifyWritable({
     endpoint: input.s3Endpoint,
@@ -81,35 +81,35 @@ export async function createApp(input: AppInput): Promise<App> {
     bucket: input.s3Bucket,
     prefix: input.s3Prefix,
     accessKeyId: input.s3AccessKeyId,
-    secretAccessKey: input.s3SecretAccessKey,
+    secretAccessKey,
     forcePathStyle: input.s3ForcePathStyle,
   })
 
-  const app = db
-    .insert(apps)
-    .values({
-      name: input.name,
-      slug: input.slug,
-      s3Endpoint: input.s3Endpoint,
-      s3Region: input.s3Region,
-      s3Bucket: input.s3Bucket,
-      s3Prefix: input.s3Prefix,
-      s3AccessKeyId: input.s3AccessKeyId,
-      s3SecretEncrypted: encryptSecret(input.s3SecretAccessKey),
-      s3ForcePathStyle: input.s3ForcePathStyle,
-      updaterKind: input.updaterKind ?? 'electron',
-    })
-    .returning()
-    .get()
-
-  db.insert(channels).values({ appId: app.id, name: DEFAULT_CHANNEL }).run()
-  return app
+  return db.transaction(async (tx) => {
+    const [app] = await tx
+      .insert(apps)
+      .values({
+        name: input.name,
+        slug: input.slug,
+        s3Endpoint: input.s3Endpoint,
+        s3Region: input.s3Region,
+        s3Bucket: input.s3Bucket,
+        s3Prefix: input.s3Prefix,
+        s3AccessKeyId: input.s3AccessKeyId,
+        s3SecretEncrypted: encryptSecret(secretAccessKey),
+        s3ForcePathStyle: input.s3ForcePathStyle,
+        updaterKind: input.updaterKind ?? 'electron',
+      })
+      .returning()
+    await tx.insert(channels).values({ appId: app.id, name: DEFAULT_CHANNEL })
+    return app
+  })
 }
 
 export async function updateApp(id: number, input: AppInput): Promise<App> {
-  const existing = getApp(id)
+  const existing = await getApp(id)
   assertSlug(input.slug)
-  const clash = db.select().from(apps).where(eq(apps.slug, input.slug)).get()
+  const [clash] = await db.select().from(apps).where(eq(apps.slug, input.slug)).limit(1)
   if (clash && clash.id !== id) throw new ShukkaError('conflict', `App "${input.slug}" already exists`)
 
   const secret = input.s3SecretAccessKey ?? settingsFromApp(existing).secretAccessKey
@@ -128,14 +128,13 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
     input.s3Bucket !== existing.s3Bucket ||
     input.s3Prefix !== existing.s3Prefix
   if (storageMoved) {
-    const newest = db
+    const [newest] = await db
       .select({ s3Key: artifacts.s3Key })
       .from(artifacts)
       .innerJoin(versions, eq(artifacts.versionId, versions.id))
       .where(eq(versions.appId, id))
       .orderBy(desc(versions.id))
       .limit(1)
-      .get()
     if (newest) {
       // One probe is a deliberate sample, not a full audit of every stored object.
       const found = await headObject(nextSettings, newest.s3Key)
@@ -150,7 +149,7 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
 
   await verifyWritable(nextSettings)
 
-  const updated = db
+  const [updated] = await db
     .update(apps)
     .set({
       name: input.name,
@@ -165,49 +164,47 @@ export async function updateApp(id: number, input: AppInput): Promise<App> {
     })
     .where(eq(apps.id, id))
     .returning()
-    .get()
   clearObjectCache()
   return updated
 }
 
 /** Deletes the app and every stored object it owns. */
 export async function deleteApp(id: number): Promise<void> {
-  const app = getApp(id)
-  const keys = db
-    .select({ s3Key: artifacts.s3Key })
-    .from(artifacts)
-    .innerJoin(versions, eq(artifacts.versionId, versions.id))
-    .where(eq(versions.appId, id))
-    .all()
-    .map((row) => row.s3Key)
+  const app = await getApp(id)
+  const keys = (
+    await db
+      .select({ s3Key: artifacts.s3Key })
+      .from(artifacts)
+      .innerJoin(versions, eq(artifacts.versionId, versions.id))
+      .where(eq(versions.appId, id))
+  ).map((row) => row.s3Key)
 
   if (keys.length > 0) await deleteObjects(settingsFromApp(app), keys)
-  db.delete(apps).where(eq(apps.id, id)).run()
+  await db.delete(apps).where(eq(apps.id, id))
   clearObjectCache()
 }
 
-export function listApiKeys(appId: number) {
-  return db.select().from(apiKeys).where(eq(apiKeys.appId, appId)).orderBy(desc(apiKeys.createdAt)).all()
+export async function listApiKeys(appId: number) {
+  return db.select().from(apiKeys).where(eq(apiKeys.appId, appId)).orderBy(desc(apiKeys.createdAt))
 }
 
-export function revokeApiKey(appId: number, keyId: number): void {
-  const result = db
+export async function revokeApiKey(appId: number, keyId: number): Promise<void> {
+  const [result] = await db
     .update(apiKeys)
     .set({ revokedAt: Math.floor(Date.now() / 1000) })
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.appId, appId)))
     .returning()
-    .get()
   if (!result) throw new ShukkaError('not_found', 'API key not found')
 }
 
 /** Hard-deletes a key, but only once it has been revoked — never a live credential. */
-export function deleteApiKey(appId: number, keyId: number): void {
-  const key = db
+export async function deleteApiKey(appId: number, keyId: number): Promise<void> {
+  const [key] = await db
     .select()
     .from(apiKeys)
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.appId, appId)))
-    .get()
+    .limit(1)
   if (!key) throw new ShukkaError('not_found', 'API key not found')
   if (!key.revokedAt) throw new ShukkaError('invalid_request', 'Only revoked API keys can be deleted')
-  db.delete(apiKeys).where(eq(apiKeys.id, keyId)).run()
+  await db.delete(apiKeys).where(eq(apiKeys.id, keyId))
 }

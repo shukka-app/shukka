@@ -16,7 +16,7 @@ Accepted.
 ## Decision
 
 - **存储：按 UTC 小时预聚合的 `hit_buckets` 表**。列为 `(id, versionId FK→versions ON DELETE CASCADE, kind ∈ {metadata, artifact}, hourStart, count)`，`hourStart` 为截断到小时的 unix 秒；`(versionId, kind, hourStart)` 唯一索引。永久保留，无清理任务。
-- **写路径：计数器与 bucket 同事务双写**。`recordHit(versionId, kind)` 在一个同步 `db.transaction` 内先递增 `versions.metadata_hits/artifact_hits`，再 `INSERT … ON CONFLICT DO UPDATE count+1` upsert bucket。计数器仍是总量权威；bucket 自部署起累积，**不做历史回溯**。云 isolate 上 `recordHit` 为空操作（见 [feed-hits-serverless](feed-hits-serverless.md)）。
+- **写路径：计数器与 bucket 同事务双写**。`recordHit(versionId, kind)` 在一个 `db.transaction` 内先递增 `versions.metadata_hits/artifact_hits`，再 `INSERT … ON CONFLICT DO UPDATE count+1` upsert bucket。计数器仍是总量权威；bucket 自部署起累积，**不做历史回溯**。云 isolate 上 `recordHit` 为空操作（见 [feed-hits-serverless](feed-hits-serverless.md)）。
 - **时间边界一律 UTC**：小时界 `floor(t/3600)*3600`，天界 `floor(t/86400)*86400`，整数运算；坐标轴标签 `timeZone: 'UTC'` 固定，与分桶一致。
 - **粒度按范围分档**：7 天 → 小时点（168 个）；30 / 90 天 → UTC 天点。无命中时段补零，序列定长并对齐当前小时/天；版本趋势固定 14 天窗口，未来日期直接省略（不补零）。
 - **读取：独立 endpoint + 独立 queryKey**。`GET /api/v1/apps/{appSlug}/channels/{channel}/trend?range=7|30|90` 与 `…/versions/{version}/trend`，session 或绑定该 app 的 API key；不并入 appDetail，不做 SSR priming（图表在 lazy 边界之后，首屏不需要），staleTime 30s，无 mutation 使 trend key 失效。
@@ -36,7 +36,7 @@ Accepted.
 
 ## Trade-offs & failure bounds
 
-- 热的无鉴权 feed 路径每次命中多一次唯一索引上的同步 upsert（better-sqlite3，亚毫秒级）；相对同行的内联 S3 GET 是噪声。若未来出现写入争用，首先考虑的是批量落桶，而不是回到事件日志。
+- 热的无鉴权 feed 路径每次命中多一次唯一索引上的 upsert；相对同行的内联 S3 GET 是噪声。若未来出现写入争用，首先考虑的是批量落桶，而不是回到事件日志。
 - 行数上界为 versions × kinds × 活跃小时数：只增不减但增长缓慢（一个全年每小时都有命中的版本约 17k 行）；永久保留是刻意选择，删除 version 即级联清掉其全部趋势历史——与计数器语义一致，不假装有历史归档。
 - 「下载」语义是「发出了 302」，不是「完成了字节传输」；趋势图与计数器同样继承此语义。
 - bucket 自部署起累积：部署前只有总量没有曲线，趋势图在早期窗口会显示为空态或部分补零，这是已声明的产品行为（无 backfill）。

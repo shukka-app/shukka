@@ -34,13 +34,20 @@ export class ShukkaError extends Error {
   }
 }
 
+function uniqueConstraintCode(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false
+  const record = error as { code?: unknown; extendedCode?: unknown; message?: unknown }
+  const tokens = [record.code, record.extendedCode, record.message].map((value) => String(value ?? ''))
+  return tokens.some((token) => token.includes('SQLITE_CONSTRAINT_UNIQUE') || token.includes('UNIQUE constraint'))
+}
+
 export function isUniqueConstraint(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: unknown }).code === 'SQLITE_CONSTRAINT_UNIQUE'
-  )
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    if (uniqueConstraintCode(current)) return true
+    current = typeof current === 'object' && current !== null && 'cause' in current ? current.cause : undefined
+  }
+  return false
 }
 
 export function jsonError(error: unknown): Response {

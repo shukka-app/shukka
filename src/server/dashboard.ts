@@ -29,10 +29,10 @@ export function publicApp(app: App) {
 
 export type PublicApp = ReturnType<typeof publicApp>
 
-export function appSummaries() {
-  const allApps = db.select().from(apps).orderBy(apps.name).all()
-  const allChannels = listChannelsForApps(allApps.map((app) => app.id))
-  const allVersions = listVersionsForChannels(allChannels.map((channel) => channel.id))
+export async function appSummaries() {
+  const allApps = await db.select().from(apps).orderBy(apps.name)
+  const allChannels = await listChannelsForApps(allApps.map((app) => app.id))
+  const allVersions = await listVersionsForChannels(allChannels.map((channel) => channel.id))
 
   return allApps.map((app) => {
     const appChannelRows = allChannels.filter((channel) => channel.appId === app.id)
@@ -42,7 +42,7 @@ export function appSummaries() {
     }))
     const appVersions = channelVersions.flatMap((entry) => entry.versions)
 
-    const channels = channelVersions.map(({ channel, versions }) => ({
+    const channelRows = channelVersions.map(({ channel, versions }) => ({
       id: channel.id,
       name: channel.name,
       currentVersion: versions.find((version) => version.id === channel.currentVersionId)?.version ?? null,
@@ -50,7 +50,7 @@ export function appSummaries() {
 
     return {
       ...publicApp(app),
-      channels,
+      channels: channelRows,
       totalDownloads: appVersions.reduce((sum, version) => sum + version.artifactHits, 0),
       lastReleasedAt: (() => {
         const published = appVersions.map((version) => version.releasedAt).filter((at): at is number => at != null)
@@ -60,19 +60,19 @@ export function appSummaries() {
   })
 }
 
-export type AppSummary = ReturnType<typeof appSummaries>[number]
+export type AppSummary = Awaited<ReturnType<typeof appSummaries>>[number]
 
-export function appDetailBySlug(slug: string, origin: string, options?: { includeKeys?: boolean }) {
-  return appDetail(getAppBySlug(slug).id, origin, options)
+export async function appDetailBySlug(slug: string, origin: string, options?: { includeKeys?: boolean }) {
+  return appDetail((await getAppBySlug(slug)).id, origin, options)
 }
 
-function appChannels(app: App, origin: string) {
-  const channelRows = listChannelsForApps([app.id])
-  const versionRows = listVersionsForChannels(channelRows.map((channel) => channel.id))
-  const artifactRows = listArtifactsForVersions(versionRows.map((version) => version.id))
+async function appChannels(app: App, origin: string) {
+  const channelRows = await listChannelsForApps([app.id])
+  const versionRows = await listVersionsForChannels(channelRows.map((channel) => channel.id))
+  const artifactRows = await listArtifactsForVersions(versionRows.map((version) => version.id))
 
   return channelRows.map((channel) => {
-    const versions = versionRows
+    const versionDetails = versionRows
       .filter((version) => version.channelId === channel.id)
       .map((version) => ({
         ...version,
@@ -85,13 +85,13 @@ function appChannels(app: App, origin: string) {
       name: channel.name,
       currentVersionId: channel.currentVersionId,
       feedUrl: feedBaseUrl(origin, app.slug, channel.name),
-      versions,
+      versions: versionDetails,
     }
   })
 }
 
-function publicApiKeys(appId: number) {
-  return listApiKeys(appId).map((key) => ({
+async function publicApiKeys(appId: number) {
+  return (await listApiKeys(appId)).map((key) => ({
     id: key.id,
     name: key.name,
     hint: key.hint,
@@ -101,19 +101,19 @@ function publicApiKeys(appId: number) {
   }))
 }
 
-export function appDetail(appId: number, origin: string, options?: { includeKeys?: boolean }) {
-  const app = getApp(appId)
-  const channels = appChannels(app, origin)
+export async function appDetail(appId: number, origin: string, options?: { includeKeys?: boolean }) {
+  const app = await getApp(appId)
+  const channelDetails = await appChannels(app, origin)
   if (options?.includeKeys === false) {
-    return { app: publicApp(app), channels }
+    return { app: publicApp(app), channels: channelDetails }
   }
-  return { app: publicApp(app), channels, keys: publicApiKeys(app.id) }
+  return { app: publicApp(app), channels: channelDetails, keys: await publicApiKeys(app.id) }
 }
 
 export type AppDetail = {
   app: PublicApp
-  channels: ReturnType<typeof appChannels>
-  keys: ReturnType<typeof publicApiKeys>
+  channels: Awaited<ReturnType<typeof appChannels>>
+  keys: Awaited<ReturnType<typeof publicApiKeys>>
 }
 export type ChannelDetail = AppDetail['channels'][number]
 export type VersionDetail = ChannelDetail['versions'][number]

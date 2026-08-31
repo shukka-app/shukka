@@ -12,15 +12,15 @@ Shukka 是面板 + 上传 API + 更新 feed 的同一个 TanStack Start / Nitro 
 
 1. **一个 Node 进程**跑 `node .output/server/index.mjs`（`npm start`）。不拆面板/API/feed，不做多副本抢同一 SQLite 文件。
 2. **一块持久盘**挂到 `SHUKKA_DATA_DIR`（镜像默认 `/data`）。默认备份边界是该目录：`shukka.db`（WAL）、`encryption.key`。用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 时还要备份该文件；用 `SHUKKA_ENCRYPTION_KEY` 时备份边界是目录 **加上** 该 secret（进程不写密钥文件）。见 [encryption-key-source](encryption-key-source.md)。
-3. **推荐分发**：仓库根 `Dockerfile`——Debian 构建阶段装编译链后 `npm ci` + `vite build`（Nitro 把 `better-sqlite3` 官方 prebuild 追进 `.output/`），Alpine 运行阶段只拷贝 `.output/` 和 `drizzle/`。不在运行镜像里再装一份生产 `node_modules`。启动时自动 migrate。
+3. **推荐分发**：仓库根 `Dockerfile`——Debian 构建阶段 `npm ci` + `vite build`（Nitro 把 libsql 追进 `.output/`），Alpine 运行阶段只拷贝 `.output/` 和 `drizzle/`。不在运行镜像里再装一份生产 `node_modules`。启动时自动 migrate。不需要为本机编译原生 sqlite 绑定。
 4. **对象存储在进程外**，按 app 在面板配置。镜像不捆绑 MinIO。
 5. TLS 默认由反代终结；进程也可读 Nitro 的 `NITRO_SSL_*`，但不作为主路径。
 
 ## Alternatives
 
-- **源码 + systemd**：与 Docker 等价，少一层镜像；运维要自己管 Node 24 与原生模块。作为并列可行路径写进 PRD，不替代推荐分发。
+- **源码 + systemd**：与 Docker 等价，少一层镜像；运维要自己管 Node 24。作为并列可行路径写进 PRD，不替代推荐分发。
 - **Fly.io / Railway / Render 等带卷的单实例 PaaS**：可以，前提是持久卷 + 单机。比 VPS 多一层平台抽象，卷丢失或多机器调度会踩 SQLite。
-- **Serverless / 无盘（Vercel、Workers、无 EFS 的 Lambda）**：文件系统短暂，SQLite 与加密密钥无法可靠存活；`better-sqlite3` 也不适合这些运行时。排除。
+- **Serverless / 无盘（Vercel、Workers、无 EFS 的 Lambda）**：文件系统短暂，SQLite 与加密密钥无法可靠存活。排除（驱动已是 libsql，但本 ADR 不交付 isolate 运行时）。
 - **Postgres 换掉 SQLite**：能上多实例，但违背「一个容器 + 一个卷」的自托管假设，另开决策。
 - **全局 S3 环境变量、不要数据目录**：上传能工作，但 session、版本记录、计数、加密密钥仍要落盘；省不掉卷。
 

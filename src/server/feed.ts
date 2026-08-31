@@ -19,8 +19,8 @@ export async function resolveFeedRequest(
   filename: string,
   origin: string,
 ): Promise<{ kind: 'document'; contentType: string; body: string } | { kind: 'redirect'; url: string }> {
-  const app = getAppBySlug(appSlug)
-  const channel = getChannel(app.id, channelName)
+  const app = await getAppBySlug(appSlug)
+  const channel = await getChannel(app.id, channelName)
   const s3 = settingsFromApp(app)
   const adapter = adapterFor(app.updaterKind)
 
@@ -28,12 +28,12 @@ export async function resolveFeedRequest(
     throw new ShukkaError('not_found', `Channel "${channelName}" has no published version`)
   }
 
-  const current = db.select().from(versions).where(eq(versions.id, channel.currentVersionId)).get()
+  const [current] = await db.select().from(versions).where(eq(versions.id, channel.currentVersionId)).limit(1)
   if (!current?.releasedAt) {
     throw new ShukkaError('not_found', `Channel "${channelName}" has no published version`)
   }
 
-  const currentArtifacts = db.select().from(artifacts).where(eq(artifacts.versionId, current.id)).all()
+  const currentArtifacts = await db.select().from(artifacts).where(eq(artifacts.versionId, current.id))
 
   if (adapter.generateFeedDocument) {
     const generated = await adapter.generateFeedDocument({
@@ -47,7 +47,7 @@ export async function resolveFeedRequest(
       getText: (key) => cachedText(`s3:${app.id}:${key}`, () => getObjectText(s3, key)),
     })
     if (generated) {
-      recordHit(current.id, 'metadata')
+      await recordHit(current.id, 'metadata')
       return { kind: 'document', contentType: generated.contentType, body: generated.body }
     }
   }
@@ -56,26 +56,26 @@ export async function resolveFeedRequest(
     const artifact = currentArtifacts.find((entry) => entry.filename === filename)
     if (!artifact) throw new ShukkaError('not_found', `${filename} is not part of the current release`)
     const body = await cachedText(`s3:${app.id}:${artifact.s3Key}`, () => getObjectText(s3, artifact.s3Key))
-    recordHit(current.id, 'metadata')
+    await recordHit(current.id, 'metadata')
     return { kind: 'document', contentType: 'text/yaml; charset=utf-8', body }
   }
 
   const currentMatch = currentArtifacts.find((entry) => entry.filename === filename)
   if (currentMatch) {
-    recordHit(current.id, 'artifact')
+    await recordHit(current.id, 'artifact')
     return { kind: 'redirect', url: await presignGet(s3, currentMatch.s3Key) }
   }
 
-  const artifact = db
+  const [artifact] = await db
     .select({ s3Key: artifacts.s3Key, versionId: artifacts.versionId })
     .from(artifacts)
     .innerJoin(versions, eq(artifacts.versionId, versions.id))
     .where(and(eq(versions.channelId, channel.id), eq(artifacts.filename, filename), isNotNull(versions.releasedAt)))
     .orderBy(desc(versions.releasedAt), desc(versions.id))
-    .get()
+    .limit(1)
   if (!artifact) throw new ShukkaError('not_found', `${filename} not found on channel "${channelName}"`)
 
-  recordHit(artifact.versionId, 'artifact')
+  await recordHit(artifact.versionId, 'artifact')
   return { kind: 'redirect', url: await presignGet(s3, artifact.s3Key) }
 }
 

@@ -8,7 +8,7 @@ export const Route = createFileRoute('/api/v1/openapi.json')({
   server: {
     handlers: {
       GET: handle(async ({ request }) => {
-        requireAdmin(request)
+        await requireAdmin(request)
         return Response.json(openApiDocument(new URL(request.url).origin), {
           headers: { 'cache-control': 'no-store' },
         })

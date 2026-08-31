@@ -7,7 +7,7 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels/$channel/ve
   server: {
     handlers: {
       DELETE: handle(async ({ request, params }) => {
-        const { app } = requireAppActor(request, textParam(params, 'appSlug'))
+        const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
         await deleteVersionByName(app, textParam(params, 'channel'), textParam(params, 'version'))
         return Response.json({ ok: true })
       }),
