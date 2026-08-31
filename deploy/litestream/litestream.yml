@@ -1,0 +1,11 @@
+dbs:
+  - path: ${SHUKKA_DB_PATH}
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: ${LITESTREAM_PATH}
+        endpoint: ${LITESTREAM_ENDPOINT}
+        region: ${LITESTREAM_REGION}
+        # COS rejects path-style access (PathStyleDomainForbidden); litestream
+        # auto-enables path style when endpoint is set, so force it off.
+        force-path-style: false

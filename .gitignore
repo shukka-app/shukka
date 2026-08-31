@@ -34,3 +34,4 @@ tests/e2e/tauri-app/src-tauri/gen
 tests/e2e/sparkle-check/.build
 tests/e2e/sparkle-check/.swiftpm
 tsconfig.tsbuildinfo
+cloudbaserc.json

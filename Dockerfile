@@ -22,6 +22,16 @@ WORKDIR /app
 ENV NODE_ENV=production \
     SHUKKA_DATA_DIR=/data
 
+# Litestream is opt-in at runtime (see deploy/litestream/entrypoint.sh):
+# only used when LITESTREAM_BUCKET is set, e.g. on CloudBase CloudRun where
+# the container filesystem is ephemeral.
+ARG TARGETARCH=amd64
+ARG LITESTREAM_VERSION=0.5.16
+RUN apk add --no-cache ca-certificates wget \
+    && case "$TARGETARCH" in amd64) arch=x86_64 ;; *) arch="$TARGETARCH" ;; esac \
+    && wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${arch}.tar.gz" \
+       | tar -xz -C /usr/local/bin
+
 # Nitro traces better-sqlite3 (native prebuilds) into .output. redoc's
 # standalone bundle is read via require.resolve at runtime, so copy just that
 # file — not the rest of production node_modules.
@@ -29,12 +39,14 @@ COPY --from=build --chown=node:node /app/.output ./.output
 COPY --from=build --chown=node:node /app/node_modules/redoc/package.json ./node_modules/redoc/package.json
 COPY --from=build --chown=node:node /app/node_modules/redoc/bundles/redoc.standalone.js ./node_modules/redoc/bundles/redoc.standalone.js
 COPY --chown=node:node drizzle ./drizzle
+COPY deploy/litestream/litestream.yml /etc/litestream.yml
+COPY deploy/litestream/entrypoint.sh /usr/local/bin/shukka-entrypoint
 
-RUN mkdir -p /data && chown node:node /data
+RUN chmod +x /usr/local/bin/shukka-entrypoint && mkdir -p /data && chown node:node /data
 USER node
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 VOLUME ["/data"]
 EXPOSE 3000
-CMD ["node", ".output/server/index.mjs"]
+CMD ["/usr/local/bin/shukka-entrypoint"]

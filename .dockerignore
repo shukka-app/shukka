@@ -10,7 +10,8 @@ data
 .cursor
 tests
 docs
-deploy
+deploy/ansible
+deploy/compose.yaml
 skills
 *.md
 AGENTS.md

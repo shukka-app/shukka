@@ -1,0 +1,6 @@
+{
+  "envId": "REPLACE WITH YOUR REAL ENVID",
+  "cloudrun": {
+    "name": "REPLACE WITH YOUR REAL SERVICE NAME"
+  }
+}
