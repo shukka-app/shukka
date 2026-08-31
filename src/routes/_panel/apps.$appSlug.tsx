@@ -149,14 +149,10 @@ function IntegrationPanelLoader({ app, channels }: { app: PublicApp; channels: A
     const serverUrl = feedUrl.replace(/\/api\/update\/.*$/, '')
     const raw = buildIntegrationSnippets({ app, channelName, feedUrl, serverUrl })
     void Promise.all(
-      Object.entries(raw).map(async ([key, snippet]) => {
-        const { codeToHtml } = await import('shiki')
-        const html = await codeToHtml(snippet.code, {
-          lang: snippet.lang,
-          themes: { light: 'github-light-default', dark: 'github-dark-default' },
-        })
-        return [key, { ...snippet, html }]
-      }),
+      Object.entries(raw).map(async ([key, snippet]) => [
+        key,
+        { ...snippet, html: await highlightSnippet(snippet.code, snippet.lang) },
+      ]),
     ).then((entries) => {
       if (!cancelled) setSnippets(Object.fromEntries(entries) as IntegrationSnippets)
     })
