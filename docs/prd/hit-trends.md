@@ -10,7 +10,7 @@
 
 ## Goals
 
-1. 每次 feed 命中（yml 返回 / 制品 302）在递增版本计数器的**同一事务**内，写入一条按 UTC 小时预聚合的 hit bucket（version × kind × 小时）。
+1. 自托管 Node 上，每次 feed 命中（yml 返回 / 制品 302）在递增版本计数器的**同一事务**内，写入一条按 UTC 小时预聚合的 hit bucket（version × kind × 小时）。云 isolate 不写（见 `docs/prd/feed-hits-serverless.md`）。
 2. Hit bucket 永久保留，无保留期任务；随所属 version 删除而级联清除（与计数器一致）。
 3. 版本计数器仍是总量的唯一权威来源；趋势图只读 bucket，不回算计数器。bucket 自本功能部署起累积，历史计数不回溯。
 4. Channel 趋势图位于 Channels 标签页（当前版本行与历史表之间）：7 / 30 / 90 天三档范围切换，范围存 URL `?range=`（默认 30，默认值不占 URL），对所有视图角色可见。
@@ -51,3 +51,4 @@
 - [ ] 删除 version 或 channel 后其 bucket 级联清除。
 - [ ] 跨 app 访问趋势接口返回 `not_found`。
 - [ ] 面板：channel 趋势图在 Channels 标签页对所有视图角色可见并可切换范围；版本趋势图在统计弹窗内显示；全零窗口显示空态提示；所有新文案来自类型化字典（en/zh 键对齐）。
+- [x] 云 isolate 不走本 PRD 的写路径（见 `docs/prd/feed-hits-serverless.md`）。

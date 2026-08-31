@@ -40,7 +40,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Tauri `platforms` 键**：上传了 `latest.json` 时以其声明的键为准（只改写 `url`、补 `signature`）。未上传时由文件名推断。显式架构 token（`aarch64` / `arm64` → `aarch64`；`amd64` / `x64` / `x86_64` → `x86_64`；`i686` / `ia32` → `i686`；`armv7` → `armv7`）覆盖默认。无架构的 `AppImage` 或文件名含 `linux` 默认为 `linux-x86_64`；无架构的 `*.app.tar.gz` 或文件名含 `mac` / `darwin` 默认为 `darwin-x86_64`。Windows 无架构 token 时不产生键。arm / universal 构建须上传 `latest.json` 或在文件名中写明架构。
 - **Sparkle**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../appcast.xml` 返回为当前已发布版本生成的 `application/xml` appcast，恰好一个 `<item>`。`enclosure` 的 `url` 指向本 feed 下的制品；`sparkle:edSignature` 与 `length` 来自上传。无当前版本时 404。请求上的额外 query（Sparkle 的 `os` / `osVersion` 等）不影响文档。上传的多 item appcast 在 finalize 被拒绝。
 - 元数据是否原文透传是 adapter 不变量，不是全系统不变量。
-- yml 命中与制品 302 分别计入所属版本的下载计数；每次命中在计数器递增的同一事务内 upsert 其 UTC 小时 hit bucket。
+- 自托管 Node：yml 命中与制品 302 分别计入所属版本的下载计数；每次命中在计数器递增的同一事务内 upsert 其 UTC 小时 hit bucket。云 isolate（`std-env` 与登录限速同一套检测）不写计数器与 hit 行；用量看平台日志。趋势读接口仍在，无写入则为空。
 
 ### Release notes（无鉴权）
 
@@ -133,7 +133,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - S3 对象键布局固定为 `{prefix}/{channel}/{version}/{filename}`；制品文件名不含路径分隔符。
 - 删除 version、channel 或 app 都会同时删除其拥有的 S3 对象；删除 current version 还会把 channel 当前版本回退到剩余最新**已发布**版本（无剩余则清空）。
 - `version` 字符串与制品文件名都不得含路径分隔符或 `..`，保证对象键始终落在文档化的布局内。
-- 自本功能部署起，版本计数器恒等于其同 kind hit bucket 之和（部署前的历史计数无 bucket 回溯）；bucket 随 version 删除级联清除。只有公开 feed 的 yml 命中与制品 302 计入计数器；App API 的制品 302 不计。
+- 自本功能部署起，版本计数器恒等于其同 kind hit bucket 之和（部署前的历史计数无 bucket 回溯）；bucket 随 version 删除级联清除。只有公开 feed 的 yml 命中与制品 302 计入计数器，且仅在自托管 Node；云 isolate 不记命中。App API 的制品 302 不计。
 - 面板 UI 字符串全部来自类型化字典：en 为源语言，其余语言字典与 en 编译期键对齐（缺键即类型错误）。
 - 语言、主题与视图角色偏好是 per-browser cookie；服务端不存任何用户偏好。
 
@@ -179,6 +179,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   (`docs/prd/password-kdf.md`, `docs/adr/password-kdf.md`).
 - In-app login rate limit is Node-only; cloud isolates skip it
   (`docs/prd/login-rate-limit.md`, `docs/adr/login-rate-limit.md`).
+- Feed hit counters and trend buckets are self-host Node only
+  (`docs/prd/feed-hits-serverless.md`, `docs/adr/feed-hits-serverless.md`).
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

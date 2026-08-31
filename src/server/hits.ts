@@ -2,6 +2,7 @@ import { and, eq, gte, lt, sql } from 'drizzle-orm'
 import { db } from '~/db/index.ts'
 import { channels, hitBuckets, versions } from '~/db/schema.ts'
 import { ShukkaError } from '~/lib/errors.ts'
+import { isCloudFunction } from '~/lib/runtime.ts'
 import {
   DEFAULT_TREND_RANGE,
   TREND_RANGES,
@@ -27,6 +28,7 @@ export type HitKind = 'metadata' | 'artifact'
  * as a test seam.
  */
 export function recordHit(versionId: number, kind: HitKind, now: number = nowSeconds()): void {
+  if (isCloudFunction()) return
   const hourStart = Math.floor(now / HOUR) * HOUR
   db.transaction((tx) => {
     const column = kind === 'metadata' ? versions.metadataHits : versions.artifactHits
