@@ -36,3 +36,5 @@ Point the channel back at any published version in the panel. The switch is inst
 ## Download counts and trends
 
 The Channels tab shows per-version download and check counts and trend charts (visible to admin and content view roles).
+
+On a self-hosted Node process (Docker / VPS), each feed check and artifact 302 increments those counters. On [Cloudflare Workers](/en-US/docs/cloudflare) the feed still returns yml and 302, but Shukka does not record hits — use the platform logs if you need request volume.

@@ -7,7 +7,7 @@ description: 第一次打开面板时如何设置管理员密码并完成登录�
 
 首次打开面板会进入 setup 页，设置至少 8 位的管理员密码。之后访问面板任意页面都需要登录。
 
-Shukka 是单管理员模型：没有注册、没有多用户。忘记密码的恢复路径见[自托管部署](/zh-CN/docs/deployment#忘记密码)。管理员密码可以在设置页修改。
+Shukka 是单管理员模型：没有注册、没有多用户。忘记密码的恢复路径见[自托管部署](/zh-CN/docs/deployment#忘记密码)（[Cloudflare Workers](/zh-CN/docs/cloudflare#password-recovery) 上对远程库执行同一段 SQL）。口令哈希算法只在首次 setup 选定，见自托管页的 `SHUKKA_PASSWORD_HASH`。管理员密码可以在设置页修改。
 
 ## 面板结构
 

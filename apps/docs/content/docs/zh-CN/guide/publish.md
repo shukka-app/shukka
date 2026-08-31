@@ -36,3 +36,5 @@ description: 说明一个版本从草稿到上线、再回滚或删除分别意�
 ## 下载计数与趋势
 
 面板 Channels 标签页展示每个版本的下载与检查计数及趋势图（admin 与 content 角色可见）。
+
+自托管 Node（Docker / VPS）上，每次 feed 检查与制品 302 会增加这些计数。[Cloudflare Workers](/zh-CN/docs/cloudflare) 上 feed 仍返回 yml 与 302，但 Shukka 不记命中——看请求量用平台日志。

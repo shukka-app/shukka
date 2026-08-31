@@ -7,7 +7,7 @@ description: Setup, sign-in, panel structure, and per-browser preferences for la
 
 The first visit to the panel opens the setup page. Set an admin password of at least 8 characters. Every later panel page requires sign-in.
 
-Shukka is a single-admin model: no registration, no multi-user. Password recovery is in [Self-hosting](/en-US/docs/deployment#forgotten-password). The admin password can be changed on the settings page.
+Shukka is a single-admin model: no registration, no multi-user. Password recovery is in [Self-hosting](/en-US/docs/deployment#forgotten-password) (on [Cloudflare Workers](/en-US/docs/cloudflare#password-recovery), run the same SQL against the remote database). The password-hash algorithm is chosen only at first setup — see `SHUKKA_PASSWORD_HASH` on the self-hosting page. The admin password can be changed on the settings page.
 
 ## Panel structure
 
