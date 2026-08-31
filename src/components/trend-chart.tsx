@@ -1,15 +1,14 @@
-import { Suspense, lazy } from 'react'
+import { ClientOnly } from '@tanstack/react-router'
 import { Skeleton } from '~/components/ui/skeleton'
 import type { TrendPoint } from '~/lib/trends.ts'
+import { TrendChartInner } from './trend-chart-inner.client.tsx'
 import type { TrendSeries } from './trend-series.ts'
 
 /**
- * Generic trend chart shell: empty-state detection, lazy boundary for the
- * recharts chunk (never loaded server-side), and accessibility. Deliberately
- * free of recharts and i18n imports — callers pass formatted strings in.
+ * Generic trend chart shell: empty-state detection, client-only boundary for
+ * the recharts module, and accessibility. Deliberately free of recharts and
+ * i18n imports — callers pass formatted strings in.
  */
-const TrendChartInner = lazy(() => import('./trend-chart-inner.tsx'))
-
 type TrendChartProps = {
   points: TrendPoint[]
   series: TrendSeries[]
@@ -30,9 +29,9 @@ export function TrendChart({ points, series, formatTick, formatValue, ariaLabel,
           <p className="text-xs text-muted-foreground">{emptyHint}</p>
         </div>
       ) : (
-        <Suspense fallback={<Skeleton className="h-full w-full rounded-xl" />}>
+        <ClientOnly fallback={<Skeleton className="h-full w-full rounded-xl" />}>
           <TrendChartInner points={points} series={series} formatTick={formatTick} formatValue={formatValue} />
-        </Suspense>
+        </ClientOnly>
       )}
     </div>
   )

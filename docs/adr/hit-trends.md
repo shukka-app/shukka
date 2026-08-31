@@ -1,4 +1,4 @@
-# ADR: 命中趋势——UTC 小时预聚合 bucket、计数器同事务双写、recharts 懒加载面积图
+# ADR: 命中趋势——UTC 小时预聚合 bucket、计数器同事务双写、recharts 客户端面积图
 
 ## Status
 
@@ -19,8 +19,8 @@ Accepted.
 - **写路径：计数器与 bucket 同事务双写**。`recordHit(versionId, kind)` 在一个 `db.transaction` 内先递增 `versions.metadata_hits/artifact_hits`，再 `INSERT … ON CONFLICT DO UPDATE count+1` upsert bucket。计数器仍是总量权威；bucket 自部署起累积，**不做历史回溯**。云 isolate 上 `recordHit` 为空操作（见 [feed-hits-serverless](feed-hits-serverless.md)）。
 - **时间边界一律 UTC**：小时界 `floor(t/3600)*3600`，天界 `floor(t/86400)*86400`，整数运算；坐标轴标签 `timeZone: 'UTC'` 固定，与分桶一致。
 - **粒度按范围分档**：7 天 → 小时点（168 个）；30 / 90 天 → UTC 天点。无命中时段补零，序列定长并对齐当前小时/天；版本趋势固定 14 天窗口，未来日期直接省略（不补零）。
-- **读取：独立 endpoint + 独立 queryKey**。`GET /api/v1/apps/{appSlug}/channels/{channel}/trend?range=7|30|90` 与 `…/versions/{version}/trend`，session 或绑定该 app 的 API key；不并入 appDetail，不做 SSR priming（图表在 lazy 边界之后，首屏不需要），staleTime 30s，无 mutation 使 trend key 失效。
-- **渲染：recharts v3，React.lazy 代码分割**。唯一的 recharts importer 是懒加载的 inner 组件，服务端永不加载；叠加面积图（非堆叠柱状）：downloads 用 `var(--flare)` 描边 + 10% 填充，checks 用 45% ink 描边不填充；网格、刻度、tooltip 全部走 CSS 变量，主题切换零 JS。
+- **读取：独立 endpoint + 独立 queryKey**。`GET /api/v1/apps/{appSlug}/channels/{channel}/trend?range=7|30|90` 与 `…/versions/{version}/trend`，session 或绑定该 app 的 API key；不并入 appDetail，不做 SSR priming（图表在 client-only 边界之后，首屏不需要），staleTime 30s，无 mutation 使 trend key 失效。
+- **渲染：recharts v3，client-only inner 模块**。唯一的 recharts importer 是 `*.client.tsx`（加 `import '@tanstack/react-start/client-only'`）；同构壳只负责空态、aria、Skeleton，经 `<ClientOnly>` 挂 inner。`React.lazy` 仍会在 Worker SSR 图里发出动态入口，所以不算 client-only。Worker `dist/server` 最多发出 stub；Recharts 走 `dist/client` 静态资源预算。叠加面积图（非堆叠柱状）：downloads 用 `var(--flare)` 描边 + 10% 填充，checks 用 45% ink 描边不填充；网格、刻度、tooltip 全部走 CSS 变量，主题切换零 JS。
 - **共享契约独立于服务端模块**：`src/lib/trends.ts` 只放类型与常量（range 集合、guard、点形状），不 import db/react，客户端可安全 value-import。
 
 ## Alternatives
@@ -29,7 +29,7 @@ Accepted.
 - **只按天聚合**：丢掉日内分辨率，7 天视图只剩 7 个点，发布当日的激增形状不可见，拒绝。
 - **浏览器本地时区分界**：同一 bucket 在不同 viewer 时区下含义不同，queryKey 无法缓存，且与「UTC 截断」的服务端整数运算冲突，拒绝。
 - **计数器由 `SUM(buckets)` 派生**：要求部署时全量 backfill，且让总量读取依赖聚合查询；保留现有计数器为零迁移成本，拒绝。
-- **手绘 SVG 图表**：省下依赖，但坐标轴、刻度、tooltip、响应式都要自己造；recharts 懒加载后首屏成本为零，拒绝。
+- **手绘 SVG 图表**：省下依赖，但坐标轴、刻度、tooltip、响应式都要自己造；recharts 在 client-only 边界之后首屏成本为零，拒绝。
 - **shadcn/chart**：它是 recharts 的样式封装，主题语义与本仓库的 CSS 变量体系（oklab 混合、flare/ink 梯子）不匹配，直接用 recharts 更薄。
 - **堆叠柱状图**：checks 与 downloads 是两个独立度量，求和无意义；叠加面积各自可读，拒绝堆叠。
 - **并入 appDetail 响应**：每个 channel 的趋势会拖慢整个详情负载且无法按 range 独立缓存，拒绝。
