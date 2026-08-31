@@ -1,54 +1,37 @@
-import { Crepe, CrepeFeature } from '@milkdown/crepe'
-import { useEffect, useRef } from 'react'
+import { createClientOnlyFn } from '@tanstack/react-start'
+import { useEffect, useState, type ComponentType } from 'react'
+import { Skeleton } from '~/components/ui/skeleton'
 
-// Structure styles only — colors/fonts come from the --crepe-* mapping in
-// styles.css, so the editor follows the panel theme (ADR: release-log).
-import '@milkdown/crepe/theme/common/style.css'
-
-/**
- * WYSIWYG markdown editor (Milkdown Crepe). Word pastes arrive as clipboard
- * HTML and are parsed by ProseMirror; markdown source pastes are detected and
- * parsed by the bundled clipboard plugin. Remount (via React `key`) to switch
- * documents — Crepe has no setMarkdown.
- */
-export function NotesEditor({
-  defaultValue,
-  placeholder,
-  onChange,
-}: {
+type NotesEditorProps = {
   defaultValue: string
   placeholder: string
   onChange: (markdown: string) => void
-}) {
-  const rootRef = useRef<HTMLDivElement>(null)
-  const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
+}
+
+/**
+ * Start strips this to a throw-stub on the server, so Vite's Worker SSR
+ * graph never sees the Crepe module. A route-level `React.lazy()` of a
+ * milkdown importer still puts Crepe in that graph.
+ */
+const loadNotesEditorCrepe = createClientOnlyFn(() => import('./notes-editor-crepe.tsx'))
+
+/**
+ * Client-only shell for the Crepe editor. This file must not top-level-import
+ * `@milkdown/*`.
+ */
+export function NotesEditor(props: NotesEditorProps) {
+  const [Editor, setEditor] = useState<ComponentType<NotesEditorProps> | null>(null)
 
   useEffect(() => {
-    const root = rootRef.current
-    if (!root) return
-    const crepe = new Crepe({
-      root,
-      defaultValue,
-      features: {
-        [CrepeFeature.Latex]: false,
-        [CrepeFeature.ImageBlock]: false,
-      },
-      featureConfigs: {
-        [CrepeFeature.Placeholder]: { text: placeholder, mode: 'block' },
-      },
+    let cancelled = false
+    void loadNotesEditorCrepe().then((mod) => {
+      if (!cancelled) setEditor(() => mod.NotesEditorCrepe)
     })
-    crepe.on((listener) => {
-      listener.markdownUpdated((_ctx, markdown) => onChangeRef.current(markdown))
-    })
-    // Serialize create → destroy: destroying before creation finishes races
-    // the listener's debounced serializer (milkdown#2356).
-    const created = crepe.create()
     return () => {
-      void created.then(() => crepe.destroy()).catch(() => {})
+      cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- remount via key, not props
   }, [])
 
-  return <div ref={rootRef} />
+  if (!Editor) return <Skeleton className="h-64 rounded-xl" />
+  return <Editor {...props} />
 }
