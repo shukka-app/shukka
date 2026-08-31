@@ -32,12 +32,9 @@ RUN apk add --no-cache ca-certificates wget \
     && wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${arch}.tar.gz" \
        | tar -xz -C /usr/local/bin
 
-# Nitro traces better-sqlite3 (native prebuilds) into .output. redoc's
-# standalone bundle is read via require.resolve at runtime, so copy just that
-# file — not the rest of production node_modules.
+# Nitro traces better-sqlite3 (native prebuilds) into .output. Do not copy
+# the rest of production node_modules into the runtime image.
 COPY --from=build --chown=node:node /app/.output ./.output
-COPY --from=build --chown=node:node /app/node_modules/redoc/package.json ./node_modules/redoc/package.json
-COPY --from=build --chown=node:node /app/node_modules/redoc/bundles/redoc.standalone.js ./node_modules/redoc/bundles/redoc.standalone.js
 COPY --chown=node:node drizzle ./drizzle
 COPY deploy/litestream/litestream.yml /etc/litestream.yml
 COPY deploy/litestream/entrypoint.sh /usr/local/bin/shukka-entrypoint

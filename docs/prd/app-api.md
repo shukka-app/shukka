@@ -1,4 +1,4 @@
-# PRD: 程序化 App API——key 覆盖 app 内能力，面板 ReDoc
+# PRD: 程序化 App API——key 覆盖 app 内能力
 
 ## Problem
 
@@ -8,7 +8,7 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 
 - **CI / agent / 脚本（API key）**：操作其绑定的那一个 app。
 - **管理员（session）**：同一棵 app 资源树，外加实例级操作与 key 生命周期。
-- **开发者（面板）**：在面板内打开 ReDoc，对照可调用的契约。
+- **开发者**：对照人类文档（[`shukka-app/docs`](https://github.com/shukka-app/docs)）与机器可读契约（`GET /api/v1/openapi.json`）。
 
 ## Goals
 
@@ -18,7 +18,7 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 4. API key 能做绑定 app 内、面板能点的写/读：**改该 app 设置**、channel / version / note 的 CRUD、设 current、读详情与趋势、按版本+文件名领取制品 presigned GET。
 5. API key **不能**：建/列全部 app、删整个 app、改管理员密码、签发/吊销/删除 API key（key 只在面板管理）。
 6. 实例级（登录、改密、列/建 app、存储探测）仍走 session 专用路由，不进 key 的能力面。
-7. 面板 app 详情增加独立 **API docs** 入口，新浏览器标签打开 `/docs`：整页只有 ReDoc，无面板 chrome。可见性与 Integration 相同（admin / developer），不公开挂到未登录路由。Integration 的 HTTP API 接入说明里提到该文档，并提供同样打开新标签的按钮。
+7. 人类 API 文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)，不在面板内嵌 HTML 渲染器。机器可读契约为 `GET /api/v1/openapi.json`（session）。
 
 ## Non-goals
 
@@ -26,6 +26,7 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 - UUID 对外标识。
 - 把 session 管理或改密暴露给 API key。
 - 未登录可打开的 API 浏览器。
+- 实例内 ReDoc / 其它 OpenAPI HTML 渲染器。
 
 ## Flows
 
@@ -37,8 +38,8 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 
 ### 开发者：对照文档
 
-1. 点击 app 详情的 API docs 入口，新浏览器标签打开 `/docs`：server route 返回自建 HTML（cheerio 把本地 `redoc` bundle 内联进模板），`Redoc.init` 让浏览器同源 fetch `/api/v1/openapi.json` 渲染当前服务器的 OpenAPI。
-2. 或从 Integration 的 HTTP API 方式点跳转按钮，同样打开 `/docs`。
+1. 人类可读说明在 [`shukka-app/docs`](https://github.com/shukka-app/docs)。
+2. 需要本实例的机器可读契约时，带 session 请求 `GET /api/v1/openapi.json`。
 3. 文档只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在公开 API 文档中。
 
 ## Acceptance criteria
@@ -48,13 +49,13 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 - [x] 用 key 调删 app、管 key、列/建其它 app、改密 → 401/403。
 - [x] 路径与面板深链只用 slug / channel 名 / version 字符串。
 - [x] 非法 channel 名（含大写、空格、`.` 等）创建失败。
-- [x] app 详情有独立 API docs 入口，点击在新浏览器标签打开 `/docs`（整页 ReDoc，无面板 chrome）；content 不可见该入口；未登录被挡在会话认证之后。
-- [x] Integration 的 HTTP API 接入方式含指向 `/docs` 的跳转按钮，同样在新标签打开。
+- [x] 面板无 `/docs` ReDoc 入口；人类文档指向 [`shukka-app/docs`](https://github.com/shukka-app/docs)。
+- [x] `GET /api/v1/openapi.json` 仍为 session 可取的机器可读契约。
 
 ## Resolved product decisions
 
 - Key 范围只在绑定 app 内，最多改设置 + CRUD 内部实体。
 - Key 生命周期只留面板。
-- ReDoc 在独立的 `/docs` 页（整页、无面板 chrome），不嵌进 Integration，也不再作为 app 详情标签。
+- 应用内 ReDoc（`/docs`）已移除；人类文档在 `shukka-app/docs`，机器可读契约保留 `GET /api/v1/openapi.json`。
 - 程序化 API 与面板 admin 调用合并为一棵 apps 树，分叉主要是鉴权。
 - 不上 UUID。
