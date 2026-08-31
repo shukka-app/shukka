@@ -11,6 +11,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import { resolve } from 'node:path'
 import { dataDir } from '~/db/index.ts'
 import { ShukkaError } from '~/lib/errors.ts'
+import { isCloudFunction } from '~/lib/runtime.ts'
 
 const KEY_HEX_LENGTH = 64
 
@@ -46,6 +47,18 @@ function readKeyFile(keyPath: string, source: string): Buffer {
  * docs/adr/encryption-key-source.md.
  */
 export function loadEncryptionKey(): Buffer {
+  if (isCloudFunction()) {
+    if (envPresent('SHUKKA_ENCRYPTION_KEY_FILEPATH') || envPresent('SHUKKA_KEY_PATH')) {
+      throw new Error(
+        'SHUKKA_ENCRYPTION_KEY_FILEPATH is not supported on cloud isolates. Set SHUKKA_ENCRYPTION_KEY.',
+      )
+    }
+    if (!envPresent('SHUKKA_ENCRYPTION_KEY')) {
+      throw new Error('SHUKKA_ENCRYPTION_KEY is required on cloud isolates')
+    }
+    return parseHexKey(process.env.SHUKKA_ENCRYPTION_KEY ?? '', 'SHUKKA_ENCRYPTION_KEY')
+  }
+
   const hasValue = envPresent('SHUKKA_ENCRYPTION_KEY')
   const hasFilepath = envPresent('SHUKKA_ENCRYPTION_KEY_FILEPATH')
   const hasAlias = envPresent('SHUKKA_KEY_PATH')
