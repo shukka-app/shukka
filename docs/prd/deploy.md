@@ -132,7 +132,8 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
   - Electron：yml 原文透传、制品文件名相对；把 `https://…/api/update/{app}/{channel}` 写进 electron-builder 即可。
   - Tauri：`latest.json` 的 `url` 按本次请求的 origin 生成。`curl -sS https://your.host/api/update/{app}/{channel}` 若看到 `http://` 制品 URL，让反代对后端也走 TLS，或给进程配 `NITRO_SSL_CERT` / `NITRO_SSL_KEY`。
 - Tauri 生产客户端默认要求 HTTPS（`docs/adr/updater-kind-on-app.md`）。本机或无 TLS 的 HTTP feed 必须由**使用者**在 tauri.conf 设置 `plugins.updater.dangerousInsecureTransportProtocol: true`（官方键；不是 Shukka 服务端开关）。生产省略该键，用 HTTPS。接入步骤见 `docs/prd/tauri-integration.md`。
-- 登录失败按来源 IP 限速（15 分钟 10 次）。反代后面部署时设置 `SHUKKA_TRUST_PROXY=1`，才会采信反代追加的转发头（最右一跳）；未设则忽略 `X-Forwarded-For` / `X-Real-IP`。不要把 setup / login 裸露在无防护的公网而不做 TLS。
+- 自托管 Node：登录失败按来源 IP 限速（15 分钟 10 次）。反代后面部署时设置 `SHUKKA_TRUST_PROXY=1`，才会采信反代追加的转发头（最右一跳）；未设则忽略 `X-Forwarded-For` / `X-Real-IP`。不要把 setup / login 裸露在无防护的公网而不做 TLS。
+- 云函数 / Edge isolate：进程内限速关闭（内存 `Map` 跨 isolate 无效）。登录防爆破靠主机 WAF / 防火墙，不靠 Shukka。见 `docs/prd/login-rate-limit.md`。
 
 ## 对象存储
 
@@ -214,7 +215,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 - [x] 备份说明包含 SQLite **和** 密钥（默认/`FILEPATH` 下的文件，或 `SHUKKA_ENCRYPTION_KEY` 的值）；只备份其一被标为失败模式。
 - [x] 文档写明密钥三选一：未设则 `{data}/encryption.key` 自动生成；只设 filepath 则只读该文件；只设 value 则不写密钥文件；两新变量同时设、或与弃用别名冲突、或非法 hex，进程不起。
 - [x] 探活用 `GET /api/health`；初始化态仍可用 `GET /api/admin/session`。
-- [x] 写明 serverless / 无持久盘 / 多副本 SQLite 不适合。
+- [x] 写明 serverless / 无持久盘 / 多副本 SQLite 不适合。云 isolate 上登录限速关闭，防爆破靠主机防火墙。
 - [x] 写明 cwd 与 `./drizzle` 自动迁移的关系。
 
 ## Resolved product decisions
