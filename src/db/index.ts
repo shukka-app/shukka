@@ -1,6 +1,6 @@
 import { dirname, resolve } from 'node:path'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
-import { libsqlClientEntry } from '~/lib/runtime.ts'
+import { isNodeRuntime } from '~/lib/runtime.ts'
 import * as schema from './schema.ts'
 
 export const dataDir = resolve(process.env.SHUKKA_DATA_DIR ?? './data')
@@ -27,17 +27,28 @@ async function createNodeDb(): Promise<Database> {
   return database
 }
 
-async function createWebDb(): Promise<Database> {
+async function createWebDb(url: string): Promise<Database> {
   const { createClient } = await import('@libsql/client/web')
   const { drizzle } = await import('drizzle-orm/libsql')
-  const url = process.env.SHUKKA_DB_URL
-  if (!url) throw new Error('SHUKKA_DB_URL is required when runtime is not Node')
+  const client = createClient({ url, authToken: process.env.SHUKKA_DB_AUTH_TOKEN })
+  return drizzle(client, { schema })
+}
+
+// Remote libsql over the Node client (e.g. SCF: Node runtime, ephemeral disk).
+// No auto-migrate here — concurrent cold starts would race the migrator, so
+// remote schema changes go through scripts/migrate-remote.mjs instead.
+async function createRemoteNodeDb(url: string): Promise<Database> {
+  const { createClient } = await import('@libsql/client')
+  const { drizzle } = await import('drizzle-orm/libsql')
   const client = createClient({ url, authToken: process.env.SHUKKA_DB_AUTH_TOKEN })
   return drizzle(client, { schema })
 }
 
 async function createDb(): Promise<Database> {
-  return libsqlClientEntry() === '@libsql/client' ? createNodeDb() : createWebDb()
+  const url = process.env.SHUKKA_DB_URL
+  if (url) return isNodeRuntime() ? createRemoteNodeDb(url) : createWebDb(url)
+  if (isNodeRuntime()) return createNodeDb()
+  throw new Error('SHUKKA_DB_URL is required when runtime is not Node')
 }
 
 // Vite dev server re-evaluates modules; keep one connection per process.
