@@ -252,7 +252,7 @@ describe('sparkle upload and feed', () => {
     let items = parseAppcast((await resolveFeedRequest('acme', 'stable', '', ORIGIN) as { body: string }).body)
     expect(items[0]?.shortVersionString).toBe('2.0.0')
 
-    setCurrentVersion(app.id, 'stable', '1.0.0')
+    await setCurrentVersion(app.id, 'stable', '1.0.0')
     clearObjectCache()
 
     items = parseAppcast((await resolveFeedRequest('acme', 'stable', '', ORIGIN) as { body: string }).body)
