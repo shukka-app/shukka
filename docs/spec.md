@@ -25,7 +25,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Locale**: 面板 UI 语言，`en`（源语言与回退）或 `zh`；per-browser 存于 cookie。
 - **Theme preference**: 面板明暗主题偏好（light / dark）；per-browser 存于 cookie，无记录时跟随系统。
 - **View role**: 面板视图角色（admin / developer / content）；per-browser 存于 cookie，仅控制面板 UI 入口可见性，纯前端，无鉴权语义。
-- **Data directory**: 服务持久化根目录（默认 `./data`，`SHUKKA_DATA_DIR` 可改；容器内默认 `/data`），含 SQLite 文件与自动生成的 S3 加密密钥。整目录即备份边界。
+- **Data directory**: 服务持久化根目录（默认 `./data`，`SHUKKA_DATA_DIR` 可改；容器内默认 `/data`），含 SQLite 文件。未设置 `SHUKKA_ENCRYPTION_KEY` / `SHUKKA_ENCRYPTION_KEY_FILEPATH` 时，S3 加密密钥自动生成在该目录的 `encryption.key`，整目录即备份边界。用 filepath 时备份边界含该文件；用 value 时备份边界是目录 **加上** 该 secret。
 - **Feature 质问**: the mandatory product-then-technical clarification loop driven by `$feature-dev` before implementation.
 - **PRD / ADR / Spec**: see documentation harness below.
 - **Runtime image**: GHCR 上的可部署镜像 `ghcr.io/{owner}/{repo}`（规范仓库为 `ghcr.io/shukka-app/shukka`），由 semver git 标签发布，与面向桌面应用的 GitHub JavaScript action 不是同一条发布面。
@@ -79,7 +79,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `POST /api/admin/login` 对每个来源 IP 的失败尝试做 15 分钟固定窗口限速（10 次）；超限返回 `rate_limited`（429）。成功登录重置该 IP 计数。`X-Forwarded-For` / `X-Real-IP` 仅在 `SHUKKA_TRUST_PROXY` 为 `1` 或 `true` 时采信（取最右一跳）；未设置时所有直连客户端共用一个桶。同一窗口内合计超过 100 次失败则对所有来源返回 `rate_limited`；成功登录不重置该全局窗口。
 - `POST /api/admin/storage/test` 对提交的 S3 配置做写探测（Put+Delete 探针对象）并返回 `{ ok: true }`，不落库；创建与编辑 app 保存前服务端始终重复同一探测，失败拒绝保存。
 - API key 明文仅在创建响应中出现一次，此后不可再取得。
-- S3 secret access key 加密存储，密钥在服务数据目录中自动生成。
+- S3 secret access key 加密存储。加密密钥默认在数据目录自动生成；也可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（或弃用别名 `SHUKKA_KEY_PATH`）或 `SHUKKA_ENCRYPTION_KEY` 二选一注入，同时设置或非法 hex 则进程拒绝启动。
 - 语言切换入口：setup / login 页右上角为独立切换器；面板页收进侧栏底部的角色菜单。locale 存 cookie，SSR 首屏 `<html lang>` 即正确。
 - 主题切换在侧栏底部的角色菜单内（设置页的 Appearance/Account 分区拆分暂缓，设置页保持仅修改密码）；默认跟随系统，显式选择与系统相反时记忆（存 cookie），与系统一致时恢复跟随；SSR 首屏 `<html>` 即带与 cookie 一致的类与 `color-scheme`，无 cookie 时由 pre-paint 脚本按系统偏好绘制——首屏无主题闪烁。
 - 服务端错误按 `error` 码在客户端翻译，未命中回退服务端英文 message；日期与相对时间按当前 locale 格式化。
@@ -99,7 +99,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 启动时若进程 cwd 下存在 `drizzle/`，对 SQLite 自动 migrate；生产不跑 `db:generate`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。
-- S3 凭证按 app 存在库中，不是进程环境变量。进程环境只影响监听地址与数据目录（见 `docs/prd/deploy.md`）。
+- S3 凭证按 app 存在库中，不是进程环境变量。进程环境只影响监听地址、数据目录，以及可选的 S3 加密密钥来源（见 `docs/prd/deploy.md`）。
 - 同一数据目录同一时间只有一个写进程。
 
 ### GitHub Action
@@ -127,7 +127,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 版本制品一经 finalize 不可修改，只可删除（删除会清理 S3 对象；若删的是 current 则回退到剩余最新**已发布**版本，无则清空）。`releasedAt` 一旦非空不可改回空。Release note 是挂在版本上的可变元数据，draft 与 released 都可编辑，不改变版本记录本身。
 - Release note 的 `html` / `text` 是写时渲染产物（渲染器升级不回溯已存产物；`html` 经消毒，源文中的原始 HTML 被剥离）；随所属 version 删除级联清除。
 - 数据库中不存任何明文 secret（管理员密码存 hash，API key 存 hash，S3 secret 加密）。
-- 元数据在 SQLite（data directory，可用 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指定），加密密钥同目录自动生成（`SHUKKA_KEY_PATH` 可改路径）；data directory 整体即完整备份边界——缺密钥则无法解密已存 S3 secret。
+- 元数据在 SQLite（data directory，可用 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指定）。S3 加密密钥默认同目录自动生成（`{data}/encryption.key`）；可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（弃用别名 `SHUKKA_KEY_PATH`）改读路径，或用 `SHUKKA_ENCRYPTION_KEY` 直接提供 64 位 hex（32 字节）。两个新变量不能同时设；FILEPATH 与 `SHUKKA_KEY_PATH` 设成不同路径、或任一与 VALUE 同时出现，以及空值 / 非法 hex / filepath 文件不存在，均拒绝启动。默认与 filepath 模式下缺密钥文件则无法解密已存 S3 secret；value 模式下丢掉该环境变量同样无法解密。
 - 单个 Node 进程承载全部 HTTP 面；同一 SQLite 文件不可被多个 Shukka 进程同时写。
 - S3 对象键布局固定为 `{prefix}/{channel}/{version}/{filename}`；制品文件名不含路径分隔符。
 - 删除 version、channel 或 app 都会同时删除其拥有的 S3 对象；删除 current version 还会把 channel 当前版本回退到剩余最新**已发布**版本（无剩余则清空）。

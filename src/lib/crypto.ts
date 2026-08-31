@@ -11,13 +11,68 @@ import { resolve } from 'node:path'
 import { dataDir } from '~/db/index.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 
+const KEY_HEX_LENGTH = 64
+
+function envPresent(name: string): boolean {
+  return process.env[name] !== undefined
+}
+
+function parseHexKey(raw: string, source: string): Buffer {
+  const hex = raw.trim()
+  if (hex.length === 0) {
+    throw new Error(`${source} is empty`)
+  }
+  if (hex.length !== KEY_HEX_LENGTH || /[^0-9a-fA-F]/.test(hex)) {
+    throw new Error(`${source} must be 64 hex characters (32 bytes)`)
+  }
+  return Buffer.from(hex, 'hex')
+}
+
+function readKeyFile(keyPath: string, source: string): Buffer {
+  if (keyPath.trim() === '') {
+    throw new Error(`${source} is empty`)
+  }
+  if (!existsSync(keyPath)) {
+    throw new Error(`S3 encryption key file not found: ${keyPath}`)
+  }
+  return parseHexKey(readFileSync(keyPath, 'utf8'), source)
+}
+
 /**
- * Encryption key for S3 secrets. Generated on first boot into the data directory,
- * so backing up `data/` captures everything needed to restore (ADR: per-app-s3-and-secrets).
+ * Encryption key for S3 secrets. Default: generate `{data}/encryption.key` on first
+ * boot. Optionally supply exactly one of SHUKKA_ENCRYPTION_KEY_FILEPATH (or the
+ * deprecated alias SHUKKA_KEY_PATH) or SHUKKA_ENCRYPTION_KEY. See
+ * docs/adr/encryption-key-source.md.
  */
-function loadEncryptionKey(): Buffer {
-  const keyPath = process.env.SHUKKA_KEY_PATH ?? resolve(dataDir, 'encryption.key')
-  if (existsSync(keyPath)) return Buffer.from(readFileSync(keyPath, 'utf8').trim(), 'hex')
+export function loadEncryptionKey(): Buffer {
+  const hasValue = envPresent('SHUKKA_ENCRYPTION_KEY')
+  const hasFilepath = envPresent('SHUKKA_ENCRYPTION_KEY_FILEPATH')
+  const hasAlias = envPresent('SHUKKA_KEY_PATH')
+
+  if (hasValue && (hasFilepath || hasAlias)) {
+    throw new Error(
+      'Set only one of SHUKKA_ENCRYPTION_KEY or SHUKKA_ENCRYPTION_KEY_FILEPATH. SHUKKA_KEY_PATH is a deprecated alias of SHUKKA_ENCRYPTION_KEY_FILEPATH.',
+    )
+  }
+
+  if (hasFilepath && hasAlias && process.env.SHUKKA_ENCRYPTION_KEY_FILEPATH !== process.env.SHUKKA_KEY_PATH) {
+    throw new Error(
+      'SHUKKA_ENCRYPTION_KEY_FILEPATH and SHUKKA_KEY_PATH disagree (SHUKKA_KEY_PATH is a deprecated alias). Set only one, or set both to the same path.',
+    )
+  }
+
+  if (hasValue) {
+    return parseHexKey(process.env.SHUKKA_ENCRYPTION_KEY ?? '', 'SHUKKA_ENCRYPTION_KEY')
+  }
+
+  if (hasFilepath || hasAlias) {
+    const source = hasFilepath ? 'SHUKKA_ENCRYPTION_KEY_FILEPATH' : 'SHUKKA_KEY_PATH'
+    const keyPath = hasFilepath ? process.env.SHUKKA_ENCRYPTION_KEY_FILEPATH : process.env.SHUKKA_KEY_PATH
+    return readKeyFile(keyPath ?? '', source)
+  }
+
+  const keyPath = resolve(dataDir, 'encryption.key')
+  if (existsSync(keyPath)) return parseHexKey(readFileSync(keyPath, 'utf8'), keyPath)
 
   mkdirSync(dataDir, { recursive: true })
   const key = randomBytes(32)
