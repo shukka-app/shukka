@@ -42,6 +42,7 @@
     "test:e2e:sparkle:macos": "node tests/e2e/run-sparkle-macos.mjs",
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:generate": "drizzle-kit generate",
+    "db:migrate:remote": "node scripts/migrate-remote.mjs",
     "juicefs": "node scripts/juicefs-dev.mjs",
     "lint:actions": "actionlint"
   },

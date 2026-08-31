@@ -113,8 +113,8 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
-| `SHUKKA_DB_URL` | 未设 | **仅云 isolate**：远程 libsql HTTP URL。Node 自托管不读。 |
-| `SHUKKA_DB_AUTH_TOKEN` | 未设 | **仅云 isolate**：远程库 token（可选）。 |
+| `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。设置后 Node 与 isolate 都走远程库（SCF 云函数磁盘短暂，必须走这条）；远程模式不在进程内 migrate，用 `npm run db:migrate:remote` 带这两个变量线下施加 `drizzle/`。 |
+| `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程库 token（可选）。 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
@@ -137,6 +137,14 @@ npm run deploy:worker
 ```
 
 Worker 必填 `SHUKKA_ENCRYPTION_KEY`（不要 filepath）与 `SHUKKA_DB_URL`。登录限速与 feed 命中在 isolate 上关闭，用量看平台日志。人类安装文案在 [shukka-app/docs](https://github.com/shukka-app/docs) 跟进。见 `docs/prd/dual-runtime.md`。
+
+## TCB / SCF 云函数（第三路径）
+
+SCF 是 Node 运行时但磁盘短暂、实例并发，本地 SQLite 文件不可用：必须设 `SHUKKA_DB_URL`（+ 可选 `SHUKKA_DB_AUTH_TOKEN`）走远程 libsql，并设 `SHUKKA_ENCRYPTION_KEY`。HTTP 函数包 = `scf_bootstrap` + Nitro 产物（`.output/`，依赖已被 Nitro trace 进 `.output/server/node_modules`），监听 `PORT=9000`。首次部署或 schema 变更后先线下迁移：
+
+```bash
+SHUKKA_DB_URL=libsql://... SHUKKA_DB_AUTH_TOKEN=... npm run db:migrate:remote
+```
 
 仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
 
