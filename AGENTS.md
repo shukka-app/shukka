@@ -36,6 +36,7 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite via
 | `npm run build` | Vite + Nitro build into `.output/` |
 | `npm run build:worker` | Cloudflare Worker build (`vite.config.worker.ts`) |
 | `npm run deploy:worker` | Worker build + `wrangler deploy` |
+| `npm run check:worker-size` | After `build:worker`, fail if wrangler dry-run gzip exceeds 3 MiB |
 | `npm start` | Run the built server |
 | `npm run check` | `lint` + `typecheck` + `test` — run before commit |
 | `npm run lint` | oxlint |

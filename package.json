@@ -28,6 +28,7 @@
     "build": "vite build",
     "build:worker": "vite build --config vite.config.worker.ts",
     "deploy:worker": "npm run build:worker && wrangler deploy",
+    "check:worker-size": "node scripts/check-worker-size.mjs",
     "lint": "oxlint",
     "start": "node .output/server/index.mjs",
     "generate:routes": "tsr generate",

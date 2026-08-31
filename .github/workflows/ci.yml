@@ -29,6 +29,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: raven-actions/actionlint@v2
 
+  # Cloudflare Workers Free rejects a script over 3 MiB gzip. Static assets
+  # (`dist/client`) do not count. Measure with the same wrangler dry-run total
+  # the deploy API uses.
+  worker-size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build:worker
+      - run: npm run check:worker-size
+
   # Real S3 path against every supported compatible backend: write probe,
   # presigned PUT, finalize HeadObject, and a 302 download.
   s3:

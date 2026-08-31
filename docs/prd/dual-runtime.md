@@ -46,6 +46,7 @@
 - [x] 云 isolate 上缺 `SHUKKA_ENCRYPTION_KEY` 拒绝启动；filepath 不受支持。
 - [x] 文档写明双运行时、Worker 必填变量、以及命中/限速差异。
 - [ ] 真实 Worker 上走完 setup → 发版 → feed（需账号与远程库；本环境只验证 Worker 构建）。
+- [x] Worker 脚本 gzip（`wrangler deploy --dry-run` 的 Total Upload gzip）不超过 Cloudflare Free 的 3 MiB；CI `worker-size` 卡住超限。
 
 ## Exclusions and resolved product decisions
 
