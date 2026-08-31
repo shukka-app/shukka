@@ -99,7 +99,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 启动时若进程 cwd 下存在 `drizzle/`，对 SQLite 自动 migrate；生产不跑 `db:generate`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。
-- S3 凭证按 app 存在库中，不是进程环境变量。进程环境只影响监听地址、数据目录，以及可选的 S3 加密密钥来源（见 `docs/prd/deploy.md`）。
+- 管理员密码存 `scheme$…` 形 hash。写入算法只在首次 setup 由 `SHUKKA_PASSWORD_HASH` 选定：未设或 `scrypt` 写 `scrypt$…`（默认，现有 Docker / VPS 不变）；`pbkdf2` 写 `pbkdf2$<iterations>$<salt-hex>$<derived-hex>`。初始化之后实例不得更换写入算法：改密与后续管理员 hash 沿用已存前缀，忽略后来的环境变量翻转。校验按已存前缀分派，始终同时接受 `scrypt$` 与 `pbkdf2$`。非法值（如 `argon2`）使 setup 以 `invalid_request` 失败。已有 `scrypt$` 要迁到只适合 pbkdf2 的运行时（如日后 CF Free）须重走 setup，面板不转换。
+- S3 凭证按 app 存在库中，不是进程环境变量。进程环境只影响监听地址、数据目录、可选的 S3 加密密钥来源，以及未初始化时的口令哈希算法（见 `docs/prd/deploy.md`）。
 - 同一数据目录同一时间只有一个写进程。
 
 ### GitHub Action
@@ -126,7 +127,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - finalize 失败、未发生、或成功但为 draft 时，channel 当前版本与 feed 输出不变。
 - 版本制品一经 finalize 不可修改，只可删除（删除会清理 S3 对象；若删的是 current 则回退到剩余最新**已发布**版本，无则清空）。`releasedAt` 一旦非空不可改回空。Release note 是挂在版本上的可变元数据，draft 与 released 都可编辑，不改变版本记录本身。
 - Release note 的 `html` / `text` 是写时渲染产物（渲染器升级不回溯已存产物；`html` 经消毒，源文中的原始 HTML 被剥离）；随所属 version 删除级联清除。
-- 数据库中不存任何明文 secret（管理员密码存 hash，API key 存 hash，S3 secret 加密）。
+- 数据库中不存任何明文 secret（管理员密码存 `scheme$…` hash，API key 存 hash，S3 secret 加密）。管理员 hash 的写入 scheme 在首次 setup 锁定，此后不因环境变量改变。
 - 元数据在 SQLite（data directory，可用 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指定）。S3 加密密钥默认同目录自动生成（`{data}/encryption.key`）；可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（弃用别名 `SHUKKA_KEY_PATH`）改读路径，或用 `SHUKKA_ENCRYPTION_KEY` 直接提供 64 位 hex（32 字节）。两个新变量不能同时设；FILEPATH 与 `SHUKKA_KEY_PATH` 设成不同路径、或任一与 VALUE 同时出现，以及空值 / 非法 hex / filepath 文件不存在，均拒绝启动。默认与 filepath 模式下缺密钥文件则无法解密已存 S3 secret；value 模式下丢掉该环境变量同样无法解密。
 - 单个 Node 进程承载全部 HTTP 面；同一 SQLite 文件不可被多个 Shukka 进程同时写。
 - S3 对象键布局固定为 `{prefix}/{channel}/{version}/{filename}`；制品文件名不含路径分隔符。
@@ -173,6 +174,9 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   `docs/adr/adapter-owned-uploader.md`; Tauri process check/download per
   `docs/adr/tauri-updater-e2e.md`; Sparkle Linux XML+EdDSA and macOS
   Sparkle.framework check per `docs/adr/sparkle-updater-e2e.md`.
+- Admin password KDF is scrypt or pbkdf2, chosen at first setup via
+  `SHUKKA_PASSWORD_HASH` and locked to the stored `scheme$` prefix
+  (`docs/prd/password-kdf.md`, `docs/adr/password-kdf.md`).
 - Self-host deploy documented per `docs/prd/deploy.md` and `docs/adr/self-host-runtime.md`
   (Docker + persistent data volume; no new runtime code). Compose and Ansible
   examples live in `deploy/` per `docs/prd/deploy-examples.md` and

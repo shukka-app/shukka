@@ -9,5 +9,6 @@ process.env.SHUKKA_DB_PATH = join(dir, 'test.db')
 delete process.env.SHUKKA_ENCRYPTION_KEY
 delete process.env.SHUKKA_ENCRYPTION_KEY_FILEPATH
 delete process.env.SHUKKA_KEY_PATH
+delete process.env.SHUKKA_PASSWORD_HASH
 
 export const testDataDir = dir

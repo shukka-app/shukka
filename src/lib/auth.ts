@@ -1,7 +1,14 @@
 import { and, eq, isNull, lt } from 'drizzle-orm'
 import { db } from '~/db/index.ts'
 import { admin, apiKeys, apps, sessions } from '~/db/schema.ts'
-import { hashPassword, randomToken, sha256, verifyPassword } from './crypto.ts'
+import {
+  hashPassword,
+  passwordHashSchemeOf,
+  randomToken,
+  sha256,
+  verifyPassword,
+  type PasswordHashScheme,
+} from './crypto.ts'
 import { ShukkaError, safeDecodeURIComponent } from './errors.ts'
 import type { App } from '~/db/schema.ts'
 
@@ -14,10 +21,21 @@ export function isInitialized(): boolean {
   return db.select().from(admin).limit(1).all().length > 0
 }
 
+/** Consulted only by first setup. Later env flips are ignored. */
+function setupPasswordHashScheme(): PasswordHashScheme {
+  if (process.env.SHUKKA_PASSWORD_HASH === undefined) return 'scrypt'
+  const value = process.env.SHUKKA_PASSWORD_HASH.trim()
+  if (value === 'scrypt') return 'scrypt'
+  if (value === 'pbkdf2') return 'pbkdf2'
+  throw new ShukkaError('invalid_request', 'SHUKKA_PASSWORD_HASH must be "scrypt" or "pbkdf2"')
+}
+
 export function initializeAdmin(password: string): string {
   if (isInitialized()) throw new ShukkaError('conflict', 'Shukka is already initialized')
   assertPasswordStrength(password)
-  db.insert(admin).values({ id: 1, passwordHash: hashPassword(password) }).run()
+  db.insert(admin)
+    .values({ id: 1, passwordHash: hashPassword(password, setupPasswordHashScheme()) })
+    .run()
   return createSession()
 }
 
@@ -36,7 +54,9 @@ export function changePassword(currentPassword: string, newPassword: string): st
     throw new ShukkaError('unauthorized', 'Incorrect current password')
   }
   assertPasswordStrength(newPassword)
-  db.update(admin).set({ passwordHash: hashPassword(newPassword), updatedAt: nowSeconds() }).run()
+  db.update(admin)
+    .set({ passwordHash: hashPassword(newPassword, passwordHashSchemeOf(row.passwordHash)), updatedAt: nowSeconds() })
+    .run()
   db.delete(sessions).run()
   return createSession()
 }

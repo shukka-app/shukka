@@ -1,5 +1,5 @@
 import './setup-db.ts'
-import { randomBytes } from 'node:crypto'
+import { pbkdf2Sync, randomBytes } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,6 +9,7 @@ import {
   encryptSecret,
   hashPassword,
   loadEncryptionKey,
+  PBKDF2_ITERATIONS,
   verifyPassword,
 } from '~/lib/crypto.ts'
 import { ShukkaError } from '~/lib/errors.ts'
@@ -84,10 +85,38 @@ describe('secret handling', () => {
   })
 
   it('verifies passwords against their stored hash only', () => {
-    const stored = hashPassword('correct horse battery')
+    const stored = hashPassword('correct horse battery', 'scrypt')
     expect(stored).not.toContain('correct horse battery')
+    expect(stored.startsWith('scrypt$')).toBe(true)
     expect(verifyPassword('correct horse battery', stored)).toBe(true)
     expect(verifyPassword('wrong', stored)).toBe(false)
+  })
+
+  it('writes and verifies pbkdf2$<iters>$<salt>$<hex> without changing scrypt$ verify', () => {
+    const scryptStored = hashPassword('correct horse battery', 'scrypt')
+    const pbkdf2Stored = hashPassword('correct horse battery', 'pbkdf2')
+
+    expect(scryptStored).toMatch(/^scrypt\$[0-9a-f]{32}\$[0-9a-f]{128}$/)
+    expect(pbkdf2Stored).toMatch(new RegExp(`^pbkdf2\\$${PBKDF2_ITERATIONS}\\$[0-9a-f]{32}\\$[0-9a-f]{64}$`))
+    expect(verifyPassword('correct horse battery', scryptStored)).toBe(true)
+    expect(verifyPassword('correct horse battery', pbkdf2Stored)).toBe(true)
+    expect(verifyPassword('wrong', pbkdf2Stored)).toBe(false)
+  })
+
+  it('verifies a pbkdf2$ hash using the iteration count stored in the string', () => {
+    const salt = randomBytes(16)
+    const iterations = 1_000
+    const derived = pbkdf2Sync('correct horse battery', salt, iterations, 32, 'sha256')
+    const stored = `pbkdf2$${iterations}$${salt.toString('hex')}$${derived.toString('hex')}`
+    expect(verifyPassword('correct horse battery', stored)).toBe(true)
+    expect(verifyPassword('wrong', stored)).toBe(false)
+  })
+
+  it('rejects unknown or malformed password hashes', () => {
+    expect(verifyPassword('pw', 'argon2$abc$def')).toBe(false)
+    expect(verifyPassword('pw', 'scrypt$zz$00')).toBe(false)
+    expect(verifyPassword('pw', 'pbkdf2$not-a-number$aa$bb')).toBe(false)
+    expect(verifyPassword('pw', `pbkdf2$${PBKDF2_ITERATIONS}$aa`)).toBe(false)
   })
 })
 

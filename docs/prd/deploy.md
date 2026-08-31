@@ -90,7 +90,7 @@ Shukka **不**随镜像带对象存储。需要自建 S3 时用 `deploy/compose.
 
 ### 管理员：忘记密码
 
-没有邮箱找回。停掉写入后打开数据目录里的 SQLite，删掉管理员行与 session，重启后重走 setup：
+没有邮箱找回。停掉写入后打开数据目录里的 SQLite，删掉管理员行与 session，重启后重走 setup（同一路径也用于把已有 `scrypt$` 换成 `pbkdf2$`）：
 
 ```bash
 sqlite3 /var/lib/shukka/shukka.db "DELETE FROM admin; DELETE FROM sessions;"
@@ -100,7 +100,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 
 ## 环境变量
 
-进程会读的变量如下。S3、管理员密码、API key **都不是**启动环境变量。
+进程会读的变量如下。S3、管理员密码明文、API key **都不是**启动环境变量。`SHUKKA_PASSWORD_HASH` 只在**尚未初始化**的首次 setup 选用口令哈希算法，之后忽略。
 
 | 变量 | 默认 | 用途 |
 |------|------|------|
@@ -112,11 +112,14 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_ENCRYPTION_KEY` | 未设 | 直接提供同一格式的密钥。设置后不写密钥文件 |
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
+| `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
 
 `SHUKKA_ENCRYPTION_KEY` 与 `SHUKKA_ENCRYPTION_KEY_FILEPATH` **只能设其中一个**。都未设则保持今天的默认：首次启动在 `{SHUKKA_DATA_DIR}/encryption.key` 生成密钥。空值或非法 hex 拒绝启动。
+
+`SHUKKA_PASSWORD_HASH` 在首次 setup **锁定**：默认 scrypt，现有 Docker / VPS 不用改。已写入的 `scrypt$` 不会因为后来改成 `pbkdf2` 而转换。要把已有实例迁到只适合 pbkdf2 的运行时（如日后 Cloudflare Workers Free），删除 `admin` 与 `sessions` 后设 `SHUKKA_PASSWORD_HASH=pbkdf2` 再走 setup。
 
 仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
 
@@ -206,7 +209,8 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 ## Acceptance criteria
 
 - [x] 按主路径（Docker + `/data` 卷）可以从零启动，首次打开进入 setup。
-- [x] 文档列出的环境变量与代码 / Nitro 运行时一致；没有把 S3 或管理员密码写成必填环境变量。
+- [x] 文档列出的环境变量与代码 / Nitro 运行时一致；没有把 S3 或管理员密码明文写成必填环境变量。`SHUKKA_PASSWORD_HASH` 可选，只影响首次 setup，初始化后锁定。
+- [x] 写明已有 `scrypt$` 要上只适合 pbkdf2 的运行时须重走 setup，面板不转换。
 - [x] 备份说明包含 SQLite **和** 密钥（默认/`FILEPATH` 下的文件，或 `SHUKKA_ENCRYPTION_KEY` 的值）；只备份其一被标为失败模式。
 - [x] 文档写明密钥三选一：未设则 `{data}/encryption.key` 自动生成；只设 filepath 则只读该文件；只设 value 则不写密钥文件；两新变量同时设、或与弃用别名冲突、或非法 hex，进程不起。
 - [x] 探活用 `GET /api/health`；初始化态仍可用 `GET /api/admin/session`。
@@ -217,6 +221,6 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 
 - 主路径是自建单机 Docker，不是 PaaS 优先。
 - S3 加密密钥默认仍自动生成到数据目录；运维可改用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 或 `SHUKKA_ENCRYPTION_KEY` 二选一（见 `docs/adr/encryption-key-source.md`）。`SHUKKA_KEY_PATH` 保留一个版本作 filepath 别名。
-- 管理员密码只在面板首次设置，不从环境变量注入（与 `docs/adr/auth-model.md` 一致）。
+- 管理员密码只在面板首次设置，不从环境变量注入（与 `docs/adr/auth-model.md` 一致）。口令哈希算法可在 setup 前用 `SHUKKA_PASSWORD_HASH` 选定，初始化后锁定（见 `docs/prd/password-kdf.md`）。
 - Compose / Ansible 示例见 `docs/prd/deploy-examples.md`。健康探针与 GHCR 发布已另立 PRD。
 - Tauri 在反代后 origin 为 http 的问题按运行时限制记录，不发明 `SHUKKA_PUBLIC_URL`。
