@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { brandMetadata } from '@/lib/metadata';
 import { appName } from '@/lib/shared';
-import { RedocClient } from './redoc-client';
+import { ScalarClient } from './scalar-client';
 
 const copy = {
   'zh-CN': {
@@ -33,5 +33,5 @@ export async function generateMetadata(props: PageProps<'/[lang]/api'>): Promise
 
 export default async function ApiReferencePage(props: PageProps<'/[lang]/api'>) {
   const { lang } = await props.params;
-  return <RedocClient locale={lang} />;
+  return <ScalarClient locale={lang} />;
 }

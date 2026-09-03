@@ -26,9 +26,9 @@ npm start          # 运行构建产物
 
 写作纪律：每条命令、URL 路径、环境变量、文件名都必须与主仓库代码一致；内部文档与代码不一致时以代码为准。
 
-## API 参考（Redoc）
+## API 参考（Scalar）
 
-`/api` 路由用 [Redoc](https://github.com/Redocly/redoc)（`RedocStandalone`，客户端渲染）展示 `public/openapi.json`，主题色取自 Shukka 面板 token（`lib/redoc-options.ts`）。
+`/api` 路由用 [Scalar](https://scalar.com/)（`ApiReferenceReact`，客户端渲染）展示 `public/openapi.json`。主题色取自 Shukka 面板 token（`app/global.css` 的 `--scalar-*`），配置在 `lib/scalar-options.ts`。
 
 `public/openapi.json` 是从主仓库的 spec 生成器（`src/server/openapi.ts`）提取的静态快照。主仓库 API 变更后重新生成：
 

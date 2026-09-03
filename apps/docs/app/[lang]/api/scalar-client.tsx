@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { redocDarkOptions, redocLightOptions } from '@/lib/redoc-options';
+import { buildScalarConfiguration } from '@/lib/scalar-options';
+
+import '@scalar/api-reference-react/style.css';
 
 function LoadingLabel({ locale }: { locale: string }) {
   return (
@@ -14,11 +15,12 @@ function LoadingLabel({ locale }: { locale: string }) {
   );
 }
 
-const RedocStandalone = dynamic(async () => (await import('redoc')).RedocStandalone, {
-  ssr: false,
-});
+const ApiReferenceReact = dynamic(
+  async () => (await import('@scalar/api-reference-react')).ApiReferenceReact,
+  { ssr: false },
+);
 
-export function RedocClient({ locale }: { locale: string }) {
+export function ScalarClient({ locale }: { locale: string }) {
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -27,18 +29,26 @@ export function RedocClient({ locale }: { locale: string }) {
     return <LoadingLabel locale={locale} />;
   }
 
-  const options = resolvedTheme === 'dark' ? redocDarkOptions : redocLightOptions;
+  const mode = resolvedTheme === 'dark' ? 'dark' : 'light';
 
   return (
     <>
-      <Link
+      <a
         href={`/${locale}/docs`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.location.assign(`/${locale}/docs`);
+        }}
         className="fixed right-4 top-4 z-[100] rounded-md border border-fd-border bg-fd-card px-3 py-1.5 text-sm text-fd-card-foreground no-underline"
       >
         {locale === 'zh-CN' ? '← 返回文档' : '← Back to docs'}
-      </Link>
-      {/* key forces a remount so redoc re-initializes with the new theme */}
-      <RedocStandalone key={resolvedTheme} specUrl="/openapi.json" options={options} />
+      </a>
+      {/* key forces a remount so Scalar re-initializes with the new theme */}
+      <ApiReferenceReact
+        key={resolvedTheme}
+        configuration={buildScalarConfiguration({ mode, locale })}
+      />
     </>
   );
 }
