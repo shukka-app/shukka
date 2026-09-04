@@ -65,7 +65,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 实例级（列/建 app、登录改密、存储探测）与 API key CRUD 仅 session，不在 key 能力面。
 - 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session，英文）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。JSON 请求/响应形状由 Zod 经 `z.toJSONSchema` 写入文档，与路径、方法、参数名、错误码一样不随语言变化。叙事文案（info、tag、summary、description）可生成 English 与简体中文两份；人类可读文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs) 按站点语言加载对应快照，不在实例内渲染。
 - 制品字节永不经过 Shukka 进程（上传直传 S3，下载 302）。
-- 错误响应统一为 `{ error, message }`，`error` 取自固定码集：`unauthorized`、`forbidden`、`not_found`、`conflict`、`invalid_request`、`storage_error`、`metadata_error`、`rate_limited`。
+- 错误响应统一为 `{ error, message }`，`error` 取自固定码集：`unauthorized`、`forbidden`、`not_found`、`conflict`、`invalid_request`、`storage_error`、`metadata_error`、`rate_limited`。未匹配的 `/api` 路径与已有 `/api` 路由上未实现的 HTTP 方法同样返回该信封的 `not_found`（404），不返回 HTML。
 
 ### Health（无鉴权）
 
