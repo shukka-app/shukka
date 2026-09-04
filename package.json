@@ -1,7 +1,7 @@
 {
   "name": "shukka",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.1.0",
   "license": "MIT",
   "description": "Self-hosted release manager for Electron, Tauri, and Sparkle apps that update through S3",
   "repository": {
