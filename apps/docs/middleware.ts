@@ -41,5 +41,5 @@ export default function middleware(request: NextRequest, event: NextFetchEvent) 
 }
 
 export const config = {
-  matcher: ['/((?!api/search|openapi\\.json|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api/search|openapi[^/]*\\.json|_next/static|_next/image|favicon.ico).*)'],
 };

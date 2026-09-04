@@ -46,7 +46,7 @@ export function ScalarClient({ locale }: { locale: string }) {
       </a>
       {/* key forces a remount so Scalar re-initializes with the new theme */}
       <ApiReferenceReact
-        key={resolvedTheme}
+        key={`${resolvedTheme}-${locale}`}
         configuration={buildScalarConfiguration({ mode, locale })}
       />
     </>
