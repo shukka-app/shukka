@@ -3,7 +3,7 @@ import { requireAppActor, requireSessionApp } from '~/lib/auth.ts'
 import { ShukkaError, handle, textParam } from '~/lib/errors.ts'
 import { changedProtectedFields, deleteApp, updateApp } from '~/server/apps.ts'
 import { appDetailBySlug, publicApp } from '~/server/dashboard.ts'
-import { appInputSchema } from '~/routes/api/admin/apps.ts'
+import { appInputSchema } from '~/server/api-schemas.ts'
 
 export const Route = createFileRoute('/api/v1/apps/$appSlug')({
   server: {

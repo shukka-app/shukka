@@ -1,10 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 import { requireAppActor } from '~/lib/auth.ts'
 import { ShukkaError, handle, textParam } from '~/lib/errors.ts'
+import { createChannelBodySchema } from '~/server/api-schemas.ts'
 import { createChannel, listChannels } from '~/server/channels.ts'
-
-const bodySchema = z.object({ name: z.string().min(1) })
 
 export const Route = createFileRoute('/api/v1/apps/$appSlug/channels')({
   server: {
@@ -15,7 +13,7 @@ export const Route = createFileRoute('/api/v1/apps/$appSlug/channels')({
       }),
       POST: handle(async ({ request, params }) => {
         const { app } = await requireAppActor(request, textParam(params, 'appSlug'))
-        const parsed = bodySchema.safeParse(await request.json().catch(() => null))
+        const parsed = createChannelBodySchema.safeParse(await request.json().catch(() => null))
         if (!parsed.success) throw new ShukkaError('invalid_request', 'Channel name is required')
         return Response.json({ channel: await createChannel(app.id, parsed.data.name) }, { status: 201 })
       }),

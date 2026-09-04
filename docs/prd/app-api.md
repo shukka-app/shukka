@@ -50,7 +50,7 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 - [x] 路径与面板深链只用 slug / channel 名 / version 字符串。
 - [x] 非法 channel 名（含大写、空格、`.` 等）创建失败。
 - [x] 面板无 `/docs` ReDoc 入口；人类文档指向 [`shukka-app/docs`](https://github.com/shukka-app/docs)。
-- [x] `GET /api/v1/openapi.json` 仍为 session 可取的机器可读契约。
+- [x] `GET /api/v1/openapi.json` 仍为 session 可取的机器可读契约，JSON 请求/响应带 schema。
 
 ## Resolved product decisions
 

@@ -11,7 +11,7 @@
 3. **实例级仍分离**（仅 session）：setup / login / logout / session / password、列与创建 app、存储探测、该 app 的 API key CRUD。
 4. **对外标识**：slug、channel name、version 字符串。表内整数 PK 仅作 FK。面板路由改为 `/apps/{appSlug}`。
 5. **Channel name**：`^[a-z0-9][a-z0-9_-]{0,62}$`（收紧既有规则：去掉 `.`，保留数字与 `_`）。非法名 `invalid_request`。
-6. **OpenAPI** 描述 v1 契约中 API key（或 session）可调用的操作，以及公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在公开 API 文档中。机器可读契约为 `GET /api/v1/openapi.json`（session）。人类文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)。应用内不再提供 HTML 渲染器（见已 superseded 的 `docs/adr/docs-renderer.md`）。
+6. **OpenAPI** 描述 v1 契约中 API key（或 session）可调用的操作，以及公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在公开 API 文档中。机器可读契约为 `GET /api/v1/openapi.json`（session），请求/响应 JSON Schema 由 Zod 经 `z.toJSONSchema` 生成。人类文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)。应用内不再提供 HTML 渲染器（见已 superseded 的 `docs/adr/docs-renderer.md`）。
 
 ## Alternatives
 
@@ -26,4 +26,4 @@ A leaked app-scoped API key must not steer server-originated signed S3 probes or
 
 - 改 app slug 后旧 `/apps/{old}` 与旧 API 路径 404；调用方需用新 slug。
 - Key 与 session 打同一 URL，授权矩阵必须单测，避免 key 摸到管 key / 删 app。
-- OpenAPI 与实现漂移由测试（契约或路由表）兜住，不另做代码生成框架（实现期可选用 zod → OpenAPI）。
+- OpenAPI 与实现漂移由测试（契约或路由表）兜住，不另做代码生成框架。请求/响应 JSON Schema 由同一份 Zod（`src/server/api-schemas.ts`）经 `z.toJSONSchema` 写入 `openApiDocument()`。

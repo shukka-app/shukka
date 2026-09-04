@@ -1,14 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
 import { requireAppActor } from '~/lib/auth.ts'
 import { ShukkaError, handle, textParam } from '~/lib/errors.ts'
+import { notesConfigSchema } from '~/server/api-schemas.ts'
 import { updateNotesConfig } from '~/server/release-notes.ts'
-
-const notesConfigSchema = z.object({
-  enabled: z.boolean(),
-  locales: z.array(z.string().min(1)),
-  fallbackLocale: z.string().min(1),
-})
 
 /** Dedicated save path: never touches S3 settings, so no storage probe (ADR: release-log). */
 export const Route = createFileRoute('/api/v1/apps/$appSlug/notes-config')({

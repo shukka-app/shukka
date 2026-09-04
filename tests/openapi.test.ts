@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 const { db } = await import('~/db/index.ts')
 const { admin, sessions } = await import('~/db/schema.ts')
 const auth = await import('~/lib/auth.ts')
+const { openApiDocument } = await import('~/server/openapi.ts')
 const openapiRoute = await import('~/routes/api/v1/openapi[.]json.ts')
 
 type ServerRoute = {
@@ -57,6 +58,39 @@ describe('GET /api/v1/openapi.json', () => {
     expect(body.openapi).toBe('3.1.0')
     expect(body.paths['/api/v1/apps/{appSlug}']).toBeTruthy()
     expect(body.paths['/api/v1/upload/init']).toBeTruthy()
+  })
+})
+
+describe('openApiDocument schemas', () => {
+  const doc = openApiDocument('https://shukka.test')
+
+  it('gives every 2xx JSON response a schema', () => {
+    for (const [path, methods] of Object.entries(doc.paths)) {
+      for (const [method, operation] of Object.entries(methods as Record<string, { responses?: Record<string, { content?: Record<string, { schema?: unknown }> }> }>)) {
+        for (const [status, response] of Object.entries(operation.responses ?? {})) {
+          if (!status.startsWith('2') || status === '204') continue
+          const json = response.content?.['application/json']
+          expect(json?.schema, `${method.toUpperCase()} ${path} ${status}`).toBeTruthy()
+        }
+      }
+    }
+  })
+
+  it('documents upload init and app detail response fields', () => {
+    const init = doc.paths['/api/v1/upload/init'].post.responses['200'].content['application/json'].schema as {
+      required?: string[]
+      properties?: Record<string, unknown>
+    }
+    expect(init.required).toEqual(expect.arrayContaining(['uploadId', 'expiresAt', 'files']))
+    expect(init.properties?.files).toBeTruthy()
+
+    const detail = doc.paths['/api/v1/apps/{appSlug}'].get.responses['200'].content['application/json'].schema as {
+      required?: string[]
+      properties?: Record<string, { properties?: Record<string, unknown> }>
+    }
+    expect(detail.required).toEqual(expect.arrayContaining(['app', 'channels']))
+    expect(detail.properties?.app?.properties?.slug).toBeTruthy()
+    expect(detail.properties?.keys).toBeTruthy()
   })
 })
 

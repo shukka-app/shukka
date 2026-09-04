@@ -4,7 +4,73 @@
  * protocol, and the public no-auth feed and notes. Session-only admin
  * operations (delete app, API key lifecycle, instance-level routes) are
  * intentionally omitted (ADR: app-api-v1).
+ *
+ * Request and response schemas come from Zod via `z.toJSONSchema`.
  */
+import { z } from 'zod'
+import {
+  appDetailResponseSchema,
+  appInputSchema,
+  appUpdateResponseSchema,
+  channelCreateResponseSchema,
+  channelListResponseSchema,
+  channelTrendResponseSchema,
+  createChannelBodySchema,
+  editorNotesResponseSchema,
+  errorSchema,
+  notesConfigResponseSchema,
+  notesConfigSchema,
+  okResponseSchema,
+  publicNotesResponseSchema,
+  savedNoteResponseSchema,
+  setCurrentVersionBodySchema,
+  tauriFeedSchema,
+  uploadFinalizeBodySchema,
+  uploadFinalizeResponseSchema,
+  uploadInitBodySchema,
+  uploadInitResponseSchema,
+  upsertNoteBodySchema,
+  versionTrendResponseSchema,
+} from './api-schemas.ts'
+
+type JsonSchema = Record<string, unknown>
+
+function stripSafeIntBounds(value: unknown): void {
+  if (!value || typeof value !== 'object') return
+  const rec = value as Record<string, unknown>
+  if (rec.type === 'integer' && rec.minimum === Number.MIN_SAFE_INTEGER && rec.maximum === Number.MAX_SAFE_INTEGER) {
+    delete rec.minimum
+    delete rec.maximum
+  }
+  for (const nested of Object.values(rec)) {
+    if (Array.isArray(nested)) nested.forEach(stripSafeIntBounds)
+    else stripSafeIntBounds(nested)
+  }
+}
+
+function jsonSchema(schema: z.ZodType, io: 'input' | 'output' = 'output'): JsonSchema {
+  const json = z.toJSONSchema(schema, { io }) as JsonSchema
+  delete json.$schema
+  stripSafeIntBounds(json)
+  return json
+}
+
+function jsonContent(schema: z.ZodType, io: 'input' | 'output' = 'output') {
+  return { 'application/json': { schema: jsonSchema(schema, io) } }
+}
+
+function jsonResponse(description: string, schema: z.ZodType) {
+  return { description, content: jsonContent(schema) }
+}
+
+function jsonBody(schema: z.ZodType) {
+  return { required: true, content: jsonContent(schema, 'input') }
+}
+
+const errorContent = jsonContent(errorSchema)
+const notFound = { description: 'Missing or draft', content: errorContent }
+const artifactMissing = { description: 'Missing version or file', content: errorContent }
+
 export function openApiDocument(origin: string) {
   const server = origin.replace(/\/+$/, '')
   return {
@@ -29,6 +95,9 @@ export function openApiDocument(origin: string) {
         apiKey: { type: 'http', scheme: 'bearer', bearerFormat: 'shk_' },
         session: { type: 'apiKey', in: 'cookie', name: 'shukka_session' },
       },
+      schemas: {
+        Error: jsonSchema(errorSchema),
+      },
     },
     security: [{ apiKey: [] }, { session: [] }],
     paths: {
@@ -37,7 +106,7 @@ export function openApiDocument(origin: string) {
           tags: ['App'],
           summary: 'App detail (channels, versions, keys)',
           parameters: [slugParam],
-          responses: { '200': { description: 'App detail' } },
+          responses: { '200': jsonResponse('App detail', appDetailResponseSchema) },
         },
         patch: {
           tags: ['App'],
@@ -45,7 +114,8 @@ export function openApiDocument(origin: string) {
           description:
             'API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.',
           parameters: [slugParam],
-          responses: { '200': { description: 'Updated app' } },
+          requestBody: jsonBody(appInputSchema),
+          responses: { '200': jsonResponse('Updated app', appUpdateResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels': {
@@ -53,16 +123,14 @@ export function openApiDocument(origin: string) {
           tags: ['Channels'],
           summary: 'List channels',
           parameters: [slugParam],
-          responses: { '200': { description: 'Channel list' } },
+          responses: { '200': jsonResponse('Channel list', channelListResponseSchema) },
         },
         post: {
           tags: ['Channels'],
           summary: 'Create a channel',
           parameters: [slugParam],
-          requestBody: {
-            content: { 'application/json': { schema: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } } } },
-          },
-          responses: { '201': { description: 'Created' } },
+          requestBody: jsonBody(createChannelBodySchema),
+          responses: { '201': jsonResponse('Created', channelCreateResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}': {
@@ -70,24 +138,14 @@ export function openApiDocument(origin: string) {
           tags: ['Channels'],
           summary: 'Set currentVersion (promote draft or rollback)',
           parameters: [slugParam, channelParam],
-          requestBody: {
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['currentVersion'],
-                  properties: { currentVersion: { type: 'string', nullable: true, description: 'Version string, or null to clear current' } },
-                },
-              },
-            },
-          },
-          responses: { '200': { description: 'Updated' } },
+          requestBody: jsonBody(setCurrentVersionBodySchema),
+          responses: { '200': jsonResponse('Updated', okResponseSchema) },
         },
         delete: {
           tags: ['Channels'],
           summary: 'Delete a channel and its objects',
           parameters: [slugParam, channelParam],
-          responses: { '200': { description: 'Deleted' } },
+          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/trend': {
@@ -95,7 +153,7 @@ export function openApiDocument(origin: string) {
           tags: ['Channels'],
           summary: 'Channel hit trend',
           parameters: [slugParam, channelParam, { name: 'range', in: 'query', schema: { type: 'integer', enum: [7, 30, 90] } }],
-          responses: { '200': { description: 'Trend series' } },
+          responses: { '200': jsonResponse('Trend series', channelTrendResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}': {
@@ -103,7 +161,7 @@ export function openApiDocument(origin: string) {
           tags: ['Versions'],
           summary: 'Delete a version and its objects',
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': { description: 'Deleted' } },
+          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/artifacts/{filename}': {
@@ -116,7 +174,10 @@ export function openApiDocument(origin: string) {
             versionParam,
             { name: 'filename', in: 'path', required: true, schema: { type: 'string' } },
           ],
-          responses: { '302': { description: 'Redirect to storage' }, '404': { description: 'Missing version or file' } },
+          responses: {
+            '302': { description: 'Redirect to storage' },
+            '404': artifactMissing,
+          },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend': {
@@ -124,7 +185,7 @@ export function openApiDocument(origin: string) {
           tags: ['Versions'],
           summary: 'Version hit trend (empty for drafts)',
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': { description: 'Trend series' } },
+          responses: { '200': jsonResponse('Trend series', versionTrendResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes': {
@@ -132,7 +193,7 @@ export function openApiDocument(origin: string) {
           tags: ['Notes'],
           summary: 'Editor read model — every locale for one version',
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': { description: 'Notes' } },
+          responses: { '200': jsonResponse('Notes', editorNotesResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}': {
@@ -140,16 +201,14 @@ export function openApiDocument(origin: string) {
           tags: ['Notes'],
           summary: 'Upsert a locale note',
           parameters: [slugParam, channelParam, versionParam, localeParam],
-          requestBody: {
-            content: { 'application/json': { schema: { type: 'object', required: ['markdown'], properties: { markdown: { type: 'string' } } } } },
-          },
-          responses: { '200': { description: 'Saved note' } },
+          requestBody: jsonBody(upsertNoteBodySchema),
+          responses: { '200': jsonResponse('Saved note', savedNoteResponseSchema) },
         },
         delete: {
           tags: ['Notes'],
           summary: 'Delete a locale note',
           parameters: [slugParam, channelParam, versionParam, localeParam],
-          responses: { '200': { description: 'Deleted' } },
+          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/notes': {
@@ -164,7 +223,7 @@ export function openApiDocument(origin: string) {
             { name: 'to', in: 'query', schema: { type: 'string' } },
             { name: 'locale', in: 'query', schema: { type: 'string' } },
           ],
-          responses: { '200': { description: 'Public notes' } },
+          responses: { '200': jsonResponse('Public notes', publicNotesResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/notes-config': {
@@ -172,7 +231,8 @@ export function openApiDocument(origin: string) {
           tags: ['Notes'],
           summary: 'Save release-log config (no S3 probe)',
           parameters: [slugParam],
-          responses: { '200': { description: 'Saved config' } },
+          requestBody: jsonBody(notesConfigSchema),
+          responses: { '200': jsonResponse('Saved config', notesConfigResponseSchema) },
         },
       },
       '/api/v1/upload/init': {
@@ -181,35 +241,8 @@ export function openApiDocument(origin: string) {
           summary:
             'Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).',
           security: [{ apiKey: [] }],
-          requestBody: {
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['channel', 'version', 'files'],
-                  properties: {
-                    app: { type: 'string' },
-                    channel: { type: 'string' },
-                    version: { type: 'string' },
-                    createChannel: { type: 'boolean' },
-                    files: {
-                      type: 'array',
-                      minItems: 1,
-                      items: {
-                        type: 'object',
-                        required: ['filename'],
-                        properties: {
-                          filename: { type: 'string' },
-                          size: { type: 'integer', minimum: 0 },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: { '200': { description: 'uploadId and presigned PUT URLs' } },
+          requestBody: jsonBody(uploadInitBodySchema),
+          responses: { '200': jsonResponse('uploadId and presigned PUT URLs', uploadInitResponseSchema) },
         },
       },
       '/api/v1/upload/finalize': {
@@ -217,22 +250,8 @@ export function openApiDocument(origin: string) {
           tags: ['Upload'],
           summary: 'Create a version. Default is draft; `release: true` goes live.',
           security: [{ apiKey: [] }],
-          requestBody: {
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['uploadId'],
-                  properties: {
-                    uploadId: { type: 'string' },
-                    app: { type: 'string' },
-                    release: { type: 'boolean', default: false },
-                  },
-                },
-              },
-            },
-          },
-          responses: { '200': { description: 'Version created' } },
+          requestBody: jsonBody(uploadFinalizeBodySchema),
+          responses: { '200': jsonResponse('Version created', uploadFinalizeResponseSchema) },
         },
       },
       '/api/update/{appSlug}/{channel}': {
@@ -241,7 +260,10 @@ export function openApiDocument(origin: string) {
           summary: 'Channel-root feed. Tauri returns JSON; Sparkle returns a one-item appcast.',
           security: [],
           parameters: [slugParam, channelParam],
-          responses: { '200': { description: 'Generated feed document' }, '404': { description: 'Missing or draft' } },
+          responses: {
+            '200': feedDocumentResponse,
+            '404': notFound,
+          },
         },
       },
       '/api/update/{appSlug}/{channel}/{filename}': {
@@ -250,11 +272,24 @@ export function openApiDocument(origin: string) {
           summary: 'Public feed — Electron yml / Tauri latest.json / Sparkle appcast, artifacts 302. Drafts are 404.',
           security: [],
           parameters: [slugParam, channelParam, { name: 'filename', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'Metadata body' }, '302': { description: 'Artifact redirect' }, '404': { description: 'Missing or draft' } },
+          responses: {
+            '200': feedDocumentResponse,
+            '302': { description: 'Artifact redirect' },
+            '404': notFound,
+          },
         },
       },
     },
   }
+}
+
+const feedDocumentResponse = {
+  description: 'Generated feed document',
+  content: {
+    'application/json': { schema: jsonSchema(tauriFeedSchema) },
+    'text/yaml': { schema: { type: 'string' } },
+    'application/xml': { schema: { type: 'string' } },
+  },
 }
 
 const slugParam = { name: 'appSlug', in: 'path' as const, required: true, schema: { type: 'string' } }
