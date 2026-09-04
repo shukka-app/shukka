@@ -21,7 +21,7 @@
     },
     {
       "name": "Versions",
-      "description": "Delete a version; read its notes and trend."
+      "description": "Delete a version; read its notes and trend; download an artifact."
     },
     {
       "name": "Notes",
@@ -47,6 +47,35 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "shukka_session"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "unauthorized",
+              "forbidden",
+              "not_found",
+              "conflict",
+              "invalid_request",
+              "storage_error",
+              "metadata_error",
+              "rate_limited"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {}
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -77,7 +106,283 @@
         ],
         "responses": {
           "200": {
-            "description": "App detail"
+            "description": "App detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "s3Endpoint": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "s3Region": {
+                          "type": "string"
+                        },
+                        "s3Bucket": {
+                          "type": "string"
+                        },
+                        "s3Prefix": {
+                          "type": "string"
+                        },
+                        "s3AccessKeyId": {
+                          "type": "string"
+                        },
+                        "s3ForcePathStyle": {
+                          "type": "boolean"
+                        },
+                        "releaseLogEnabled": {
+                          "type": "boolean"
+                        },
+                        "releaseLogLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "releaseLogFallbackLocale": {
+                          "type": "string"
+                        },
+                        "updaterKind": {
+                          "type": "string",
+                          "enum": [
+                            "electron",
+                            "tauri",
+                            "sparkle"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "s3Endpoint",
+                        "s3Region",
+                        "s3Bucket",
+                        "s3Prefix",
+                        "s3AccessKeyId",
+                        "s3ForcePathStyle",
+                        "releaseLogEnabled",
+                        "releaseLogLocales",
+                        "releaseLogFallbackLocale",
+                        "updaterKind",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "currentVersionId": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "feedUrl": {
+                            "type": "string"
+                          },
+                          "versions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "appId": {
+                                  "type": "integer"
+                                },
+                                "channelId": {
+                                  "type": "integer"
+                                },
+                                "version": {
+                                  "type": "string"
+                                },
+                                "createdAt": {
+                                  "type": "integer"
+                                },
+                                "releasedAt": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "metadataHits": {
+                                  "type": "integer"
+                                },
+                                "artifactHits": {
+                                  "type": "integer"
+                                },
+                                "isDraft": {
+                                  "type": "boolean"
+                                },
+                                "isCurrent": {
+                                  "type": "boolean"
+                                },
+                                "artifacts": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "integer"
+                                      },
+                                      "versionId": {
+                                        "type": "integer"
+                                      },
+                                      "filename": {
+                                        "type": "string"
+                                      },
+                                      "s3Key": {
+                                        "type": "string"
+                                      },
+                                      "size": {
+                                        "type": "integer"
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "enum": [
+                                          "metadata",
+                                          "artifact"
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "versionId",
+                                      "filename",
+                                      "s3Key",
+                                      "size",
+                                      "kind"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "appId",
+                                "channelId",
+                                "version",
+                                "createdAt",
+                                "releasedAt",
+                                "metadataHits",
+                                "artifactHits",
+                                "isDraft",
+                                "isCurrent",
+                                "artifacts"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "currentVersionId",
+                          "feedUrl",
+                          "versions"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "keys": {
+                      "description": "Present only for session actors; omitted when authenticated with an API key.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "hint": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "integer"
+                          },
+                          "lastUsedAt": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "revokedAt": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "hint",
+                          "createdAt",
+                          "lastUsedAt",
+                          "revokedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "app",
+                    "channels"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -86,6 +391,7 @@
           "App"
         ],
         "summary": "Update app settings (probes S3)",
+        "description": "API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.",
         "parameters": [
           {
             "name": "appSlug",
@@ -96,9 +402,172 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "slug": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "s3Endpoint": {
+                    "default": null,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "s3Region": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "s3Bucket": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "s3Prefix": {
+                    "default": "",
+                    "type": "string"
+                  },
+                  "s3AccessKeyId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "s3SecretAccessKey": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "s3ForcePathStyle": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "updaterKind": {
+                    "type": "string",
+                    "enum": [
+                      "electron",
+                      "tauri",
+                      "sparkle"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug",
+                  "s3Region",
+                  "s3Bucket",
+                  "s3AccessKeyId"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Updated app"
+            "description": "Updated app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "app": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "s3Endpoint": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "s3Region": {
+                          "type": "string"
+                        },
+                        "s3Bucket": {
+                          "type": "string"
+                        },
+                        "s3Prefix": {
+                          "type": "string"
+                        },
+                        "s3AccessKeyId": {
+                          "type": "string"
+                        },
+                        "s3ForcePathStyle": {
+                          "type": "boolean"
+                        },
+                        "releaseLogEnabled": {
+                          "type": "boolean"
+                        },
+                        "releaseLogLocales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "releaseLogFallbackLocale": {
+                          "type": "string"
+                        },
+                        "updaterKind": {
+                          "type": "string",
+                          "enum": [
+                            "electron",
+                            "tauri",
+                            "sparkle"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "s3Endpoint",
+                        "s3Region",
+                        "s3Bucket",
+                        "s3Prefix",
+                        "s3AccessKeyId",
+                        "s3ForcePathStyle",
+                        "releaseLogEnabled",
+                        "releaseLogLocales",
+                        "releaseLogFallbackLocale",
+                        "updaterKind",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "app"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -121,7 +590,58 @@
         ],
         "responses": {
           "200": {
-            "description": "Channel list"
+            "description": "Channel list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "appId": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "currentVersionId": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "createdAt": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "appId",
+                          "name",
+                          "currentVersionId",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "channels"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -141,25 +661,75 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name"
-                ],
                 "properties": {
                   "name": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   }
-                }
+                },
+                "required": [
+                  "name"
+                ]
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "channel": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "appId": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "currentVersionId": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "appId",
+                        "name",
+                        "currentVersionId",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "channel"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -189,27 +759,52 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "currentVersion"
-                ],
                 "properties": {
                   "currentVersion": {
-                    "type": "string",
-                    "nullable": true,
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
                     "description": "Version string, or null to clear current"
                   }
-                }
+                },
+                "required": [
+                  "currentVersion"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Updated"
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -238,7 +833,24 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -281,7 +893,51 @@
         ],
         "responses": {
           "200": {
-            "description": "Trend series"
+            "description": "Trend series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "granularity": {
+                      "type": "string",
+                      "enum": [
+                        "hour",
+                        "day"
+                      ]
+                    },
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "t": {
+                            "type": "integer"
+                          },
+                          "metadata": {
+                            "type": "integer"
+                          },
+                          "artifact": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "t",
+                          "metadata",
+                          "artifact"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "granularity",
+                    "points"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -320,7 +976,105 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/artifacts/{filename}": {
+      "get": {
+        "tags": [
+          "Versions"
+        ],
+        "summary": "Presigned GET for one artifact on that version (drafts included). Does not increment hits.",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to storage"
+          },
+          "404": {
+            "description": "Missing version or file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "invalid_request",
+                        "storage_error",
+                        "metadata_error",
+                        "rate_limited"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -359,7 +1113,43 @@
         ],
         "responses": {
           "200": {
-            "description": "Trend series"
+            "description": "Trend series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "t": {
+                            "type": "integer"
+                          },
+                          "metadata": {
+                            "type": "integer"
+                          },
+                          "artifact": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "t",
+                          "metadata",
+                          "artifact"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "points"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -398,7 +1188,55 @@
         ],
         "responses": {
           "200": {
-            "description": "Notes"
+            "description": "Notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "locale": {
+                            "type": "string"
+                          },
+                          "markdown": {
+                            "type": "string"
+                          },
+                          "html": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "integer"
+                          },
+                          "versionId": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "locale",
+                          "markdown",
+                          "html",
+                          "text",
+                          "id",
+                          "versionId"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -444,25 +1282,72 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "markdown"
-                ],
                 "properties": {
                   "markdown": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   }
-                }
+                },
+                "required": [
+                  "markdown"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Saved note"
+            "description": "Saved note",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "note": {
+                      "type": "object",
+                      "properties": {
+                        "locale": {
+                          "type": "string"
+                        },
+                        "markdown": {
+                          "type": "string"
+                        },
+                        "html": {
+                          "type": "string"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "integer"
+                        },
+                        "versionId": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "locale",
+                        "markdown",
+                        "html",
+                        "text",
+                        "id",
+                        "versionId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "note"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       },
@@ -507,7 +1392,24 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -560,7 +1462,55 @@
         ],
         "responses": {
           "200": {
-            "description": "Public notes"
+            "description": "Public notes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "locale": {
+                            "type": "string"
+                          },
+                          "markdown": {
+                            "type": "string"
+                          },
+                          "html": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "string"
+                          },
+                          "releasedAt": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "locale",
+                          "markdown",
+                          "html",
+                          "text",
+                          "version",
+                          "releasedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -581,9 +1531,78 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "locales": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "fallbackLocale": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "enabled",
+                  "locales",
+                  "fallbackLocale"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Saved config"
+            "description": "Saved config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "releaseLog": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "locales": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "fallbackLocale": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "locales",
+                        "fallbackLocale"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "releaseLog"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -593,15 +1612,111 @@
         "tags": [
           "Upload"
         ],
-        "summary": "Start a pending upload",
+        "summary": "Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).",
         "security": [
           {
             "apiKey": []
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "app": {
+                    "type": "string"
+                  },
+                  "channel": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "createChannel": {
+                    "type": "boolean"
+                  },
+                  "files": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "filename": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "size": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "filename"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "channel",
+                  "version",
+                  "files"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "uploadId and presigned PUT URLs"
+            "description": "uploadId and presigned PUT URLs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uploadId": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "integer"
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "filename": {
+                            "type": "string"
+                          },
+                          "key": {
+                            "type": "string"
+                          },
+                          "uploadUrl": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "filename",
+                          "key",
+                          "uploadUrl"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "uploadId",
+                    "expiresAt",
+                    "files"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -618,32 +1733,85 @@
           }
         ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "uploadId"
-                ],
                 "properties": {
                   "uploadId": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                   },
                   "app": {
                     "type": "string"
                   },
                   "release": {
-                    "type": "boolean",
-                    "default": false
+                    "type": "boolean"
                   }
-                }
+                },
+                "required": [
+                  "uploadId"
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Version created"
+            "description": "Version created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "versionId": {
+                      "type": "integer"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "artifacts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "filename": {
+                            "type": "string"
+                          },
+                          "size": {
+                            "type": "integer"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "metadata",
+                              "artifact"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "filename",
+                          "size",
+                          "kind"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "versionId",
+                    "version",
+                    "channel",
+                    "artifacts"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -653,7 +1821,7 @@
         "tags": [
           "Feed"
         ],
-        "summary": "Channel-root feed. Tauri apps return static updater JSON here.",
+        "summary": "Channel-root feed. Tauri returns JSON; Sparkle returns a one-item appcast.",
         "security": [],
         "parameters": [
           {
@@ -675,10 +1843,94 @@
         ],
         "responses": {
           "200": {
-            "description": "Generated feed document"
+            "description": "Generated feed document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string"
+                    },
+                    "pub_date": {
+                      "type": "string"
+                    },
+                    "platforms": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "signature": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "signature"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "pub_date",
+                    "platforms"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "text/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "404": {
-            "description": "Missing or draft"
+            "description": "Missing or draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "invalid_request",
+                        "storage_error",
+                        "metadata_error",
+                        "rate_limited"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
@@ -688,7 +1940,7 @@
         "tags": [
           "Feed"
         ],
-        "summary": "Public feed — Electron yml / Tauri latest.json inline, artifacts 302. Drafts are 404.",
+        "summary": "Public feed — Electron yml / Tauri latest.json / Sparkle appcast, artifacts 302. Drafts are 404.",
         "security": [],
         "parameters": [
           {
@@ -718,13 +1970,97 @@
         ],
         "responses": {
           "200": {
-            "description": "Metadata body"
+            "description": "Generated feed document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string"
+                    },
+                    "pub_date": {
+                      "type": "string"
+                    },
+                    "platforms": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "signature": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "signature"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "pub_date",
+                    "platforms"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "text/yaml": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "302": {
             "description": "Artifact redirect"
           },
           "404": {
-            "description": "Missing or draft"
+            "description": "Missing or draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "invalid_request",
+                        "storage_error",
+                        "metadata_error",
+                        "rate_limited"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
           }
         }
       }
