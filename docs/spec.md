@@ -63,7 +63,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `GET .../channels/{channel}/versions/{version}/artifacts/{filename}`：对该版本（含 draft）已存文件 302 到短时效 S3 URL；不计入命中。文件不在该版本上 → 404。公开 feed 的 draft≡404 与命中规则不变。
 - `PATCH .../channels/{channel}` 设 `currentVersion`：目标为 draft 时在同一事务写入 `releasedAt` 再切指针（promote）；目标为已发布版本则只切指针（回滚）。
 - 实例级（列/建 app、登录改密、存储探测）与 API key CRUD 仅 session，不在 key 能力面。
-- 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。JSON 请求/响应形状由 Zod 经 `z.toJSONSchema` 写入文档。人类可读文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)，不在实例内渲染。
+- 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session，英文）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。JSON 请求/响应形状由 Zod 经 `z.toJSONSchema` 写入文档，与路径、方法、参数名、错误码一样不随语言变化。叙事文案（info、tag、summary、description）可生成 English 与简体中文两份；人类可读文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs) 按站点语言加载对应快照，不在实例内渲染。
 - 制品字节永不经过 Shukka 进程（上传直传 S3，下载 302）。
 - 错误响应统一为 `{ error, message }`，`error` 取自固定码集：`unauthorized`、`forbidden`、`not_found`、`conflict`、`invalid_request`、`storage_error`、`metadata_error`、`rate_limited`。
 
@@ -186,6 +186,9 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Metadata SQLite is libsql (`@libsql/client` + `drizzle-orm/libsql`); Node
   uses `file:`, isolates use the web client and do not migrate in-process
   (`docs/prd/libsql-async.md`, `docs/adr/libsql-async.md`).
+- OpenAPI narrative copy is English + Simplified Chinese; the live
+  `GET /api/v1/openapi.json` stays English
+  (`docs/prd/openapi-i18n.md`, `docs/adr/openapi-locale.md`).
 - Dual runtime: Node/Nitro self-host stays the recommended Docker path;
   Cloudflare Workers is a second full-panel deploy (`docs/prd/dual-runtime.md`,
   `docs/adr/dual-runtime.md`). Worker requires `SHUKKA_DB_URL` and

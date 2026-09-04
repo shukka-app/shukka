@@ -6,6 +6,7 @@
  * intentionally omitted (ADR: app-api-v1).
  *
  * Request and response schemas come from Zod via `z.toJSONSchema`.
+ * Narrative copy is locale-parameterized (ADR: openapi-locale).
  */
 import { z } from 'zod'
 import {
@@ -32,6 +33,9 @@ import {
   upsertNoteBodySchema,
   versionTrendResponseSchema,
 } from './api-schemas.ts'
+import { openApiCopy, type OpenApiLocale } from './openapi-copy.ts'
+
+export type { OpenApiLocale }
 
 type JsonSchema = Record<string, unknown>
 
@@ -67,28 +71,36 @@ function jsonBody(schema: z.ZodType) {
   return { required: true, content: jsonContent(schema, 'input') }
 }
 
-const errorContent = jsonContent(errorSchema)
-const notFound = { description: 'Missing or draft', content: errorContent }
-const artifactMissing = { description: 'Missing version or file', content: errorContent }
-
-export function openApiDocument(origin: string) {
+export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
+  const t = openApiCopy(locale)
   const server = origin.replace(/\/+$/, '')
+  const errorContent = jsonContent(errorSchema)
+  const notFound = { description: t.responses.notFound, content: errorContent }
+  const artifactMissing = { description: t.responses.artifactMissing, content: errorContent }
+  const feedDocumentResponse = {
+    description: t.responses.feedDocument,
+    content: {
+      'application/json': { schema: jsonSchema(tauriFeedSchema) },
+      'text/yaml': { schema: { type: 'string' } },
+      'application/xml': { schema: { type: 'string' } },
+    },
+  }
+
   return {
     openapi: '3.1.0',
     info: {
-      title: 'Shukka API',
+      title: t.info.title,
       version: '1.0.0',
-      description:
-        'Operations an API key (or panel session) can call under `/api/v1/apps/{appSlug}`, the upload protocol, and the public no-auth feed. Session-only admin operations (delete the app, API key lifecycle, instance-level routes under `/api/admin`) are not documented here.',
+      description: t.info.description,
     },
     servers: [{ url: server }],
     tags: [
-      { name: 'App', description: 'Read and update one app.' },
-      { name: 'Channels', description: 'Channels and current-version promote / rollback.' },
-      { name: 'Versions', description: 'Delete a version; read its notes and trend; download an artifact.' },
-      { name: 'Notes', description: 'Per-version release notes (editor) and public read.' },
-      { name: 'Upload', description: 'Presigned direct upload; defaults to draft.' },
-      { name: 'Feed', description: 'Public update feed (Electron yml or Tauri JSON) — no auth.' },
+      { name: t.tags.app.name, description: t.tags.app.description },
+      { name: t.tags.channels.name, description: t.tags.channels.description },
+      { name: t.tags.versions.name, description: t.tags.versions.description },
+      { name: t.tags.notes.name, description: t.tags.notes.description },
+      { name: t.tags.upload.name, description: t.tags.upload.description },
+      { name: t.tags.feed.name, description: t.tags.feed.description },
     ],
     components: {
       securitySchemes: {
@@ -103,71 +115,70 @@ export function openApiDocument(origin: string) {
     paths: {
       '/api/v1/apps/{appSlug}': {
         get: {
-          tags: ['App'],
-          summary: 'App detail (channels, versions, keys)',
+          tags: [t.tags.app.name],
+          summary: t.ops.getApp.summary,
           parameters: [slugParam],
-          responses: { '200': jsonResponse('App detail', appDetailResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.appDetail, appDetailResponseSchema) },
         },
         patch: {
-          tags: ['App'],
-          summary: 'Update app settings (probes S3)',
-          description:
-            'API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.',
+          tags: [t.tags.app.name],
+          summary: t.ops.patchApp.summary,
+          description: t.ops.patchApp.description,
           parameters: [slugParam],
           requestBody: jsonBody(appInputSchema),
-          responses: { '200': jsonResponse('Updated app', appUpdateResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.updatedApp, appUpdateResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels': {
         get: {
-          tags: ['Channels'],
-          summary: 'List channels',
+          tags: [t.tags.channels.name],
+          summary: t.ops.listChannels.summary,
           parameters: [slugParam],
-          responses: { '200': jsonResponse('Channel list', channelListResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.channelList, channelListResponseSchema) },
         },
         post: {
-          tags: ['Channels'],
-          summary: 'Create a channel',
+          tags: [t.tags.channels.name],
+          summary: t.ops.createChannel.summary,
           parameters: [slugParam],
           requestBody: jsonBody(createChannelBodySchema),
-          responses: { '201': jsonResponse('Created', channelCreateResponseSchema) },
+          responses: { '201': jsonResponse(t.responses.created, channelCreateResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}': {
         patch: {
-          tags: ['Channels'],
-          summary: 'Set currentVersion (promote draft or rollback)',
+          tags: [t.tags.channels.name],
+          summary: t.ops.setCurrent.summary,
           parameters: [slugParam, channelParam],
           requestBody: jsonBody(setCurrentVersionBodySchema),
-          responses: { '200': jsonResponse('Updated', okResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.updated, okResponseSchema) },
         },
         delete: {
-          tags: ['Channels'],
-          summary: 'Delete a channel and its objects',
+          tags: [t.tags.channels.name],
+          summary: t.ops.deleteChannel.summary,
           parameters: [slugParam, channelParam],
-          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/trend': {
         get: {
-          tags: ['Channels'],
-          summary: 'Channel hit trend',
+          tags: [t.tags.channels.name],
+          summary: t.ops.channelTrend.summary,
           parameters: [slugParam, channelParam, { name: 'range', in: 'query', schema: { type: 'integer', enum: [7, 30, 90] } }],
-          responses: { '200': jsonResponse('Trend series', channelTrendResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.trendSeries, channelTrendResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}': {
         delete: {
-          tags: ['Versions'],
-          summary: 'Delete a version and its objects',
+          tags: [t.tags.versions.name],
+          summary: t.ops.deleteVersion.summary,
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/artifacts/{filename}': {
         get: {
-          tags: ['Versions'],
-          summary: 'Presigned GET for one artifact on that version (drafts included). Does not increment hits.',
+          tags: [t.tags.versions.name],
+          summary: t.ops.getArtifact.summary,
           parameters: [
             slugParam,
             channelParam,
@@ -175,46 +186,46 @@ export function openApiDocument(origin: string) {
             { name: 'filename', in: 'path', required: true, schema: { type: 'string' } },
           ],
           responses: {
-            '302': { description: 'Redirect to storage' },
+            '302': { description: t.responses.redirectToStorage },
             '404': artifactMissing,
           },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend': {
         get: {
-          tags: ['Versions'],
-          summary: 'Version hit trend (empty for drafts)',
+          tags: [t.tags.versions.name],
+          summary: t.ops.versionTrend.summary,
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': jsonResponse('Trend series', versionTrendResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.trendSeries, versionTrendResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes': {
         get: {
-          tags: ['Notes'],
-          summary: 'Editor read model — every locale for one version',
+          tags: [t.tags.notes.name],
+          summary: t.ops.editorNotes.summary,
           parameters: [slugParam, channelParam, versionParam],
-          responses: { '200': jsonResponse('Notes', editorNotesResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.notes, editorNotesResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}': {
         put: {
-          tags: ['Notes'],
-          summary: 'Upsert a locale note',
+          tags: [t.tags.notes.name],
+          summary: t.ops.upsertNote.summary,
           parameters: [slugParam, channelParam, versionParam, localeParam],
           requestBody: jsonBody(upsertNoteBodySchema),
-          responses: { '200': jsonResponse('Saved note', savedNoteResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.savedNote, savedNoteResponseSchema) },
         },
         delete: {
-          tags: ['Notes'],
-          summary: 'Delete a locale note',
+          tags: [t.tags.notes.name],
+          summary: t.ops.deleteNote.summary,
           parameters: [slugParam, channelParam, versionParam, localeParam],
-          responses: { '200': jsonResponse('Deleted', okResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/notes': {
         get: {
-          tags: ['Notes'],
-          summary: 'Public notes — released versions only, no auth',
+          tags: [t.tags.notes.name],
+          summary: t.ops.publicNotes.summary,
           security: [],
           parameters: [
             slugParam,
@@ -223,41 +234,40 @@ export function openApiDocument(origin: string) {
             { name: 'to', in: 'query', schema: { type: 'string' } },
             { name: 'locale', in: 'query', schema: { type: 'string' } },
           ],
-          responses: { '200': jsonResponse('Public notes', publicNotesResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.publicNotes, publicNotesResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/notes-config': {
         put: {
-          tags: ['Notes'],
-          summary: 'Save release-log config (no S3 probe)',
+          tags: [t.tags.notes.name],
+          summary: t.ops.saveNotesConfig.summary,
           parameters: [slugParam],
           requestBody: jsonBody(notesConfigSchema),
-          responses: { '200': jsonResponse('Saved config', notesConfigResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.savedConfig, notesConfigResponseSchema) },
         },
       },
       '/api/v1/upload/init': {
         post: {
-          tags: ['Upload'],
-          summary:
-            'Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).',
+          tags: [t.tags.upload.name],
+          summary: t.ops.uploadInit.summary,
           security: [{ apiKey: [] }],
           requestBody: jsonBody(uploadInitBodySchema),
-          responses: { '200': jsonResponse('uploadId and presigned PUT URLs', uploadInitResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.uploadInit, uploadInitResponseSchema) },
         },
       },
       '/api/v1/upload/finalize': {
         post: {
-          tags: ['Upload'],
-          summary: 'Create a version. Default is draft; `release: true` goes live.',
+          tags: [t.tags.upload.name],
+          summary: t.ops.uploadFinalize.summary,
           security: [{ apiKey: [] }],
           requestBody: jsonBody(uploadFinalizeBodySchema),
-          responses: { '200': jsonResponse('Version created', uploadFinalizeResponseSchema) },
+          responses: { '200': jsonResponse(t.responses.versionCreated, uploadFinalizeResponseSchema) },
         },
       },
       '/api/update/{appSlug}/{channel}': {
         get: {
-          tags: ['Feed'],
-          summary: 'Channel-root feed. Tauri returns JSON; Sparkle returns a one-item appcast.',
+          tags: [t.tags.feed.name],
+          summary: t.ops.channelFeed.summary,
           security: [],
           parameters: [slugParam, channelParam],
           responses: {
@@ -268,28 +278,19 @@ export function openApiDocument(origin: string) {
       },
       '/api/update/{appSlug}/{channel}/{filename}': {
         get: {
-          tags: ['Feed'],
-          summary: 'Public feed — Electron yml / Tauri latest.json / Sparkle appcast, artifacts 302. Drafts are 404.',
+          tags: [t.tags.feed.name],
+          summary: t.ops.publicFeed.summary,
           security: [],
           parameters: [slugParam, channelParam, { name: 'filename', in: 'path', required: true, schema: { type: 'string' } }],
           responses: {
             '200': feedDocumentResponse,
-            '302': { description: 'Artifact redirect' },
+            '302': { description: t.responses.artifactRedirect },
             '404': notFound,
           },
         },
       },
     },
   }
-}
-
-const feedDocumentResponse = {
-  description: 'Generated feed document',
-  content: {
-    'application/json': { schema: jsonSchema(tauriFeedSchema) },
-    'text/yaml': { schema: { type: 'string' } },
-    'application/xml': { schema: { type: 'string' } },
-  },
 }
 
 const slugParam = { name: 'appSlug', in: 'path' as const, required: true, schema: { type: 'string' } }

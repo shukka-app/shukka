@@ -18,7 +18,7 @@ API key 只能 init/finalize 上传。面板能做的设 current、建 channel�
 4. API key 能做绑定 app 内、面板能点的写/读：**改该 app 设置**、channel / version / note 的 CRUD、设 current、读详情与趋势、按版本+文件名领取制品 presigned GET。
 5. API key **不能**：建/列全部 app、删整个 app、改管理员密码、签发/吊销/删除 API key（key 只在面板管理）。
 6. 实例级（登录、改密、列/建 app、存储探测）仍走 session 专用路由，不进 key 的能力面。
-7. 人类 API 文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)，不在面板内嵌 HTML 渲染器。机器可读契约为 `GET /api/v1/openapi.json`（session）。
+7. 人类 API 文档在 [`shukka-app/docs`](https://github.com/shukka-app/docs)（中英叙事快照随站点语言切换），不在面板内嵌 HTML 渲染器。机器可读契约为 `GET /api/v1/openapi.json`（session，英文）。
 
 ## Non-goals
 

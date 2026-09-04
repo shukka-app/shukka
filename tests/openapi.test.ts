@@ -54,10 +54,38 @@ describe('GET /api/v1/openapi.json', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('no-store')
-    const body = (await res.json()) as { openapi: string; paths: Record<string, unknown> }
+    const body = (await res.json()) as { openapi: string; info: { description: string }; paths: Record<string, unknown> }
     expect(body.openapi).toBe('3.1.0')
+    expect(body.info.description).not.toMatch(/[\u4e00-\u9fff]/)
     expect(body.paths['/api/v1/apps/{appSlug}']).toBeTruthy()
     expect(body.paths['/api/v1/upload/init']).toBeTruthy()
+  })
+})
+
+describe('openApiDocument locales', () => {
+  const en = openApiDocument('https://shukka.test')
+  const zh = openApiDocument('https://shukka.test', 'zh')
+
+  it('defaults to English narrative', () => {
+    expect(en.info.description).toBe(openApiDocument('https://shukka.test', 'en').info.description)
+    expect(en.info.description).toMatch(/API key/)
+    expect(en.info.description).not.toMatch(/[\u4e00-\u9fff]/)
+    expect(en.tags[0]?.name).toBe('App')
+  })
+
+  it('emits Chinese narrative for locale zh', () => {
+    expect(zh.info.description).toMatch(/[\u4e00-\u9fff]/)
+    expect(zh.tags[0]?.name).toBe('应用')
+    expect(zh.paths['/api/v1/apps/{appSlug}'].get.summary).toMatch(/[\u4e00-\u9fff]/)
+  })
+
+  it('keeps the same paths and methods across locales', () => {
+    expect(Object.keys(zh.paths)).toEqual(Object.keys(en.paths))
+    for (const path of Object.keys(en.paths)) {
+      expect(Object.keys(zh.paths[path as keyof typeof zh.paths])).toEqual(
+        Object.keys(en.paths[path as keyof typeof en.paths]),
+      )
+    }
   })
 })
 
