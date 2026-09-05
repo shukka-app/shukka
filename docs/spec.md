@@ -36,7 +36,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 - `GET /api/update/{appSlug}/{channel}/{artifactName}` 对 channel 内**已发布**版本（`releasedAt` 非空）的制品按文件名解析，302 到短时效 S3 URL；draft 的文件名与不存在相同，返回 404。同名制品跨版本存在时，当前版本优先，其余按 `releasedAt` 最新优先解析。
 - **Electron**：`GET .../{metadataFile}.yml` 返回当前版本中同名 yml 的原文（不改写）。客户端默认请求 `latest.yml` / `latest-mac.yml` / `latest-linux.yml`。把 Shukka channel 名写进 electron-builder `publish.channel` 会改成请求 `stable.yml` 等，除非产物里真有这些文件。
-- **Tauri**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../latest.json` 返回为当前已发布版本生成的静态 updater JSON（`platforms` 映射；`url` 指向本 feed 下的制品；`signature` 为对应 `.sig` 正文）。无当前版本时 404。
+- **Tauri**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../latest.json` 返回为当前已发布版本生成的静态 updater JSON（`platforms` 映射；`url` 指向本 feed 下的制品，scheme 恒为 https——loopback origin 除外；`signature` 为对应 `.sig` 正文）。无当前版本时 404。
 - **Tauri `platforms` 键**：上传了 `latest.json` 时以其声明的键为准（只改写 `url`、补 `signature`）。未上传时由文件名推断。显式架构 token（`aarch64` / `arm64` → `aarch64`；`amd64` / `x64` / `x86_64` → `x86_64`；`i686` / `ia32` → `i686`；`armv7` → `armv7`）覆盖默认。无架构的 `AppImage` 或文件名含 `linux` 默认为 `linux-x86_64`；无架构的 `*.app.tar.gz` 或文件名含 `mac` / `darwin` 默认为 `darwin-x86_64`。Windows 无架构 token 时不产生键。arm / universal 构建须上传 `latest.json` 或在文件名中写明架构。
 - **Sparkle**：`GET /api/update/{appSlug}/{channel}` 与 `GET .../appcast.xml` 返回为当前已发布版本生成的 `application/xml` appcast，恰好一个 `<item>`。`enclosure` 的 `url` 指向本 feed 下的制品；`sparkle:edSignature` 与 `length` 来自上传。无当前版本时 404。请求上的额外 query（Sparkle 的 `os` / `osVersion` 等）不影响文档。上传的多 item appcast 在 finalize 被拒绝。
 - 元数据是否原文透传是 adapter 不变量，不是全系统不变量。

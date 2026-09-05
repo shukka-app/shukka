@@ -24,6 +24,7 @@ const { db } = await import('~/db/index.ts')
 const { apps } = await import('~/db/schema.ts')
 const { clearObjectCache } = await import('~/lib/object-cache.ts')
 const { createApp } = await import('~/server/apps.ts')
+const { appDetailBySlug } = await import('~/server/dashboard.ts')
 const { finalizeUpload, initUpload } = await import('~/server/releases.ts')
 const { resolveFeedRequest } = await import('~/server/feed.ts')
 const { platformsOf } = await import('~/features/apps/platforms.ts')
@@ -159,6 +160,34 @@ describe('tauri upload and feed', () => {
       url: `${ORIGIN}/api/update/acme/stable/${encodeURIComponent(BUNDLE)}`,
       signature: 'SIGNATURE',
     })
+  })
+
+  it('forces https feed URLs for non-loopback http origins', async () => {
+    const app = await createApp({ ...baseInput, updaterKind: 'tauri' })
+    await publishTauri(app, '1.4.2')
+
+    const feed = await resolveFeedRequest('acme', 'stable', '', 'http://updates.test')
+    const body = JSON.parse((feed as { body: string }).body)
+    expect(body.platforms['darwin-aarch64'].url).toBe(
+      `https://updates.test/api/update/acme/stable/${encodeURIComponent(BUNDLE)}`,
+    )
+
+    // The panel shows the URL the client must use, not the request's scheme.
+    const detail = await appDetailBySlug('acme', 'http://updates.test')
+    expect(detail.channels[0]?.feedUrl).toBe('https://updates.test/api/update/acme/stable')
+  })
+
+  it('keeps http feed URLs for loopback origins (local dev / e2e)', async () => {
+    const app = await createApp({ ...baseInput, updaterKind: 'tauri' })
+    await publishTauri(app, '1.4.2')
+
+    for (const origin of ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://[::1]:3000']) {
+      const feed = await resolveFeedRequest('acme', 'stable', '', origin)
+      const body = JSON.parse((feed as { body: string }).body)
+      expect(body.platforms['darwin-aarch64'].url).toBe(
+        `${origin}/api/update/acme/stable/${encodeURIComponent(BUNDLE)}`,
+      )
+    }
   })
 
   it('rewrites latest.json urls to this feed and inlines .sig contents', async () => {

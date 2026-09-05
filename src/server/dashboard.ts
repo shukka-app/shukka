@@ -5,6 +5,7 @@ import { listChannelsForApps, listVersionsForChannels } from './channels.ts'
 import { feedBaseUrl } from './feed.ts'
 import { notesConfig } from './release-notes.ts'
 import { listArtifactsForVersions } from './releases.ts'
+import { tauriFeedOrigin } from './updaters/tauri.ts'
 import type { App } from '~/db/schema.ts'
 
 /** Storage settings without the secret, safe to send to the panel. */
@@ -80,11 +81,14 @@ async function appChannels(app: App, origin: string) {
         isCurrent: version.id === channel.currentVersionId,
         artifacts: artifactRows.filter((artifact) => artifact.versionId === version.id),
       }))
+    // Tauri feed URLs are always https (loopback excepted); show the URL the
+    // client must use, not the scheme this panel request happened to arrive on.
+    const feedOrigin = app.updaterKind === 'tauri' ? tauriFeedOrigin(origin) : origin
     return {
       id: channel.id,
       name: channel.name,
       currentVersionId: channel.currentVersionId,
-      feedUrl: feedBaseUrl(origin, app.slug, channel.name),
+      feedUrl: feedBaseUrl(feedOrigin, app.slug, channel.name),
       versions: versionDetails,
     }
   })

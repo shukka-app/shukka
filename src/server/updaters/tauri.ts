@@ -69,6 +69,18 @@ export function inferTauriTarget(filename: string): string | null {
   return null
 }
 
+/**
+ * Tauri production clients require HTTPS end to end, so feed URLs always use
+ * https — except loopback origins (local dev / e2e), which keep their scheme.
+ * See docs/adr/tauri-feed-https.md.
+ */
+export function tauriFeedOrigin(origin: string): string {
+  const url = new URL(origin)
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (url.protocol === 'http:' && !loopback) url.protocol = 'https:'
+  return url.origin
+}
+
 export const tauriAdapter: UpdateAdapter = {
   kind: 'tauri',
   isMetadataFile(filename) {
@@ -99,7 +111,7 @@ export const tauriAdapter: UpdateAdapter = {
     getText,
   }) {
     if (filename && filename !== MANIFEST) return null
-    const base = `${origin.replace(/\/+$/, '')}/api/update/${appSlug}/${channelName}`
+    const base = `${tauriFeedOrigin(origin)}/api/update/${appSlug}/${channelName}`
     const platforms: Record<string, { url: string; signature: string }> = {}
 
     const uploaded = artifacts.find((file) => file.filename === MANIFEST)

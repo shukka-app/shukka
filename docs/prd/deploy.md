@@ -153,9 +153,10 @@ SHUKKA_DB_URL=libsql://... SHUKKA_DB_AUTH_TOKEN=... npm run db:migrate:remote
 - 面板、`/api/v1`、`/api/update` 同端口同进程。反代把整个 origin 转到 Shukka，不要拆路径到不同后端。
 - 保留 `Host`。对外用 HTTPS。
 - Session cookie 名 `shukka_session`：`HttpOnly`、`SameSite=Lax`、14 天；**没有** `Secure` 标志。
-- 面板 Integration 与 Tauri feed JSON 里的绝对 URL 来自 `request.url.origin`。Nitro node-server **默认不信任** `X-Forwarded-Proto`。TLS 终结在反代、回源是 HTTP 时，Shukka 看到的 origin 可能是 `http://…`。
+- 面板 Integration 与 feed 文档里的绝对 URL 来自 `request.url.origin`。Nitro node-server **默认不信任** `X-Forwarded-Proto`。TLS 终结在反代、回源是 HTTP 时，Shukka 看到的 origin 可能是 `http://…`。
+  - Tauri：feed 与面板 Integration 的制品 URL 恒为 https（loopback 除外），不受回源协议影响。见 `docs/adr/tauri-feed-https.md`。
   - Electron：yml 原文透传、制品文件名相对；把 `https://…/api/update/{app}/{channel}` 写进 electron-builder 即可。
-  - Tauri：`latest.json` 的 `url` 按本次请求的 origin 生成。`curl -sS https://your.host/api/update/{app}/{channel}` 若看到 `http://` 制品 URL，让反代对后端也走 TLS，或给进程配 `NITRO_SSL_CERT` / `NITRO_SSL_KEY`。
+  - Sparkle：appcast 的 enclosure URL 仍按请求 origin 生成，回源 HTTP 时可能是 `http://`。
 - Tauri 生产客户端默认要求 HTTPS（`docs/adr/updater-kind-on-app.md`）。本机或无 TLS 的 HTTP feed 必须由**使用者**在 tauri.conf 设置 `plugins.updater.dangerousInsecureTransportProtocol: true`（官方键；不是 Shukka 服务端开关）。生产省略该键，用 HTTPS。接入步骤见 `docs/prd/tauri-integration.md`。
 - 自托管 Node：登录失败按来源 IP 限速（15 分钟 10 次）。反代后面部署时设置 `SHUKKA_TRUST_PROXY=1`，才会采信反代追加的转发头（最右一跳）；未设则忽略 `X-Forwarded-For` / `X-Real-IP`。不要把 setup / login 裸露在无防护的公网而不做 TLS。
 - 云函数 / Edge isolate：进程内限速关闭（内存 `Map` 跨 isolate 无效）。登录防爆破靠主机 WAF / 防火墙，不靠 Shukka。见 `docs/prd/login-rate-limit.md`。
@@ -229,7 +230,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | 进程立刻退出，日志提到 encryption key | 同时设了 `SHUKKA_ENCRYPTION_KEY` 与 filepath（含弃用的 `SHUKKA_KEY_PATH`）；FILEPATH 与 `SHUKKA_KEY_PATH` 不是同一路径；或密钥为空 / 不是 64 位 hex / filepath 文件不存在 |
 | 启动后表结构旧 | 进程 cwd 下没有 `drizzle/`（没从应用根启动，或镜像没 `COPY drizzle`） |
 | 创建 app：`storage_error` | 凭证、bucket、endpoint、path-style，或 Shukka 主机到 S3 不通 |
-| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或 Tauri feed 里的 `url` 是 `http://`（见 TLS 节）。HTTP endpoint 还须使用者在 tauri.conf 打开 `dangerousInsecureTransportProtocol` |
+| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或本机 HTTP endpoint 未在 tauri.conf 打开 `dangerousInsecureTransportProtocol` |
 | 登录成功但 cookie 没带上 | 面板 origin 与 API origin 不一致（反代拆了主机名） |
 | 升级后数据没了 | 新容器没挂原来的卷 |
 
@@ -252,4 +253,4 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 - S3 加密密钥默认仍自动生成到数据目录；运维可改用 `SHUKKA_ENCRYPTION_KEY_FILEPATH` 或 `SHUKKA_ENCRYPTION_KEY` 二选一（见 `docs/adr/encryption-key-source.md`）。`SHUKKA_KEY_PATH` 保留一个版本作 filepath 别名。
 - 管理员密码只在面板首次设置，不从环境变量注入（与 `docs/adr/auth-model.md` 一致）。口令哈希算法可在 setup 前用 `SHUKKA_PASSWORD_HASH` 选定，初始化后锁定（见 `docs/prd/password-kdf.md`）。
 - Compose / Ansible 示例见 `docs/prd/deploy-examples.md`。健康探针与 GHCR 发布已另立 PRD。
-- Tauri 在反代后 origin 为 http 的问题按运行时限制记录，不发明 `SHUKKA_PUBLIC_URL`。
+- Tauri feed 的制品 URL 恒为 https（loopback 除外），反代回源协议不再影响 Tauri；仍不发明 `SHUKKA_PUBLIC_URL`。见 `docs/adr/tauri-feed-https.md`。
