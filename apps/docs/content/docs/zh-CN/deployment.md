@@ -38,6 +38,8 @@ Ansible 把该文件拷到主机并等到 `/api/health`：[`deploy/ansible/playb
 ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
 ```
 
+同一份镜像也可以用 [Kamal](/zh-CN/docs/kamal) 部到主机（`kamal setup` 装 Docker 与 kamal-proxy，之后 `kamal deploy` 拉镜像换容器）。
+
 3. 反向代理到 `127.0.0.1:3000`，对外只暴露 HTTPS。
 4. 打开面板，首次访问进入 setup，设置至少 8 位管理员密码。除非已经确定这个实例以后要上 Cloudflare Workers Free，否则不要设 `SHUKKA_PASSWORD_HASH`（或设 `scrypt`）——算法在首次 setup 锁定。见下文「口令哈希」。
 5. 创建应用时测试存储连接；测试失败不会保存。
@@ -108,7 +110,6 @@ Cloudflare Workers 上只接受 `SHUKKA_ENCRYPTION_KEY`。见 [Cloudflare Worker
 - 面板、`/api/v1`、`/api/update` 同端口同进程。反代把整个 origin 转发到 Shukka，不要把路径拆到不同后端。
 - 保留 `Host` 头。对外用 HTTPS。
 - 反代后面部署时设 `SHUKKA_TRUST_PROXY=1`，登录限速（Node 上同一 IP 15 分钟 10 次失败）才会用客户端地址而不是代理。Cloudflare Workers 不跑这份进程内限速，防爆破靠平台 WAF。
-- 已知坑：反代做 HTTPS、回源是 HTTP 时，Tauri feed 里的制品 URL 可能是 `http://`。用 `curl -sS https://your.host/api/update/{app}/{channel}` 验证；若看到 `http://`，让反代对后端也走 TLS，或给进程配 `NITRO_SSL_CERT` / `NITRO_SSL_KEY`。
 
 ## 对象存储
 
@@ -140,6 +141,8 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 ```
 
 并同时复制密钥文件。制品在各 app 的 bucket 里，单独做 bucket 版本或生命周期管理，不在数据目录里。
+
+要一份持续更新的异地副本，或跑在容器盘短暂、没有可靠本地卷的平台上，见 [Litestream 复制](/zh-CN/docs/litestream)——镜像已内置，加几个环境变量即可。
 
 升级：拉新镜像或 `git pull && npm ci && npm run build`，停旧进程，用同一数据目录启动新进程。工作目录有 `drizzle/` 时启动会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
 
@@ -177,6 +180,6 @@ Workers 上对远程库执行同一段 SQL。见 [Cloudflare Workers](/zh-CN/doc
 | setup 报 `invalid_request` 并提到 `SHUKKA_PASSWORD_HASH` | 该变量不是 `scrypt` 或 `pbkdf2` |
 | 启动后表结构旧 | 进程未从应用根启动，数据库迁移未执行 |
 | 创建 app 报 `storage_error` | 凭证、bucket、endpoint、path-style 配置错，或 Shukka 主机到 S3 不通 |
-| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通；或 Tauri feed 里的 `url` 是 `http://`（见 TLS 节） |
+| CI finalize 成功但客户端下不下来 | 客户端到 S3 不通 |
 | 登录成功但 cookie 没带上 | 面板 origin 与 API origin 不一致（反代拆了主机名） |
 | 升级后数据没了 | 新容器没挂原来的卷 |

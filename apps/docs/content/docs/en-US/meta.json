@@ -1,4 +1,4 @@
 {
   "title": "Shukka Docs",
-  "pages": ["index", "deployment", "cloudflare", "guide", "integration", "ci"]
+  "pages": ["index", "deployment", "litestream", "kamal", "cloudflare", "guide", "integration", "ci"]
 }

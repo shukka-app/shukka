@@ -26,13 +26,11 @@ npx @tauri-apps/cli signer generate -w ~/.tauri/my-app.key
 
 私钥（`~/.tauri/my-app.key`）留在 CI 里给制品签名，公钥写进客户端配置。feed 本身无鉴权，客户端配置里不放任何凭证。
 
-Tauri 生产客户端默认要求 HTTPS，endpoint 请用 `https://`。
+Tauri 生产客户端要求全链路 HTTPS：endpoint 用 `https://`，Shukka 也必须部署在 HTTPS 之后，使 feed 返回的制品 URL 同为 `https://`。否则客户端拒绝下载，更新不可用。
 
 ## Feed 行为
 
 `GET /api/update/{appSlug}/{channel}`（或 `.../latest.json`）返回为当前**已发布**版本生成的静态 updater JSON：`platforms` 映射里每个平台的 `url` 指向本 feed 下的制品（跟随 302 到 S3），`signature` 为对应 `.sig` 文件的正文。无当前版本时 404；draft 对 updater 不可见。
-
-`latest.json` 里的绝对 `url` 按本次请求的 origin 生成。如果 Shukka 在反代之后且回源是 HTTP，feed 里可能出现 `http://` 的制品 URL——见[自托管部署的 TLS 一节](/zh-CN/docs/deployment#反向代理与-tls)。
 
 ## 发布
 

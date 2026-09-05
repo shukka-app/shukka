@@ -38,6 +38,8 @@ Ansible copies that file onto a host and waits for `/api/health`: [`deploy/ansib
 ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
 ```
 
+The same image can also be deployed with [Kamal](/en-US/docs/kamal): `kamal setup` installs Docker and kamal-proxy, then `kamal deploy` pulls the image and swaps containers.
+
 3. Reverse-proxy to `127.0.0.1:3000` and expose only HTTPS.
 4. Open the panel. The first visit enters setup; set an admin password of at least 8 characters. Leave `SHUKKA_PASSWORD_HASH` unset (or `scrypt`) unless you already know this instance must later run on Cloudflare Workers Free — that choice is locked at first setup. See “Password hash” below.
 5. Test the storage connection when creating an app. A failed test is not saved.
@@ -108,7 +110,6 @@ Hand-editing `admin.password_hash` is unsupported. Stored values start with `scr
 - The panel, `/api/v1`, and `/api/update` share one port and one process. Forward the whole origin to Shukka. Do not split paths across backends.
 - Keep the `Host` header. Use HTTPS externally.
 - Behind a reverse proxy, set `SHUKKA_TRUST_PROXY=1` so login rate limiting (10 failures / 15 minutes / IP on Node) uses the client address, not the proxy. Cloudflare Workers does not apply this in-process limit; use the platform WAF.
-- Known pitfall: when the proxy terminates HTTPS and talks HTTP to the origin, artifact URLs in the Tauri feed may be `http://`. Verify with `curl -sS https://your.host/api/update/{app}/{channel}`. If you see `http://`, have the proxy talk TLS to the backend, or set `NITRO_SSL_CERT` / `NITRO_SSL_KEY` on the process.
 
 ## Object storage
 
@@ -140,6 +141,8 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 ```
 
 and copy the key file at the same time. Artifacts live in each app's bucket. Manage them with bucket versioning or lifecycle rules; they are not in the data directory.
+
+For a continuously updated off-host copy, or for platforms with an ephemeral container filesystem and no reliable local volume, see [Litestream](/en-US/docs/litestream) — it is built into the image and only takes a few environment variables.
 
 Upgrade: pull a new image or `git pull && npm ci && npm run build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup when `drizzle/` is in the working directory. Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
 
@@ -177,6 +180,6 @@ On Workers, run that SQL against the remote database. See [Cloudflare Workers](/
 | Setup returns `invalid_request` mentioning `SHUKKA_PASSWORD_HASH` | The variable is not `scrypt` or `pbkdf2` |
 | Schema is stale after start | Process was not started from the app root, so migrations did not run |
 | Creating an app returns `storage_error` | Wrong credentials, bucket, endpoint, or path-style, or the Shukka host cannot reach S3 |
-| CI finalize succeeds but clients cannot download | Client cannot reach S3, or the Tauri feed `url` is `http://` (see the TLS section) |
+| CI finalize succeeds but clients cannot download | Client cannot reach S3 |
 | Sign-in succeeds but the cookie is not set | Panel origin and API origin differ (the proxy split hostnames) |
 | Data is gone after upgrade | The new container did not mount the original volume |
