@@ -250,6 +250,8 @@ export const zh = {
       step2Title: '在 Rust / JS 侧检查更新',
       step2Detail:
         '@tauri-apps/plugin-updater 对构建时写入的 endpoint 调用 check()。downloadAndInstall() 之后的 relaunch() 是可选的（官方 Tauri 文档）。',
+      httpsNote:
+        '更新源里的制品 URL 始终生成为 https（本机 loopback 除外）。生产环境必须全链路 HTTPS——否则客户端拒绝下载。',
       linuxNote:
         'Linux AppImage：对本更新源，check 与 download 可用。安装会替换正在运行的 AppImage，且要求以 FUSE 挂载的真实 AppImage，临时目录与 AppImage 必须在同一挂载点。extract-and-run、overlay、容器环境经常失败——这是 plugin-updater 与运行环境的问题，不是 feed。Shukka 不负责安装 AppImage。',
       publishDetail:

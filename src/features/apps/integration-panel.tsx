@@ -177,7 +177,10 @@ Do all of the following:
       </ol>
 
       {app.updaterKind === 'tauri' ? (
-        <p className="pl-8 text-sm text-muted-foreground">{t.integration.tauri.linuxNote}</p>
+        <>
+          <p className="pl-8 text-sm text-muted-foreground">{t.integration.tauri.httpsNote}</p>
+          <p className="pl-8 text-sm text-muted-foreground">{t.integration.tauri.linuxNote}</p>
+        </>
       ) : null}
 
       <section className="grid gap-2.5">

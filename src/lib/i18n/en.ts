@@ -264,6 +264,8 @@ export const en = {
       step2Title: 'Check for updates in the Rust / JS side',
       step2Detail:
         '@tauri-apps/plugin-updater calls check() against the endpoint configured at build time. relaunch() after downloadAndInstall() is optional (official Tauri docs).',
+      httpsNote:
+        'Artifact URLs in this feed are always generated as https (loopback excepted, for local development). Production must serve Shukka over HTTPS end to end — otherwise clients refuse the download.',
       linuxNote:
         'Linux AppImage: check and download work against this feed. Install replaces the running AppImage and requires a FUSE-mounted AppImage on the same mount as the temp directory. Extract-and-run, overlay filesystems, and many containers fail here — that is plugin-updater and the environment, not the feed. Shukka does not install the AppImage.',
       publishDetail:
