@@ -214,13 +214,13 @@ export function AppWizard({
 }) {
   const t = useT()
 
-  const [updaterKind, setUpdaterKind] = useState<UpdaterKind | null>(null)
+  const [updaterKind, setUpdaterKind] = useState<UpdaterKind>('electron')
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [slugDirty, setSlugDirty] = useState(false)
   const [identityErrors, setIdentityErrors] = useState<IdentityErrors>({})
 
-  const [provider, setProvider] = useState<ProviderId | null>(null)
+  const [provider, setProvider] = useState<ProviderId>('other')
   const [storage, setStorage] = useState<StorageFields>(EMPTY_STORAGE)
   const [storageErrors, setStorageErrors] = useState<StorageErrors>({})
 
@@ -235,7 +235,7 @@ export function AppWizard({
 
   // URL can restore step 2/3; identity state is always empty on a fresh mount.
   useEffect(() => {
-    if (step > 1 && updaterKind === null) onStepChange(1)
+    if (step > 1 && !name.trim()) onStepChange(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- clamp once on mount
   }, [])
 
@@ -399,14 +399,14 @@ export function AppWizard({
           <div className="grid max-w-sm content-start gap-2">
             <Label>{t.wizard.updaterKindLabel}</Label>
             <Select
-              value={updaterKind ?? undefined}
+              value={updaterKind}
               onValueChange={(id) => {
                 setUpdaterKind(id as UpdaterKind)
                 setIdentityErrors((prev) => ({ ...prev, updaterKind: undefined }))
               }}
             >
               <SelectTrigger className="w-full shadow-none" aria-label={t.wizard.updaterKindLabel}>
-                <SelectValue placeholder={t.wizard.updaterKindRequired} />
+                <SelectValue placeholder={t.wizard.pickUpdaterKind} />
               </SelectTrigger>
               <SelectContent className="shadow-none">
                 {UPDATER_KINDS.map((kind) => (
@@ -459,7 +459,7 @@ export function AppWizard({
           <div className="grid max-w-sm content-start gap-2">
             <Label>{t.wizard.providerLabel}</Label>
             <Select
-              value={provider ?? undefined}
+              value={provider}
               onValueChange={(id) => {
                 setProvider(id as ProviderId)
                 setStorageErrors({})
@@ -603,7 +603,7 @@ export function AppWizard({
             {pending ? t.common.testingConnection : t.common.testConnection}
           </Button>
         ) : null}
-        <Button type="submit" disabled={pending || (step === 2 && !provider)}>
+        <Button type="submit" disabled={pending}>
           {pending
             ? step === 3
               ? t.common.verifyingBucket

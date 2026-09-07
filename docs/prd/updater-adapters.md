@@ -14,7 +14,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 
 ## Goals
 
-1. 创建向导第一步用与 S3 provider 相同的带图标按钮选择更新系统（Electron / Tauri），必选、不预选，和名称 / slug 同一屏。
+1. 创建向导第一步用带图标的 select 选择更新系统（Electron / Tauri / Sparkle，默认 Electron），和名称 / slug 同一屏。
 2. `updaterKind` 落在 App 上；创建时选定，之后不改；Settings 不出现该选择。
 3. Integration（snippet、Agent 提示）按 kind 换内容，面板结构不变（01 / 02 / 03）。Tauri Integration 只填 feed URL，其余 updater 配置标成使用者按官方文档填写——见 [tauri-integration](tauri-integration.md)。
 4. 上传与 feed 按 kind 走对应 adapter。Electron 行为与现网一致。
@@ -66,7 +66,7 @@ Shukka 的公开 feed、上传校验和接入文档都按 electron-updater 写�
 ## Resolved product decisions
 
 - kind 绑在 App 上，创建时选定。
-- 向导第一步与名称同一屏，不单独成步、不预选。
+- 向导第一步与名称同一屏，不单独成步，默认 Electron。
 - S3 provider 仍不落库；updater kind 落库。
 - 文件名 → feed target 与面板徽章都属于该 kind 的 adapter，不设全局文件名解析器。
 - Tauri 无架构默认键为 `linux-x86_64` 与 `darwin-x86_64`（对齐 Tauri 常见 `{{target}}-{{arch}}`）；arm / universal 须在文件名写架构或上传 `latest.json`。
