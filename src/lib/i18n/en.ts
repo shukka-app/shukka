@@ -124,7 +124,6 @@ export const en = {
       'The AWS region your bucket lives in, e.g. us-east-1 or ap-southeast-2. Shown in the bucket details in the AWS console.',
     regionOssTooltip:
       'The OSS region id, e.g. cn-hangzhou. Shown in the bucket overview in the Aliyun console.',
-    aliyunEndpointHint: (endpoint: string) => `Uses ${endpoint}. Path-style addressing is always on.`,
     endpointR2Tooltip:
       'Your Cloudflare account endpoint. Find it in the R2 dashboard under your bucket settings — it looks like https://<account-id>.r2.cloudflarestorage.com.',
     endpointMinioTooltip: 'The URL of your MinIO server, e.g. https://minio.example.com:9000.',

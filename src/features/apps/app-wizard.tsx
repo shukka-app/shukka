@@ -3,13 +3,14 @@ import type { FormEvent } from 'react'
 import { Check, ChevronRight, Server } from 'lucide-react'
 import { siAlibabacloud, siCloudflare, siElectron, siMinio, siTauri } from 'simple-icons'
 import { Button } from '~/components/ui/button'
+import { Label } from '~/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '~/lib/api.ts'
 import { translateError, useT, type Dictionary } from '~/lib/i18n/index.ts'
-import { aliyunOssEndpoint, aliyunOssSettings } from '~/lib/aliyun-oss.ts'
+import { aliyunOssSettings } from '~/lib/aliyun-oss.ts'
 import { slugFromName } from '~/lib/slugify.ts'
 import { updaterKindLabelKey, type UpdaterKind } from '~/lib/updater-kind.ts'
-import { cn } from '~/lib/utils'
 import { Field } from './field.tsx'
 import { ReleaseLogConfigFields } from './release-log-fields.tsx'
 import { testStorageMutationOptions } from './requests/apps.ts'
@@ -89,7 +90,7 @@ const PROVIDERS = [
   {
     id: 'aws',
     label: 'AWS S3',
-    icon: <AWSIcon className="h-4 w-auto" />,
+    icon: <AWSIcon className="h-3.5 w-auto" />,
     showRegion: true,
     showEndpoint: false,
     showPathStyle: false,
@@ -98,7 +99,7 @@ const PROVIDERS = [
   {
     id: 'r2',
     label: 'Cloudflare R2',
-    icon: <SimpleIcon path={siCloudflare.path} hex={siCloudflare.hex} className="size-5" />,
+    icon: <SimpleIcon path={siCloudflare.path} hex={siCloudflare.hex} className="size-4" />,
     showRegion: false,
     showEndpoint: true,
     showPathStyle: false,
@@ -107,7 +108,7 @@ const PROVIDERS = [
   {
     id: 'aliyun',
     label: 'Aliyun OSS',
-    icon: <SimpleIcon path={siAlibabacloud.path} hex={siAlibabacloud.hex} className="size-5" />,
+    icon: <SimpleIcon path={siAlibabacloud.path} hex={siAlibabacloud.hex} className="size-4" />,
     showRegion: true,
     showEndpoint: false,
     showPathStyle: false,
@@ -116,7 +117,7 @@ const PROVIDERS = [
   {
     id: 'minio',
     label: 'MinIO',
-    icon: <SimpleIcon path={siMinio.path} hex={siMinio.hex} className="size-5" />,
+    icon: <SimpleIcon path={siMinio.path} hex={siMinio.hex} className="size-4" />,
     showRegion: false,
     showEndpoint: true,
     showPathStyle: false,
@@ -134,7 +135,7 @@ const PROVIDERS = [
   {
     id: 'juicefs',
     label: 'JuiceFS',
-    icon: <JuiceFSIcon className="size-5" />,
+    icon: <JuiceFSIcon className="size-4" />,
     showRegion: false,
     showEndpoint: true,
     showPathStyle: false,
@@ -166,11 +167,18 @@ const EMPTY_STORAGE: StorageFields = {
 
 type IdentityErrors = { name?: string; slug?: string; updaterKind?: string }
 
-const UPDATER_KINDS: { id: UpdaterKind; icon: 'electron' | 'tauri' | 'sparkle' }[] = [
-  { id: 'electron', icon: 'electron' },
-  { id: 'tauri', icon: 'tauri' },
-  { id: 'sparkle', icon: 'sparkle' },
-]
+const UPDATER_KINDS: UpdaterKind[] = ['electron', 'tauri', 'sparkle']
+
+function updaterKindIcon(kind: UpdaterKind) {
+  switch (kind) {
+    case 'electron':
+      return <SimpleIcon path={siElectron.path} hex={siElectron.hex} className="size-4" />
+    case 'tauri':
+      return <SimpleIcon path={siTauri.path} hex={siTauri.hex} className="size-4" />
+    case 'sparkle':
+      return <SparkleMark className="size-4" />
+  }
+}
 type StorageErrors = Partial<Record<keyof StorageFields, string>>
 
 const ENDPOINT_PLACEHOLDER: Record<ProviderId, string> = {
@@ -388,39 +396,31 @@ export function AppWizard({
 
       {step === 1 ? (
         <section className="mt-8">
-          <div className="flex gap-3" role="radiogroup" aria-label={t.wizard.updaterKindLabel}>
-            {UPDATER_KINDS.map((entry) => {
-              const selected = updaterKind === entry.id
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    setUpdaterKind(entry.id)
-                    setIdentityErrors((prev) => ({ ...prev, updaterKind: undefined }))
-                  }}
-                  className={cn(
-                    'flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-background px-4 py-3 text-sm outline outline-1 -outline-offset-1 outline-input transition-colors',
-                    selected ? '-outline-offset-2 outline-2 outline-foreground' : 'hover:bg-accent/50',
-                  )}
-                >
-                  {entry.icon === 'electron' ? (
-                    <SimpleIcon path={siElectron.path} hex={siElectron.hex} className="size-5" />
-                  ) : entry.icon === 'tauri' ? (
-                    <SimpleIcon path={siTauri.path} hex={siTauri.hex} className="size-5" />
-                  ) : (
-                    <SparkleMark className="size-5" />
-                  )}
-                  {t.apps[updaterKindLabelKey(entry.id)]}
-                </button>
-              )
-            })}
+          <div className="grid max-w-sm content-start gap-2">
+            <Label>{t.wizard.updaterKindLabel}</Label>
+            <Select
+              value={updaterKind ?? undefined}
+              onValueChange={(id) => {
+                setUpdaterKind(id as UpdaterKind)
+                setIdentityErrors((prev) => ({ ...prev, updaterKind: undefined }))
+              }}
+            >
+              <SelectTrigger className="w-full shadow-none" aria-label={t.wizard.updaterKindLabel}>
+                <SelectValue placeholder={t.wizard.updaterKindRequired} />
+              </SelectTrigger>
+              <SelectContent className="shadow-none">
+                {UPDATER_KINDS.map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    {updaterKindIcon(kind)}
+                    {t.apps[updaterKindLabelKey(kind)]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {identityErrors.updaterKind ? (
+              <p className="text-sm text-destructive">{identityErrors.updaterKind}</p>
+            ) : null}
           </div>
-          {identityErrors.updaterKind ? (
-            <p className="mt-2 text-sm text-destructive">{identityErrors.updaterKind}</p>
-          ) : null}
 
           <div className="mt-6 grid items-start gap-x-4 gap-y-5 sm:grid-cols-2">
             <Field
@@ -456,31 +456,29 @@ export function AppWizard({
         </section>
       ) : step === 2 ? (
         <section className="mt-8">
-          <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={t.wizard.providerLabel}>
-            {PROVIDERS.map((entry) => {
-              const selected = provider === entry.id
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    setProvider(entry.id)
-                    setStorageErrors({})
-                    setSubmitError(null)
-                    setTested(false)
-                  }}
-                  className={cn(
-                    'flex min-w-[6.5rem] flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-background px-4 py-3 text-sm outline outline-1 -outline-offset-1 outline-input transition-colors',
-                    selected ? '-outline-offset-2 outline-2 outline-foreground' : 'hover:bg-accent/50',
-                  )}
-                >
-                  {entry.icon}
-                  {entry.label}
-                </button>
-              )
-            })}
+          <div className="grid max-w-sm content-start gap-2">
+            <Label>{t.wizard.providerLabel}</Label>
+            <Select
+              value={provider ?? undefined}
+              onValueChange={(id) => {
+                setProvider(id as ProviderId)
+                setStorageErrors({})
+                setSubmitError(null)
+                setTested(false)
+              }}
+            >
+              <SelectTrigger className="w-full shadow-none" aria-label={t.wizard.providerLabel}>
+                <SelectValue placeholder={t.wizard.pickProvider} />
+              </SelectTrigger>
+              <SelectContent className="shadow-none">
+                {PROVIDERS.map((entry) => (
+                  <SelectItem key={entry.id} value={entry.id}>
+                    {entry.icon}
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {preset ? (
@@ -502,13 +500,6 @@ export function AppWizard({
                   required
                   placeholder={preset.id === 'aliyun' ? 'cn-hangzhou' : 'us-east-1'}
                   tooltip={preset.id === 'aliyun' ? t.form.regionOssTooltip : t.form.regionTooltip}
-                  hint={
-                    preset.id === 'aliyun'
-                      ? t.form.aliyunEndpointHint(
-                          aliyunOssEndpoint(storage.bucket || 'bucket', storage.region || 'cn-hangzhou'),
-                        )
-                      : undefined
-                  }
                   value={storage.region}
                   error={storageErrors.region}
                   onChange={(event) => updateStorage('region', event.target.value)}
