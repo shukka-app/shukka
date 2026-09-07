@@ -112,6 +112,8 @@ export const zh = {
     forcePathStyleHint: '——MinIO 及部分 S3 兼容存储',
     bucketTooltip: '存放发版制品的 S3 存储桶名称。可在云控制台的 object storage / buckets 页面找到。',
     regionTooltip: '存储桶所在的 AWS 区域，例如 us-east-1 或 ap-southeast-2。可在 AWS 控制台的存储桶详情中查看。',
+    regionOssTooltip: 'OSS 地域 ID，例如 cn-hangzhou。可在阿里云控制台的存储桶概览中查看。',
+    aliyunEndpointHint: (endpoint: string) => `端点为 ${endpoint}。path-style 寻址始终开启。`,
     endpointR2Tooltip:
       '你的 Cloudflare 账户 endpoint。在 R2 控制台的存储桶设置中找到——形如 https://<account-id>.r2.cloudflarestorage.com。',
     endpointMinioTooltip: '你的 MinIO 服务器 URL，例如 https://minio.example.com:9000。',

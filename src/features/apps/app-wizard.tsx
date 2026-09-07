@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, ChevronRight, Server } from 'lucide-react'
-import { siCloudflare, siElectron, siMinio, siTauri } from 'simple-icons'
+import { siAlibabacloud, siCloudflare, siElectron, siMinio, siTauri } from 'simple-icons'
 import { Button } from '~/components/ui/button'
 import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '~/lib/api.ts'
 import { translateError, useT, type Dictionary } from '~/lib/i18n/index.ts'
+import { aliyunOssEndpoint, aliyunOssSettings } from '~/lib/aliyun-oss.ts'
 import { slugFromName } from '~/lib/slugify.ts'
 import { updaterKindLabelKey, type UpdaterKind } from '~/lib/updater-kind.ts'
 import { cn } from '~/lib/utils'
@@ -104,6 +105,15 @@ const PROVIDERS = [
     endpointRequired: true,
   },
   {
+    id: 'aliyun',
+    label: 'Aliyun OSS',
+    icon: <SimpleIcon path={siAlibabacloud.path} hex={siAlibabacloud.hex} className="size-5" />,
+    showRegion: true,
+    showEndpoint: false,
+    showPathStyle: false,
+    endpointRequired: false,
+  },
+  {
     id: 'minio',
     label: 'MinIO',
     icon: <SimpleIcon path={siMinio.path} hex={siMinio.hex} className="size-5" />,
@@ -166,6 +176,7 @@ type StorageErrors = Partial<Record<keyof StorageFields, string>>
 const ENDPOINT_PLACEHOLDER: Record<ProviderId, string> = {
   aws: '',
   r2: 'https://<account>.r2.cloudflarestorage.com',
+  aliyun: '',
   minio: 'https://minio.example.com:9000',
   other: 'https://s3.example.com',
   juicefs: 'http://localhost:9000',
@@ -271,6 +282,9 @@ export function AppWizard({
         return { ...base, s3Endpoint: null, s3Region: storage.region.trim(), s3ForcePathStyle: false }
       case 'r2':
         return { ...base, s3Endpoint: storage.endpoint.trim(), s3Region: 'auto', s3ForcePathStyle: false }
+      case 'aliyun':
+        // Virtual-host endpoint; path-style is required so the host is not rewritten to bucket.bucket.…
+        return { ...base, ...aliyunOssSettings(storage.bucket, storage.region) }
       case 'minio':
         return { ...base, s3Endpoint: storage.endpoint.trim(), s3Region: 'us-east-1', s3ForcePathStyle: true }
       case 'juicefs':
@@ -442,7 +456,7 @@ export function AppWizard({
         </section>
       ) : step === 2 ? (
         <section className="mt-8">
-          <div className="flex gap-3" role="radiogroup" aria-label={t.wizard.providerLabel}>
+          <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={t.wizard.providerLabel}>
             {PROVIDERS.map((entry) => {
               const selected = provider === entry.id
               return (
@@ -458,7 +472,7 @@ export function AppWizard({
                     setTested(false)
                   }}
                   className={cn(
-                    'flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-background px-4 py-3 text-sm outline outline-1 -outline-offset-1 outline-input transition-colors',
+                    'flex min-w-[6.5rem] flex-1 flex-col items-center justify-center gap-2 rounded-2xl bg-background px-4 py-3 text-sm outline outline-1 -outline-offset-1 outline-input transition-colors',
                     selected ? '-outline-offset-2 outline-2 outline-foreground' : 'hover:bg-accent/50',
                   )}
                 >
@@ -486,8 +500,15 @@ export function AppWizard({
                   name="s3Region"
                   label={t.form.region}
                   required
-                  placeholder="us-east-1"
-                  tooltip={t.form.regionTooltip}
+                  placeholder={preset.id === 'aliyun' ? 'cn-hangzhou' : 'us-east-1'}
+                  tooltip={preset.id === 'aliyun' ? t.form.regionOssTooltip : t.form.regionTooltip}
+                  hint={
+                    preset.id === 'aliyun'
+                      ? t.form.aliyunEndpointHint(
+                          aliyunOssEndpoint(storage.bucket || 'bucket', storage.region || 'cn-hangzhou'),
+                        )
+                      : undefined
+                  }
                   value={storage.region}
                   error={storageErrors.region}
                   onChange={(event) => updateStorage('region', event.target.value)}

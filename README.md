@@ -27,7 +27,7 @@ never transit the Shukka process — they go straight to your S3-compatible stor
 | | |
 | --- | --- |
 | **Panel** | Apps, channels, versions, and download counts behind a single admin password. |
-| **Your storage** | Each app carries its own S3 settings, so AWS, Cloudflare R2, and MinIO can coexist. |
+| **Your storage** | Each app carries its own S3 settings, so AWS, Cloudflare R2, Aliyun OSS, and MinIO can coexist. |
 | **Direct uploads** | Installers go from CI to S3 over presigned URLs. Shukka never proxies the bytes. |
 | **Public Electron feed** | `electron-updater` reads `/api/update/{app}/{channel}` with no credentials. Metadata is served byte-for-byte as `electron-builder` wrote it. |
 | **Public Tauri feed** | plugin-updater reads JSON at the same URL. |

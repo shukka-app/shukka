@@ -47,6 +47,13 @@ function endpointBase(s3: S3Settings): URL {
   return new URL(`https://s3.${s3.region}.amazonaws.com`)
 }
 
+/** True when the endpoint host is already `{bucket}` or `{bucket}.…`. */
+function hostnameHasBucket(hostname: string, bucket: string): boolean {
+  const host = hostname.toLowerCase()
+  const name = bucket.toLowerCase()
+  return host === name || host.startsWith(`${name}.`)
+}
+
 /** Public object URL (path-style or virtual-host). Exported for tests. */
 export function s3ObjectUrl(s3: S3Settings, key: string): string {
   const encodedKey = encodeKey(key)
@@ -54,11 +61,16 @@ export function s3ObjectUrl(s3: S3Settings, key: string): string {
   if (s3.forcePathStyle) {
     const base = endpointBase(s3)
     const root = `${base.origin}${base.pathname.replace(/\/+$/, '')}`
+    // Aliyun OSS (and pasted virtual-host URLs) already include the bucket in
+    // the host; appending it again would write `{bucket}/{key}` in that bucket.
+    if (hostnameHasBucket(base.hostname, s3.bucket)) return `${root}/${encodedKey}`
     return `${root}/${encodedBucket}/${encodedKey}`
   }
   if (s3.endpoint) {
     const base = parseEndpoint(s3.endpoint)
-    base.hostname = `${s3.bucket}.${base.hostname}`
+    if (!hostnameHasBucket(base.hostname, s3.bucket)) {
+      base.hostname = `${s3.bucket}.${base.hostname}`
+    }
     const root = `${base.origin}${base.pathname.replace(/\/+$/, '')}`
     return `${root}/${encodedKey}`
   }

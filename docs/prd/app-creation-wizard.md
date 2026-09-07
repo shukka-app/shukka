@@ -28,7 +28,7 @@
 ### 管理员：两步创建 app
 
 1. 第一步：选更新系统，填 app 名称与 slug。未选手动改过的 slug 随名称自动生成。客户端校验通过（kind 已选、名称必填、slug 格式正确）才能进入第二步。
-2. 第二步：选择 provider（AWS / Cloudflare R2 / MinIO / Other），该 provider 的 S3 字段直接出现在选择器下方；填完后提交。
+2. 第二步：选择 provider（AWS / Cloudflare R2 / Aliyun OSS / MinIO / JuiceFS / Other），该 provider 的 S3 字段直接出现在选择器下方；填完后提交。
 3. 提交即一次 `POST /api/admin/apps`；创建成功跳转到新 app 详情页（默认含 `stable` channel）。
 
 ### 切换 provider
@@ -41,7 +41,9 @@
 |----------|----------|------------------|
 | AWS | bucket、region、access key、secret、prefix | endpoint → `null`；path-style → `false` |
 | Cloudflare R2 | bucket、endpoint、access key、secret、prefix | region → `auto`；path-style → `false` |
+| Aliyun OSS | bucket、region、access key、secret、prefix | region 为 `cn-hangzhou` 这类地域 ID；endpoint → `https://{bucket}.oss-{region}.aliyuncs.com`（`oss-` 由向导拼接，用户不可见）；path-style → `true`（不可配置） |
 | MinIO | bucket、endpoint、access key、secret、prefix | region → `us-east-1`；path-style → `true` |
+| JuiceFS | bucket、endpoint、access key、secret、prefix | region → `us-east-1`；path-style → `true` |
 | Other | 完整字段集：bucket、region、endpoint、prefix、access key、secret、path-style | 无 |
 
 ## Validation & failure behavior
@@ -56,7 +58,7 @@
 
 - [ ] `/apps/new` 第一步同时选择更新系统（Electron / Tauri / Sparkle，必选、不预选）并填写名称与 slug；校验未通过时无法进入第二步。
 - [ ] 第二步选择 provider 后，S3 字段直接出现在 provider 选择器下方，无第三个页面。
-- [ ] 四个 provider 的显示字段与隐藏字段默认值与上表一致（AWS：endpoint=`null`、path-style=`false`；R2：region=`auto`、path-style=`false`；MinIO：region=`us-east-1`、path-style=`true`；Other：显示全部字段）。
+- [ ] 各 provider 的显示字段与隐藏字段默认值与上表一致（AWS：endpoint=`null`、path-style=`false`；R2：region=`auto`、path-style=`false`；Aliyun OSS：endpoint 由 bucket+region 拼出、path-style=`true` 且无勾选框；MinIO / JuiceFS：region=`us-east-1`、path-style=`true`；Other：显示全部字段）。
 - [ ] 输入后切换 provider，共有字段（bucket、prefix、access key、secret、双方都显示的 endpoint）保留已输入值。
 - [ ] slug 冲突（`conflict`）或 name/slug 的 `invalid_request` 使向导回到第一步并标记对应字段；S3 相关 `invalid_request`/`storage_error` 停留在第二步。
 - [ ] 最终提交仍是一次 `POST /api/admin/apps`；探测失败时数据库无新增 app。
