@@ -122,6 +122,8 @@ export const en = {
       'The S3 bucket name where release artifacts are stored. Find it in your cloud console under object storage / buckets.',
     regionTooltip:
       'The AWS region your bucket lives in, e.g. us-east-1 or ap-southeast-2. Shown in the bucket details in the AWS console.',
+    regionOssTooltip:
+      'The OSS region id, e.g. cn-hangzhou. Shown in the bucket overview in the Aliyun console.',
     endpointR2Tooltip:
       'Your Cloudflare account endpoint. Find it in the R2 dashboard under your bucket settings — it looks like https://<account-id>.r2.cloudflarestorage.com.',
     endpointMinioTooltip: 'The URL of your MinIO server, e.g. https://minio.example.com:9000.',
@@ -140,12 +142,13 @@ export const en = {
     stepStorage: 'Storage',
     stepReleaseLog: 'Release log',
     providerLabel: 'Storage provider',
-    pickProvider: 'Pick a provider to see just the fields it needs.',
+    pickProvider: 'Choose a storage provider',
     createApp: 'Create app',
     continue: 'Continue',
     back: 'Back',
     updaterKindLabel: 'Update client',
-    updaterKindRequired: 'Choose Electron, Tauri, or Sparkle',
+    pickUpdaterKind: 'Choose an update client',
+    updaterKindRequired: 'Choose an update client',
     nameRequired: 'Name is required',
     slugHint: 'Slug must be lowercase letters, digits and dashes, starting with a letter or digit',
     bucketRequired: 'Bucket is required',
