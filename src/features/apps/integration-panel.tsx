@@ -56,7 +56,7 @@ Facts:
 - Appcast URL (paste into SUFeedURL): ${feedUrl.replace(/\/+$/, '')}/appcast.xml
 - Channel: ${channelName}
 - App slug: ${app.slug}
-- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.0.2) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
+- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.2.0) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
 
 Do all of the following:
 1. In Info.plist, set SUFeedURL to the appcast URL above and SUPublicEDKey to the public key from Sparkle generate_keys. Do not enable SURequireSignedFeed — Shukka rewrites enclosure URLs.
@@ -74,7 +74,7 @@ Facts:
 - Update feed (public, no auth): ${feedUrl}
 - Channel: ${channelName}
 - App slug: ${app.slug}
-- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.0.2) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
+- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.2.0) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
 
 Do all of the following:
 1. In tauri.conf, set plugins.updater.endpoints to the feed URL above (the channel-root URL, not a latest.json path). Shukka fills only that URL. You must also fill from official Tauri docs (not Shukka): bundle.createUpdaterArtifacts: true; plugins.updater.pubkey as the minisign public key string (not a file path); dangerousInsecureTransportProtocol: true only if the feed is HTTP — production must be HTTPS and omit that key. Generate keys with \`tauri signer generate\` and set TAURI_SIGNING_PRIVATE_KEY at build time. Ensure the updater:default capability is present (\`tauri add updater\` usually adds it).
@@ -87,7 +87,7 @@ Facts:
 - Update feed (public, no auth): ${feedUrl}
 - Channel: ${channelName}
 - App slug: ${app.slug}
-- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.0.2) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
+- Publishing goes through the Shukka GitHub Action (shukka-app/shukka@v1.2.0) with repository secrets SHUKKA_URL (my Shukka base URL) and SHUKKA_API_KEY (I will create it in the panel and add it to the repo myself — never ask me to paste it into code).
 
 Do all of the following:
 1. In electron-builder config, set publish to the generic provider pointing at the feed URL above. Do not set publish.channel — the feed URL already includes the Shukka channel.
