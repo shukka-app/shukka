@@ -10,6 +10,8 @@
  */
 import { z } from 'zod'
 import {
+  releaseMetadataBodySchema,
+  releaseMetadataResponseSchema,
   appDetailResponseSchema,
   appInputSchema,
   appUpdateResponseSchema,
@@ -189,6 +191,26 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
             '302': { description: t.responses.redirectToStorage },
             '404': artifactMissing,
           },
+        },
+      },
+      '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata': {
+        get: {
+          tags: [t.tags.versions.name],
+          summary: t.ops.getReleaseMetadata.summary,
+          description: t.ops.getReleaseMetadata.description,
+          security: [{}, { apiKey: [] }, { session: [] }],
+          parameters: [slugParam, channelParam, versionParam],
+          responses: {
+            '200': jsonResponse(t.responses.releaseMetadata, releaseMetadataResponseSchema),
+            '404': notFound,
+          },
+        },
+        put: {
+          tags: [t.tags.versions.name],
+          summary: t.ops.replaceReleaseMetadata.summary,
+          parameters: [slugParam, channelParam, versionParam],
+          requestBody: jsonBody(releaseMetadataBodySchema),
+          responses: { '200': jsonResponse(t.responses.releaseMetadata, releaseMetadataResponseSchema) },
         },
       },
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend': {

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import type { ReleaseMetadata } from '~/lib/release-metadata.ts'
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 const now = sql`(unixepoch())`
@@ -68,6 +69,7 @@ export const versions = sqliteTable(
     createdAt: integer('created_at').notNull().default(now),
     /** Null = draft; set once on first promote or `release: true` finalize. */
     releasedAt: integer('released_at'),
+    metadata: text('metadata', { mode: 'json' }).$type<ReleaseMetadata>().notNull().default({}),
     metadataHits: integer('metadata_hits').notNull().default(0),
     artifactHits: integer('artifact_hits').notNull().default(0),
   },

@@ -56,7 +56,7 @@ autoUpdater.checkForUpdatesAndNotify()`,
     },
     githubAction: {
       lang: 'yaml',
-      code: `- uses: shukka-app/shukka@v1.0.2
+      code: `- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: \${{ secrets.SHUKKA_URL }}
     api-key: \${{ secrets.SHUKKA_API_KEY }}
@@ -128,7 +128,7 @@ let controller = SPUStandardUpdaterController(
     },
     githubAction: {
       lang: 'yaml',
-      code: `- uses: shukka-app/shukka@v1.0.2
+      code: `- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: \${{ secrets.SHUKKA_URL }}
     api-key: \${{ secrets.SHUKKA_API_KEY }}
@@ -213,7 +213,7 @@ if (update) {
     },
     githubAction: {
       lang: 'yaml',
-      code: `- uses: shukka-app/shukka@v1.0.2
+      code: `- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: \${{ secrets.SHUKKA_URL }}
     api-key: \${{ secrets.SHUKKA_API_KEY }}

@@ -30,6 +30,7 @@ import { cn } from '~/lib/utils.ts'
 import { ChannelTrend } from './channel-trend.tsx'
 import { platformsOf } from './platforms.ts'
 import { VersionDownloadDialog } from './version-download-dialog.tsx'
+import { VersionMetadataDialog } from './version-metadata-dialog.tsx'
 import { VersionTrend } from './version-trend.tsx'
 import {
   createChannelMutationOptions,
@@ -285,6 +286,9 @@ function HistoryTable({ slug, app, channel }: { slug: string; app: PublicApp; ch
                             </Link>
                           </Button>
                         </RowAction>
+                      ) : null}
+                      {role !== 'content' ? (
+                        <VersionMetadataDialog slug={slug} channel={channel.name} version={version.version} />
                       ) : null}
                       {canDownloadInstallers(role) ? (
                         <VersionDownloadDialog slug={slug} channel={channel.name} version={version} />

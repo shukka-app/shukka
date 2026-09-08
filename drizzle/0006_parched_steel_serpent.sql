@@ -1,0 +1,1 @@
+ALTER TABLE `versions` ADD `metadata` text DEFAULT '{}' NOT NULL;

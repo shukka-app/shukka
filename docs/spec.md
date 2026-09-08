@@ -203,3 +203,12 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   and `docs/adr/ghcr-on-semver-tag.md`. PR / `main` builds that image and walks the
   container path per `docs/adr/docker-image-ci.md` (no push), including the
   Compose and Ansible example stacks.
+
+## Release metadata
+
+- A version owns a mutable custom JSON object named `metadata`, distinct from updater metadata files and their hit counters; existing/new versions default to `{}`. Top level is an object, with arbitrary nested JSON values, limited to 16 KiB of compact JSON encoded as UTF-8.
+- Finalize accepts optional `metadata` and persists it in the same transaction as version creation/publication. Action `metadata` and standalone `SHUKKA_METADATA` accept JSON strings and validate before init.
+- `GET /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata` returns `{ version, metadata }`. Released versions are public whether current or historical; anonymous drafts and missing versions return 404. Explicit Authorization is validated (invalid key 401, wrong app 403); a valid admin session or app key may read drafts.
+- `PUT` at the same path requires session or bound app key, accepts `{ metadata }`, replaces the whole object and returns `{ version, metadata }`; `{}` clears. Last successful write wins. Edits do not change publication time, artifacts or channel current.
+- GET uses `Cache-Control: no-store`, is independent of release log and does not record update hits. Metadata is fetched per version rather than included in bulk version lists. It never inherits across versions or changes existing updater feed documents.
+- Admin/developer views expose a per-version Metadata dialog; content hides its entry. It uses manual JSON save, retains input on errors, and confirms before discarding unsaved changes. These views are not authorization.

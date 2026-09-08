@@ -75,7 +75,7 @@ async function appChannels(app: App, origin: string) {
   return channelRows.map((channel) => {
     const versionDetails = versionRows
       .filter((version) => version.channelId === channel.id)
-      .map((version) => ({
+      .map(({ metadata: _metadata, ...version }) => ({
         ...version,
         isDraft: version.releasedAt == null,
         isCurrent: version.id === channel.currentVersionId,
