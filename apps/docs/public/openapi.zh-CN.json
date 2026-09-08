@@ -1079,6 +1079,190 @@
         }
       }
     },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata": {
+      "get": {
+        "tags": [
+          "版本"
+        ],
+        "summary": "读取精确版本的自定义 metadata",
+        "description": "已发布版本可公开读取；草稿需 session 或绑定 app 的 key。显式 Authorization 必须通过验证（401/403）。返回 no-store，不增加更新检查次数，不依赖 release log。",
+        "security": [
+          {},
+          {
+            "apiKey": []
+          },
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "版本及自定义 metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "metadata",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "不存在或仍为草稿",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "invalid_request",
+                        "storage_error",
+                        "metadata_error",
+                        "rate_limited"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "版本"
+        ],
+        "summary": "整份替换 metadata 对象（16 KiB UTF-8 JSON）；{} 清空，最后成功写入生效。",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                  }
+                },
+                "required": [
+                  "metadata"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "版本及自定义 metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "metadata",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend": {
       "get": {
         "tags": [
@@ -1748,6 +1932,11 @@
                   },
                   "release": {
                     "type": "boolean"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
                   }
                 },
                 "required": [

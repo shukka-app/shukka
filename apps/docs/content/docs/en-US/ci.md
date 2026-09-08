@@ -10,7 +10,7 @@ description: Publish build artifacts as a version with the GitHub Action or the 
 It publishes every artifact in a directory as one version:
 
 ```yaml
-- uses: akarachen/shukka@main
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

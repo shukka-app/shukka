@@ -10,7 +10,7 @@ description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为�
 把目录内的构建产物完整发布为一个版本：
 
 ```yaml
-- uses: akarachen/shukka@main
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}
