@@ -23,6 +23,12 @@ Version states:
 | Current | This is the version the channel currently offers to users |
 | Published, not current | Still downloadable; older clients are unaffected |
 
+## Custom release metadata
+
+Add a `metadata` JSON string to the GitHub Action inputs, or set `SHUKKA_METADATA` when running the upload script. For example, `'{"build":{"commit":"abc123"}}'`. Omit it to use `{}`. The uploader validates the object before uploading; it is saved together with the version, including when publishing immediately.
+
+You can also edit draft or published metadata from the version row in the panel. See [Release metadata](/en-US/docs/guide/release-metadata) for limits, editing and client reads.
+
 ## Rollback
 
 Point the channel back at any published version in the panel. The switch is instantaneous; clients never see a half-new, half-old state. Prefer rollback over deleting the new version.

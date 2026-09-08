@@ -1079,6 +1079,190 @@
         }
       }
     },
+    "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata": {
+      "get": {
+        "tags": [
+          "Versions"
+        ],
+        "summary": "Read custom metadata for an exact version",
+        "description": "Released versions are public; drafts require a session or bound app key. Explicit Authorization is validated (401/403). Returns no-store and does not increment update checks. Independent of release log.",
+        "security": [
+          {},
+          {
+            "apiKey": []
+          },
+          {
+            "session": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Version and custom metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "metadata",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "unauthorized",
+                        "forbidden",
+                        "not_found",
+                        "conflict",
+                        "invalid_request",
+                        "storage_error",
+                        "metadata_error",
+                        "rate_limited"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Versions"
+        ],
+        "summary": "Replace the whole metadata object (16 KiB UTF-8 JSON); {} clears it. Last write wins.",
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                  }
+                },
+                "required": [
+                  "metadata"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Version and custom metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "metadata": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "metadata",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend": {
       "get": {
         "tags": [
@@ -1748,6 +1932,11 @@
                   },
                   "release": {
                     "type": "boolean"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
                   }
                 },
                 "required": [
