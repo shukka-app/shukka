@@ -43,6 +43,13 @@
       "when": 1787304128575,
       "tag": "0005_pending_uploads_channel_version_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788875723551,
+      "tag": "0006_parched_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

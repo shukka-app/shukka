@@ -3,6 +3,7 @@
  * schemas; `openapi.ts` turns them into JSON Schema via `z.toJSONSchema`.
  */
 import { z } from 'zod'
+import { releaseMetadataSchema } from '~/lib/release-metadata.ts'
 import { UPDATER_KINDS } from '~/lib/updater-kind.ts'
 
 const unixSeconds = z.number().int()
@@ -63,10 +64,14 @@ export const uploadInitBodySchema = z.object({
     .min(1),
 })
 
+export const releaseMetadataBodySchema = z.object({ metadata: releaseMetadataSchema })
+export const releaseMetadataResponseSchema = releaseMetadataBodySchema.extend({ version: z.string() })
+
 export const uploadFinalizeBodySchema = z.object({
   uploadId: z.string().min(1),
   app: z.string().optional(),
   release: z.boolean().optional(),
+  metadata: releaseMetadataSchema.optional(),
 })
 
 export const publicAppSchema = z.object({

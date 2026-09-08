@@ -39,3 +39,9 @@ To promote a draft later: `PATCH {baseUrl}/api/v1/apps/{appSlug}/channels/{chann
 3. Run the publish protocol above against the output directory.
 4. If the user asked to go live immediately, pass `release: true` on finalize (or the Action input `release: true`). Otherwise leave it as a draft and say so.
 5. Verify a live release with `GET {baseUrl}/api/update/{appSlug}/{channel}/latest.yml` (Electron), the channel root or `latest.json` (Tauri), or the channel root or `appcast.xml` (Sparkle). No auth. A draft is invisible there — that is expected. Report the version, channel, and whether it is draft or live.
+
+## Custom release metadata
+
+If the user supplies custom release data, pass it as `metadata` on finalize, the Action `metadata` input, or standalone `SHUKKA_METADATA`. It must be a JSON object, at most 16 KiB of compact UTF-8 JSON, and defaults to `{}`. Validate before init. This is separate from updater manifest files. Metadata is public once the version is released; never put credentials in it.
+
+Verify it using `GET /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata`. Anonymous reads expose released versions only; use an app key for drafts. To edit later, authenticated `PUT` at the same path accepts `{ "metadata": { ... } }`, replaces the whole object, and returns `{ version, metadata }`. `{}` clears it. Edits do not change artifacts, release time, or channel current.

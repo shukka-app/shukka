@@ -37,10 +37,16 @@ export const en = {
     savedConfig: 'Saved config',
     uploadInit: 'uploadId and presigned PUT URLs',
     versionCreated: 'Version created',
+    releaseMetadata: 'Version and custom metadata',
     feedDocument: 'Generated feed document',
     artifactRedirect: 'Artifact redirect',
   },
   ops: {
+    getReleaseMetadata: {
+      summary: 'Read custom metadata for an exact version',
+      description: 'Released versions are public; drafts require a session or bound app key. Explicit Authorization is validated (401/403). Returns no-store and does not increment update checks. Independent of release log.',
+    },
+    replaceReleaseMetadata: { summary: 'Replace the whole metadata object (16 KiB UTF-8 JSON); {} clears it. Last write wins.' },
     getApp: { summary: 'App detail (channels, versions, keys)' },
     patchApp: {
       summary: 'Update app settings (probes S3)',
@@ -107,10 +113,16 @@ export const zh = {
     savedConfig: '已保存的配置',
     uploadInit: 'uploadId 与预签名 PUT URL',
     versionCreated: '已创建的版本',
+    releaseMetadata: '版本及自定义 metadata',
     feedDocument: '生成的 feed 文档',
     artifactRedirect: '制品重定向',
   },
   ops: {
+    getReleaseMetadata: {
+      summary: '读取精确版本的自定义 metadata',
+      description: '已发布版本可公开读取；草稿需 session 或绑定 app 的 key。显式 Authorization 必须通过验证（401/403）。返回 no-store，不增加更新检查次数，不依赖 release log。',
+    },
+    replaceReleaseMetadata: { summary: '整份替换 metadata 对象（16 KiB UTF-8 JSON）；{} 清空，最后成功写入生效。' },
     getApp: { summary: '应用详情（渠道、版本、keys）' },
     patchApp: {
       summary: '更新应用设置（会探测 S3）',

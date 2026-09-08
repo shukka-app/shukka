@@ -17,6 +17,7 @@ import {
 import { createChannel, getChannel, getVersion } from './channels.ts'
 import { adapterFor } from './updaters/index.ts'
 import type { App } from '~/db/schema.ts'
+import type { ReleaseMetadata } from '~/lib/release-metadata.ts'
 
 const PENDING_TTL_SECONDS = 60 * 60
 /** Real electron-builder/Tauri metadata is a few KB; this cap only exists to bound memory. */
@@ -158,7 +159,7 @@ export type FinalizeResult = {
 export async function finalizeUpload(
   app: App,
   uploadId: string,
-  options: { release?: boolean } = {},
+  options: { release?: boolean; metadata?: ReleaseMetadata } = {},
 ): Promise<FinalizeResult> {
   const [pending] = await db.select().from(pendingUploads).where(eq(pendingUploads.id, uploadId)).limit(1)
   if (!pending) throw new ShukkaError('not_found', 'Upload not found or already finalized')
@@ -222,6 +223,7 @@ export async function finalizeUpload(
           appId: app.id,
           channelId: channel.id,
           version: pending.version,
+          metadata: options.metadata ?? {},
           createdAt: now,
           releasedAt: release ? now : null,
         })

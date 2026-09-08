@@ -13,7 +13,7 @@ export const Route = createFileRoute('/api/v1/upload/finalize')({
           throw new ShukkaError('invalid_request', 'Invalid finalize payload', parsed.error.issues)
         }
         const app = await authenticateApiKey(request, parsed.data.app)
-        return Response.json(await finalizeUpload(app, parsed.data.uploadId, { release: parsed.data.release }))
+        return Response.json(await finalizeUpload(app, parsed.data.uploadId, { release: parsed.data.release, metadata: parsed.data.metadata }))
       }),
     },
   },

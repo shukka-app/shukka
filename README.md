@@ -136,6 +136,32 @@ SHUKKA_DIRECTORY=dist \
 node scripts/shukka-upload.mjs
 ```
 
+### Custom release metadata
+
+Pass a JSON object using the Action's `metadata` input or `SHUKKA_METADATA` in the
+standalone uploader. The default is `{}`; nested JSON values are allowed, with a
+16 KiB limit on compact UTF-8 JSON. Direct API callers include `metadata` in the
+finalize body, so it is saved atomically with the release.
+
+Admin and developer views expose **Metadata** on each version row. The dialog
+loads on demand, saves the entire object, and asks before discarding unsaved
+edits. Draft and released metadata are editable; saving `{}` clears it.
+
+Read an exact version with
+`GET /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata`, returning
+`{ "version": "1.4.0", "metadata": {} }`. Released versions are publicly readable,
+including historical versions. Drafts require a session or bound app key;
+anonymous draft reads return 404. Explicit invalid/wrong-app keys return 401/403.
+The endpoint uses `Cache-Control: no-store`, works without release log, and does
+not count as an update check. Metadata is public after release: do not put secrets
+in it.
+
+Authenticated `PUT` at the same URL accepts `{ "metadata": {} }` and returns the
+same response shape. It replaces the whole object; the last successful write wins.
+Edits do not change artifacts, publication time, or channel current. Metadata does
+not inherit between versions. Consumers should request their updater's selected
+version; Shukka does not interpret custom keys or alter updater feed documents.
+
 ## Point the app at the feed
 
 The **Integration** tab prints these with your real URLs filled in.

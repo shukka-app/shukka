@@ -104,6 +104,18 @@ describe('openApiDocument schemas', () => {
     }
   })
 
+  it('describes custom metadata as an object without document-root recursive refs', () => {
+    const operation = doc.paths['/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata']
+    const response = operation.get.responses['200'].content['application/json'].schema as {
+      properties: { metadata: { type: string; additionalProperties: boolean } }
+    }
+    expect(response.properties.metadata).toMatchObject({ type: 'object', additionalProperties: true })
+    expect(JSON.stringify(operation)).not.toContain('#/$defs/')
+    expect(operation.get.security).toContainEqual({})
+    const finalize = doc.paths['/api/v1/upload/finalize'].post.requestBody.content['application/json'].schema
+    expect(JSON.stringify(finalize)).not.toContain('#/$defs/')
+  })
+
   it('documents upload init and app detail response fields', () => {
     const init = doc.paths['/api/v1/upload/init'].post.responses['200'].content['application/json'].schema as {
       required?: string[]

@@ -6,6 +6,10 @@ branding:
   color: 'blue'
 
 inputs:
+  metadata:
+    description: 'Custom release JSON object (max 16 KiB), publicly readable after release'
+    required: false
+    default: '{}'
   server-url:
     description: 'Base URL of the Shukka instance, e.g. https://updates.example.com'
     required: true

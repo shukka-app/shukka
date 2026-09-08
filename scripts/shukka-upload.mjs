@@ -78,6 +78,25 @@ async function putFile(uploadUrl, file) {
   }
 }
 
+export function parseReleaseMetadata(text) {
+  let metadata
+  try {
+    metadata = JSON.parse(text, (_key, value) => {
+      if (typeof value === 'number' && !Number.isFinite(value)) throw new Error('Non-finite JSON number')
+      return value
+    })
+  } catch {
+    fail('metadata must be valid JSON')
+  }
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    fail('metadata must be a JSON object')
+  }
+  if (Buffer.byteLength(JSON.stringify(metadata), 'utf8') > 16 * 1024) {
+    fail('metadata must not exceed 16 KiB of UTF-8 JSON')
+  }
+  return metadata
+}
+
 async function main() {
   const serverUrl = required('server-url', readInput('server-url', 'SHUKKA_SERVER_URL'))
   const apiKey = required('api-key', readInput('api-key', 'SHUKKA_API_KEY'))
@@ -86,6 +105,7 @@ async function main() {
   const directory = resolve(readInput('directory', 'SHUKKA_DIRECTORY', 'dist'))
   const createChannel = readInput('create-channel', 'SHUKKA_CREATE_CHANNEL') === 'true'
   const release = readInput('release', 'SHUKKA_RELEASE') === 'true'
+  const metadata = parseReleaseMetadata(readInput('metadata', 'SHUKKA_METADATA', '{}'))
   const kind = await detectUpdaterKind(directory, readInput('updater-kind', 'SHUKKA_UPDATER_KIND'))
 
   const files = await collectFiles(directory, kind)
@@ -110,7 +130,7 @@ async function main() {
     await putFile(target.uploadUrl, file)
   }
 
-  const result = await callApi(serverUrl, '/api/v1/upload/finalize', apiKey, { app, uploadId: init.uploadId, release })
+  const result = await callApi(serverUrl, '/api/v1/upload/finalize', apiKey, { app, uploadId: init.uploadId, release, metadata })
   process.stdout.write(`Published ${result.version} to ${result.channel}\n`)
 
   if (process.env.GITHUB_OUTPUT) {

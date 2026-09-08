@@ -6,10 +6,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 type CollectedFile = { filename: string; path: string; size: number }
 
 // The action script is plain ESM with no .d.ts; keep the contract local to this file.
-const { collectFiles, detectUpdaterKind, readInput, versionFromMetadata } = (await import(
+const { collectFiles, detectUpdaterKind, readInput, versionFromMetadata, parseReleaseMetadata } = (await import(
   // @ts-expect-error — scripts/shukka-upload.mjs has no declaration file
   '../scripts/shukka-upload.mjs'
 )) as {
+  parseReleaseMetadata: (text: string) => Record<string, unknown>
   collectFiles: (directory: string, kind?: string) => Promise<CollectedFile[]>
   detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri' | 'sparkle'>
   versionFromMetadata: (
@@ -331,5 +332,30 @@ describe('readInput', () => {
     setEnv('SHUKKA_SERVER_URL', undefined)
     setEnv('INPUT_SERVER-URL', 'https://updates.example.test')
     expect(readInput('server-url', 'SHUKKA_SERVER_URL')).toBe('https://updates.example.test')
+  })
+})
+
+
+describe('release metadata input', () => {
+  it('preserves nested JSON and accepts 16 KiB measured after compact UTF-8 serialization', () => {
+    expect(parseReleaseMetadata('{"nested":{"list":[true,null,3,"文本"]}}')).toEqual({ nested: { list: [true, null, 3, '文本'] } })
+    expect(parseReleaseMetadata('{}')).toEqual({})
+    const customKeys = '{"__proto__":{"nested":{"__proto__":[1,null]}}}'
+    expect(JSON.stringify(parseReleaseMetadata(customKeys))).toBe(customKeys)
+    const boundary = { x: '界'.repeat(5458) + 'aa' }
+    expect(Buffer.byteLength(JSON.stringify(boundary))).toBe(16384)
+    expect(parseReleaseMetadata(JSON.stringify(boundary, null, 2))).toEqual(boundary)
+  })
+
+  it('fails before upload for malformed, non-object, and oversized JSON', () => {
+    const mock = mockExit()
+    try {
+      for (const input of ['', '{', 'null', '[]', 'true', '12', '"text"', '{"value":1e400}', '{"nested":[{"value":-1e400}]}',
+        `{"__proto__":"${'x'.repeat(16384)}"}`, JSON.stringify({ x: '界'.repeat(5459) })]) {
+        expect(() => parseReleaseMetadata(input)).toThrow('process.exit(1)')
+      }
+    } finally {
+      mock.restore()
+    }
   })
 })
