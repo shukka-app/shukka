@@ -87,6 +87,30 @@ describe('openApiDocument locales', () => {
       )
     }
   })
+
+  it('keeps operation summaries as short titles and puts details in description', () => {
+    type Operation = { summary?: string; description?: string }
+    const check = (doc: typeof en, label: string) => {
+      for (const [path, methods] of Object.entries(doc.paths)) {
+        for (const [method, operation] of Object.entries(methods as Record<string, Operation>)) {
+          const summary = operation.summary ?? ''
+          expect(summary.length, `${label} ${method.toUpperCase()} ${path}`).toBeLessThanOrEqual(40)
+          expect(summary, `${label} ${method.toUpperCase()} ${path}`).not.toMatch(/\. /)
+          expect(summary, `${label} ${method.toUpperCase()} ${path}`).not.toMatch(/\.$/)
+        }
+      }
+    }
+    check(en, 'en')
+    check(zh, 'zh')
+
+    expect(en.paths['/api/v1/upload/init'].post.description).toMatch(/Electron/)
+    expect(zh.paths['/api/v1/upload/init'].post.description).toMatch(/Electron/)
+    expect(en.paths['/api/update/{appSlug}/{channel}'].get.description).toMatch(/Tauri/)
+    expect(en.paths['/api/update/{appSlug}/{channel}/{filename}'].get.description).toMatch(/302/)
+    expect(en.paths['/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata'].put.description).toMatch(
+      /16 KiB/,
+    )
+  })
 })
 
 describe('openApiDocument schemas', () => {

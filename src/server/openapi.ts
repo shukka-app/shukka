@@ -73,6 +73,10 @@ function jsonBody(schema: z.ZodType) {
   return { required: true, content: jsonContent(schema, 'input') }
 }
 
+function opNarrative(op: { summary: string; description?: string }) {
+  return op.description ? { summary: op.summary, description: op.description } : { summary: op.summary }
+}
+
 export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
   const t = openApiCopy(locale)
   const server = origin.replace(/\/+$/, '')
@@ -118,14 +122,13 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}': {
         get: {
           tags: [t.tags.app.name],
-          summary: t.ops.getApp.summary,
+          ...opNarrative(t.ops.getApp),
           parameters: [slugParam],
           responses: { '200': jsonResponse(t.responses.appDetail, appDetailResponseSchema) },
         },
         patch: {
           tags: [t.tags.app.name],
-          summary: t.ops.patchApp.summary,
-          description: t.ops.patchApp.description,
+          ...opNarrative(t.ops.patchApp),
           parameters: [slugParam],
           requestBody: jsonBody(appInputSchema),
           responses: { '200': jsonResponse(t.responses.updatedApp, appUpdateResponseSchema) },
@@ -134,13 +137,13 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels': {
         get: {
           tags: [t.tags.channels.name],
-          summary: t.ops.listChannels.summary,
+          ...opNarrative(t.ops.listChannels),
           parameters: [slugParam],
           responses: { '200': jsonResponse(t.responses.channelList, channelListResponseSchema) },
         },
         post: {
           tags: [t.tags.channels.name],
-          summary: t.ops.createChannel.summary,
+          ...opNarrative(t.ops.createChannel),
           parameters: [slugParam],
           requestBody: jsonBody(createChannelBodySchema),
           responses: { '201': jsonResponse(t.responses.created, channelCreateResponseSchema) },
@@ -149,14 +152,14 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}': {
         patch: {
           tags: [t.tags.channels.name],
-          summary: t.ops.setCurrent.summary,
+          ...opNarrative(t.ops.setCurrent),
           parameters: [slugParam, channelParam],
           requestBody: jsonBody(setCurrentVersionBodySchema),
           responses: { '200': jsonResponse(t.responses.updated, okResponseSchema) },
         },
         delete: {
           tags: [t.tags.channels.name],
-          summary: t.ops.deleteChannel.summary,
+          ...opNarrative(t.ops.deleteChannel),
           parameters: [slugParam, channelParam],
           responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
@@ -164,7 +167,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/trend': {
         get: {
           tags: [t.tags.channels.name],
-          summary: t.ops.channelTrend.summary,
+          ...opNarrative(t.ops.channelTrend),
           parameters: [slugParam, channelParam, { name: 'range', in: 'query', schema: { type: 'integer', enum: [7, 30, 90] } }],
           responses: { '200': jsonResponse(t.responses.trendSeries, channelTrendResponseSchema) },
         },
@@ -172,7 +175,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}': {
         delete: {
           tags: [t.tags.versions.name],
-          summary: t.ops.deleteVersion.summary,
+          ...opNarrative(t.ops.deleteVersion),
           parameters: [slugParam, channelParam, versionParam],
           responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
@@ -180,7 +183,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/artifacts/{filename}': {
         get: {
           tags: [t.tags.versions.name],
-          summary: t.ops.getArtifact.summary,
+          ...opNarrative(t.ops.getArtifact),
           parameters: [
             slugParam,
             channelParam,
@@ -196,8 +199,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/metadata': {
         get: {
           tags: [t.tags.versions.name],
-          summary: t.ops.getReleaseMetadata.summary,
-          description: t.ops.getReleaseMetadata.description,
+          ...opNarrative(t.ops.getReleaseMetadata),
           security: [{}, { apiKey: [] }, { session: [] }],
           parameters: [slugParam, channelParam, versionParam],
           responses: {
@@ -207,7 +209,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
         },
         put: {
           tags: [t.tags.versions.name],
-          summary: t.ops.replaceReleaseMetadata.summary,
+          ...opNarrative(t.ops.replaceReleaseMetadata),
           parameters: [slugParam, channelParam, versionParam],
           requestBody: jsonBody(releaseMetadataBodySchema),
           responses: { '200': jsonResponse(t.responses.releaseMetadata, releaseMetadataResponseSchema) },
@@ -216,7 +218,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/trend': {
         get: {
           tags: [t.tags.versions.name],
-          summary: t.ops.versionTrend.summary,
+          ...opNarrative(t.ops.versionTrend),
           parameters: [slugParam, channelParam, versionParam],
           responses: { '200': jsonResponse(t.responses.trendSeries, versionTrendResponseSchema) },
         },
@@ -224,7 +226,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes': {
         get: {
           tags: [t.tags.notes.name],
-          summary: t.ops.editorNotes.summary,
+          ...opNarrative(t.ops.editorNotes),
           parameters: [slugParam, channelParam, versionParam],
           responses: { '200': jsonResponse(t.responses.notes, editorNotesResponseSchema) },
         },
@@ -232,14 +234,14 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}': {
         put: {
           tags: [t.tags.notes.name],
-          summary: t.ops.upsertNote.summary,
+          ...opNarrative(t.ops.upsertNote),
           parameters: [slugParam, channelParam, versionParam, localeParam],
           requestBody: jsonBody(upsertNoteBodySchema),
           responses: { '200': jsonResponse(t.responses.savedNote, savedNoteResponseSchema) },
         },
         delete: {
           tags: [t.tags.notes.name],
-          summary: t.ops.deleteNote.summary,
+          ...opNarrative(t.ops.deleteNote),
           parameters: [slugParam, channelParam, versionParam, localeParam],
           responses: { '200': jsonResponse(t.responses.deleted, okResponseSchema) },
         },
@@ -247,7 +249,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/channels/{channel}/notes': {
         get: {
           tags: [t.tags.notes.name],
-          summary: t.ops.publicNotes.summary,
+          ...opNarrative(t.ops.publicNotes),
           security: [],
           parameters: [
             slugParam,
@@ -262,7 +264,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/apps/{appSlug}/notes-config': {
         put: {
           tags: [t.tags.notes.name],
-          summary: t.ops.saveNotesConfig.summary,
+          ...opNarrative(t.ops.saveNotesConfig),
           parameters: [slugParam],
           requestBody: jsonBody(notesConfigSchema),
           responses: { '200': jsonResponse(t.responses.savedConfig, notesConfigResponseSchema) },
@@ -271,7 +273,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/upload/init': {
         post: {
           tags: [t.tags.upload.name],
-          summary: t.ops.uploadInit.summary,
+          ...opNarrative(t.ops.uploadInit),
           security: [{ apiKey: [] }],
           requestBody: jsonBody(uploadInitBodySchema),
           responses: { '200': jsonResponse(t.responses.uploadInit, uploadInitResponseSchema) },
@@ -280,7 +282,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/v1/upload/finalize': {
         post: {
           tags: [t.tags.upload.name],
-          summary: t.ops.uploadFinalize.summary,
+          ...opNarrative(t.ops.uploadFinalize),
           security: [{ apiKey: [] }],
           requestBody: jsonBody(uploadFinalizeBodySchema),
           responses: { '200': jsonResponse(t.responses.versionCreated, uploadFinalizeResponseSchema) },
@@ -289,7 +291,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/update/{appSlug}/{channel}': {
         get: {
           tags: [t.tags.feed.name],
-          summary: t.ops.channelFeed.summary,
+          ...opNarrative(t.ops.channelFeed),
           security: [],
           parameters: [slugParam, channelParam],
           responses: {
@@ -301,7 +303,7 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
       '/api/update/{appSlug}/{channel}/{filename}': {
         get: {
           tags: [t.tags.feed.name],
-          summary: t.ops.publicFeed.summary,
+          ...opNarrative(t.ops.publicFeed),
           security: [],
           parameters: [slugParam, channelParam, { name: 'filename', in: 'path', required: true, schema: { type: 'string' } }],
           responses: {
