@@ -6,7 +6,8 @@
  * uses to extract — so the archive is Apple-compatible. Elsewhere, writes an
  * uncompressed ZIP with Unix modes (Linux XML+EdDSA e2e / unit tests).
  *
- * Env: SHUKKA_DIRECTORY (default ./out), SHUKKA_VERSION (optional).
+ * Env: SHUKKA_DIRECTORY (default ./out), SHUKKA_VERSION (optional),
+ * SHUKKA_SPARKLE_PACK (optional; stored forces the uncompressed packer).
  * Writes GITHUB_OUTPUT: version, public-key, directory.
  */
 import { spawnSync } from 'node:child_process'
@@ -170,7 +171,11 @@ function packStored() {
   ])
 }
 
-const zipBytes = process.platform === 'darwin' && existsSync('/usr/bin/ditto') ? packWithDitto() : packStored()
+// Unit tests set SHUKKA_SPARKLE_PACK=stored so the plist bytes stay greppable on every OS.
+// The macOS e2e job keeps the default (ditto) so Sparkle's unarchiver accepts the archive.
+const useDitto =
+  process.env.SHUKKA_SPARKLE_PACK !== 'stored' && process.platform === 'darwin' && existsSync('/usr/bin/ditto')
+const zipBytes = useDitto ? packWithDitto() : packStored()
 const signature = sign(null, zipBytes, privateKey).toString('base64')
 const sidecar = `sparkle:edSignature="${signature}" length="${zipBytes.length}"\n`
 

@@ -11,7 +11,12 @@ describe('prepare-sparkle-release', () => {
   it('writes a real Dummy.app zip plus a sign_update sidecar', () => {
     const directory = mkdtempSync(join(tmpdir(), 'shukka-sparkle-prep-'))
     const output = execFileSync(process.execPath, [prepare], {
-      env: { ...process.env, SHUKKA_DIRECTORY: directory, SHUKKA_VERSION: '2.0.99' },
+      env: {
+        ...process.env,
+        SHUKKA_DIRECTORY: directory,
+        SHUKKA_VERSION: '2.0.99',
+        SHUKKA_SPARKLE_PACK: 'stored',
+      },
       encoding: 'utf8',
     })
     expect(output).toMatch(/Prepared Sparkle 2\.0\.99/)
