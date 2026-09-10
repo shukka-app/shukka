@@ -93,7 +93,8 @@
         "tags": [
           "应用"
         ],
-        "summary": "应用详情（渠道、版本、keys）",
+        "summary": "读取应用",
+        "description": "应用详情，含渠道、版本与 keys。",
         "parameters": [
           {
             "name": "appSlug",
@@ -390,8 +391,8 @@
         "tags": [
           "应用"
         ],
-        "summary": "更新应用设置（会探测 S3）",
-        "description": "API key 只能改 `name`。slug 与存储字段仅 session 可改；原样回传未变更的值是允许的。在已有制品时改 endpoint/bucket/prefix，会探测新位置上最新对象是否存在。",
+        "summary": "更新应用设置",
+        "description": "会探测 S3。API key 只能改 `name`。slug 与存储字段仅 session 可改；原样回传未变更的值是允许的。在已有制品时改 endpoint/bucket/prefix，会探测新位置上最新对象是否存在。",
         "parameters": [
           {
             "name": "appSlug",
@@ -739,7 +740,8 @@
         "tags": [
           "渠道"
         ],
-        "summary": "设置 currentVersion（promote 草稿或回滚）",
+        "summary": "设置当前版本",
+        "description": "设置 `currentVersion`：promote 草稿或回滚到已发布版本。",
         "parameters": [
           {
             "name": "appSlug",
@@ -812,7 +814,8 @@
         "tags": [
           "渠道"
         ],
-        "summary": "删除渠道及其对象",
+        "summary": "删除渠道",
+        "description": "删除渠道及其对象。",
         "parameters": [
           {
             "name": "appSlug",
@@ -947,7 +950,8 @@
         "tags": [
           "版本"
         ],
-        "summary": "删除版本及其对象",
+        "summary": "删除版本",
+        "description": "删除版本及其对象。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1003,7 +1007,8 @@
         "tags": [
           "版本"
         ],
-        "summary": "对该版本上单个制品签发预签名 GET（含草稿）。不计入命中。",
+        "summary": "下载制品",
+        "description": "对该版本上单个制品签发预签名 GET（含草稿）。不计入命中。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1084,8 +1089,8 @@
         "tags": [
           "版本"
         ],
-        "summary": "读取精确版本的自定义 metadata",
-        "description": "已发布版本可公开读取；草稿需 session 或绑定 app 的 key。显式 Authorization 必须通过验证（401/403）。返回 no-store，不增加更新检查次数，不依赖 release log。",
+        "summary": "读取 release metadata",
+        "description": "读取精确版本的自定义 metadata。已发布版本可公开读取；草稿需 session 或绑定 app 的 key。显式 Authorization 必须通过验证（401/403）。返回 no-store，不增加更新检查次数，不依赖 release log。",
         "security": [
           {},
           {
@@ -1187,7 +1192,8 @@
         "tags": [
           "版本"
         ],
-        "summary": "整份替换 metadata 对象（16 KiB UTF-8 JSON）；{} 清空，最后成功写入生效。",
+        "summary": "替换 release metadata",
+        "description": "整份替换 metadata 对象（16 KiB UTF-8 JSON）；{} 清空，最后成功写入生效。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1268,7 +1274,8 @@
         "tags": [
           "版本"
         ],
-        "summary": "版本命中趋势（草稿为空）",
+        "summary": "版本命中趋势",
+        "description": "草稿为空。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1343,7 +1350,8 @@
         "tags": [
           "发布说明"
         ],
-        "summary": "编辑器读模型——某一版本的全部 locale",
+        "summary": "读取编辑器 notes",
+        "description": "某一版本的全部 locale。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1603,7 +1611,8 @@
         "tags": [
           "发布说明"
         ],
-        "summary": "公开 notes——仅已发布版本，无需鉴权",
+        "summary": "读取公开 notes",
+        "description": "仅已发布版本，无需鉴权。",
         "security": [],
         "parameters": [
           {
@@ -1704,7 +1713,8 @@
         "tags": [
           "发布说明"
         ],
-        "summary": "保存 release-log 配置（不探测 S3）",
+        "summary": "保存 notes 配置",
+        "description": "保存 release-log 配置，不探测 S3。",
         "parameters": [
           {
             "name": "appSlug",
@@ -1796,7 +1806,8 @@
         "tags": [
           "上传"
         ],
-        "summary": "开始一次待完成的上传。Electron 至少需要一个 `.yml`；Tauri 需要 `latest.json` 和/或制品+`.sig` 成对；Sparkle 需要 `appcast.xml` 和/或归档+`.sig`（见 spec）。",
+        "summary": "开始上传",
+        "description": "开始一次待完成的上传。Electron 至少需要一个 `.yml`；Tauri 需要 `latest.json` 和/或制品+`.sig` 成对；Sparkle 需要 `appcast.xml` 和/或归档+`.sig`（见 spec）。",
         "security": [
           {
             "apiKey": []
@@ -1910,7 +1921,8 @@
         "tags": [
           "上传"
         ],
-        "summary": "创建版本。默认是草稿；`release: true` 则立即上线。",
+        "summary": "完成上传",
+        "description": "创建版本。默认是草稿；`release: true` 则立即上线。",
         "security": [
           {
             "apiKey": []
@@ -2010,7 +2022,8 @@
         "tags": [
           "更新源"
         ],
-        "summary": "渠道根 feed。Tauri 返回 JSON；Sparkle 返回单条目 appcast。",
+        "summary": "读取渠道 feed",
+        "description": "Tauri 返回 JSON；Sparkle 返回单条目 appcast。",
         "security": [],
         "parameters": [
           {
@@ -2129,7 +2142,8 @@
         "tags": [
           "更新源"
         ],
-        "summary": "公开 feed——Electron yml / Tauri latest.json / Sparkle appcast，制品 302。草稿为 404。",
+        "summary": "读取公开 feed",
+        "description": "Electron yml / Tauri latest.json / Sparkle appcast，制品 302。草稿为 404。",
         "security": [],
         "parameters": [
           {

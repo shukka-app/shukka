@@ -93,7 +93,8 @@
         "tags": [
           "App"
         ],
-        "summary": "App detail (channels, versions, keys)",
+        "summary": "Get app",
+        "description": "App detail including channels, versions, and keys.",
         "parameters": [
           {
             "name": "appSlug",
@@ -390,8 +391,8 @@
         "tags": [
           "App"
         ],
-        "summary": "Update app settings (probes S3)",
-        "description": "API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.",
+        "summary": "Update app settings",
+        "description": "Probes S3. API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.",
         "parameters": [
           {
             "name": "appSlug",
@@ -739,7 +740,8 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Set currentVersion (promote draft or rollback)",
+        "summary": "Set current version",
+        "description": "Promote a draft (`currentVersion`) or roll back to a released version.",
         "parameters": [
           {
             "name": "appSlug",
@@ -812,7 +814,8 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Delete a channel and its objects",
+        "summary": "Delete a channel",
+        "description": "Deletes the channel and its objects.",
         "parameters": [
           {
             "name": "appSlug",
@@ -947,7 +950,8 @@
         "tags": [
           "Versions"
         ],
-        "summary": "Delete a version and its objects",
+        "summary": "Delete a version",
+        "description": "Deletes the version and its objects.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1003,7 +1007,8 @@
         "tags": [
           "Versions"
         ],
-        "summary": "Presigned GET for one artifact on that version (drafts included). Does not increment hits.",
+        "summary": "Get artifact",
+        "description": "Presigned GET for one artifact on that version (drafts included). Does not increment hits.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1084,8 +1089,8 @@
         "tags": [
           "Versions"
         ],
-        "summary": "Read custom metadata for an exact version",
-        "description": "Released versions are public; drafts require a session or bound app key. Explicit Authorization is validated (401/403). Returns no-store and does not increment update checks. Independent of release log.",
+        "summary": "Get release metadata",
+        "description": "Read custom metadata for an exact version. Released versions are public; drafts require a session or bound app key. Explicit Authorization is validated (401/403). Returns no-store and does not increment update checks. Independent of release log.",
         "security": [
           {},
           {
@@ -1187,7 +1192,8 @@
         "tags": [
           "Versions"
         ],
-        "summary": "Replace the whole metadata object (16 KiB UTF-8 JSON); {} clears it. Last write wins.",
+        "summary": "Replace release metadata",
+        "description": "Replace the whole metadata object (16 KiB UTF-8 JSON); {} clears it. Last write wins.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1268,7 +1274,8 @@
         "tags": [
           "Versions"
         ],
-        "summary": "Version hit trend (empty for drafts)",
+        "summary": "Version hit trend",
+        "description": "Empty for drafts.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1343,7 +1350,8 @@
         "tags": [
           "Notes"
         ],
-        "summary": "Editor read model — every locale for one version",
+        "summary": "Get editor notes",
+        "description": "Every locale for one version.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1603,7 +1611,8 @@
         "tags": [
           "Notes"
         ],
-        "summary": "Public notes — released versions only, no auth",
+        "summary": "Get public notes",
+        "description": "Released versions only; no auth.",
         "security": [],
         "parameters": [
           {
@@ -1704,7 +1713,8 @@
         "tags": [
           "Notes"
         ],
-        "summary": "Save release-log config (no S3 probe)",
+        "summary": "Save notes config",
+        "description": "Saves release-log config without an S3 probe.",
         "parameters": [
           {
             "name": "appSlug",
@@ -1796,7 +1806,8 @@
         "tags": [
           "Upload"
         ],
-        "summary": "Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).",
+        "summary": "Start upload",
+        "description": "Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).",
         "security": [
           {
             "apiKey": []
@@ -1910,7 +1921,8 @@
         "tags": [
           "Upload"
         ],
-        "summary": "Create a version. Default is draft; `release: true` goes live.",
+        "summary": "Finalize upload",
+        "description": "Creates a version. Default is draft; `release: true` goes live.",
         "security": [
           {
             "apiKey": []
@@ -2010,7 +2022,8 @@
         "tags": [
           "Feed"
         ],
-        "summary": "Channel-root feed. Tauri returns JSON; Sparkle returns a one-item appcast.",
+        "summary": "Get channel feed",
+        "description": "Tauri returns JSON; Sparkle returns a one-item appcast.",
         "security": [],
         "parameters": [
           {
@@ -2129,7 +2142,8 @@
         "tags": [
           "Feed"
         ],
-        "summary": "Public feed — Electron yml / Tauri latest.json / Sparkle appcast, artifacts 302. Drafts are 404.",
+        "summary": "Get public feed",
+        "description": "Electron yml / Tauri latest.json / Sparkle appcast; artifacts 302. Drafts are 404.",
         "security": [],
         "parameters": [
           {
