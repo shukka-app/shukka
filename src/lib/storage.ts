@@ -165,7 +165,8 @@ export async function verifyWritable(s3: S3Settings): Promise<void> {
     const result = await signedFetch(s3, key, { method: 'PUT', body: 'shukka probe' })
     if (!result.ok) throw new Error(`probe put ${result.status}`)
   } catch (error) {
-    throw new ShukkaError('storage_error', 'Cannot write to the configured bucket', String(error))
+    console.error('Cannot write to the configured bucket:', error)
+    throw new ShukkaError('storage_error', 'Cannot write to the configured bucket')
   }
   await signedFetch(s3, key, { method: 'DELETE' }).catch(() => undefined)
 }

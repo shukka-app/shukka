@@ -1,5 +1,6 @@
 import { parse } from 'yaml'
 import { ShukkaError } from './errors.ts'
+import { urlBasename } from './url-basename.ts'
 
 /**
  * electron-updater metadata files: `latest.yml`, `latest-mac.yml`, `latest-linux.yml`,
@@ -20,7 +21,8 @@ export function parseUpdateMetadata(filename: string, text: string): UpdateMetad
   try {
     parsed = parse(text)
   } catch (error) {
-    throw new ShukkaError('metadata_error', `${filename} is not valid YAML`, String(error))
+    console.error(`${filename} is not valid YAML:`, error)
+    throw new ShukkaError('metadata_error', `${filename} is not valid YAML`)
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new ShukkaError('metadata_error', `${filename} is not an update metadata document`)
@@ -52,5 +54,5 @@ export function parseUpdateMetadata(filename: string, text: string): UpdateMetad
 
 /** electron-updater resolves `files[].url` relative to the feed base URL. */
 export function referencedArtifacts(metadata: UpdateMetadata): string[] {
-  return metadata.files.map((file) => decodeURIComponent(file.url.split('/').pop() ?? file.url))
+  return metadata.files.map((file) => urlBasename(file.url))
 }
