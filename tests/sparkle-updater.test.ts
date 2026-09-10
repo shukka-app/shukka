@@ -177,6 +177,16 @@ describe('sparkle upload and feed', () => {
     expect(items[0]?.enclosure.length).toBe(String(Buffer.byteLength('binary-zip')))
   })
 
+  it('rejects a sidecar-built appcast without an EdDSA signature', async () => {
+    const app = await createApp(baseInput)
+    await publishSparkle(app, '1.4.2', [{ filename: `${ZIP}.sig`, body: '   ' }])
+
+    await expect(resolveFeedRequest('acme', 'stable', 'appcast.xml', ORIGIN)).rejects.toMatchObject({
+      code: 'not_found',
+      message: expect.stringMatching(/edSignature/),
+    })
+  })
+
   it('rewrites uploaded appcast enclosure URLs and keeps signature + length', async () => {
     const app = await createApp(baseInput)
     await publishSparkle(app, '1.4.2', [

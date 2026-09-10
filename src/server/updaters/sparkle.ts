@@ -78,6 +78,9 @@ export const sparkleAdapter: UpdateAdapter = {
     }
     const sigFile = artifacts.find((file) => file.filename === sigName(artifact.filename))
     const sidecar = parseSignUpdateSidecar(sigFile ? await getText(sigFile.s3Key) : '')
+    if (!sidecar.edSignature) {
+      throw new ShukkaError('not_found', 'Current release is missing sparkle:edSignature')
+    }
     const size = archiveLength(artifact, sidecar.length)
 
     return {
