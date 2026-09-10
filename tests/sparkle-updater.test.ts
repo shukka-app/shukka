@@ -117,8 +117,8 @@ describe('sparkle inferFeedTarget', () => {
 })
 
 describe('updater kind sparkle', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -129,8 +129,8 @@ describe('updater kind sparkle', () => {
 })
 
 describe('sparkle upload and feed', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
