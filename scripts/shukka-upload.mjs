@@ -47,16 +47,31 @@ export async function versionFromMetadata(files, directory, kind) {
   return inferElectronVersion(files)
 }
 
-async function callApi(serverUrl, path, apiKey, body) {
+export function parseApiBody(text) {
+  if (!text) return {}
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { message: text.replace(/\s+/g, ' ').trim().slice(0, 200) }
+  }
+}
+
+export async function apiRequest(serverUrl, method, path, apiKey, body) {
+  const headers = { authorization: `Bearer ${apiKey}` }
+  if (body !== undefined) headers['content-type'] = 'application/json'
   const response = await fetch(`${serverUrl.replace(/\/+$/, '')}${path}`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    headers,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
   const text = await response.text()
-  const payload = text ? JSON.parse(text) : {}
-  if (!response.ok) fail(`${path} failed (${response.status}): ${payload.message ?? text}`)
-  return payload
+  return { status: response.status, ok: response.ok, payload: parseApiBody(text) }
+}
+
+async function callApi(serverUrl, path, apiKey, body) {
+  const result = await apiRequest(serverUrl, 'POST', path, apiKey, body)
+  if (!result.ok) fail(`${path} failed (${result.status}): ${result.payload.message ?? ''}`)
+  return result.payload
 }
 
 async function putFile(uploadUrl, file) {
@@ -97,6 +112,31 @@ export function parseReleaseMetadata(text) {
   return metadata
 }
 
+const RETRYABLE_STATUS = (status) => status === 429 || status >= 500
+
+/** Finalizes; on network error / 5xx checks whether the version already exists before retrying. */
+export async function finalizeWithRetry(serverUrl, apiKey, { app, channel, version, uploadId, release, metadata }, attempts = MAX_ATTEMPTS) {
+  let lastError = ''
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let result
+    try {
+      result = await apiRequest(serverUrl, 'POST', '/api/v1/upload/finalize', apiKey, { app, uploadId, release, metadata })
+    } catch (error) {
+      lastError = error.message
+    }
+    if (result?.ok) return result.payload
+    if (result && !RETRYABLE_STATUS(result.status)) {
+      fail(`/api/v1/upload/finalize failed (${result.status}): ${result.payload.message ?? ''}`)
+    }
+    if (result) lastError = `status ${result.status}`
+    // A lost response may hide a successful finalize; a bound key can read drafts.
+    const probe = await apiRequest(serverUrl, 'GET', `/api/v1/apps/${encodeURIComponent(app)}/channels/${encodeURIComponent(channel)}/versions/${encodeURIComponent(version)}/metadata`, apiKey).catch(() => null)
+    if (probe?.ok) return { version, channel }
+    if (attempt < attempts) await new Promise((done) => setTimeout(done, 2 ** attempt * 500))
+  }
+  fail(`/api/v1/upload/finalize failed after ${attempts} attempts: ${lastError}`)
+}
+
 async function main() {
   const serverUrl = required('server-url', readInput('server-url', 'SHUKKA_SERVER_URL'))
   const apiKey = required('api-key', readInput('api-key', 'SHUKKA_API_KEY'))
@@ -130,7 +170,7 @@ async function main() {
     await putFile(target.uploadUrl, file)
   }
 
-  const result = await callApi(serverUrl, '/api/v1/upload/finalize', apiKey, { app, uploadId: init.uploadId, release, metadata })
+  const result = await finalizeWithRetry(serverUrl, apiKey, { app, channel, version, uploadId: init.uploadId, release, metadata })
   process.stdout.write(`Published ${result.version} to ${result.channel}\n`)
 
   if (process.env.GITHUB_OUTPUT) {
