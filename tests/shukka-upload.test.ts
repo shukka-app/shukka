@@ -6,10 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 type CollectedFile = { filename: string; path: string; size: number }
 
 // The action script is plain ESM with no .d.ts; keep the contract local to this file.
-const { collectFiles, detectUpdaterKind, readInput, versionFromMetadata, parseReleaseMetadata } = (await import(
+const { apiRequest, collectFiles, detectUpdaterKind, finalizeWithRetry, parseApiBody, readInput, versionFromMetadata, parseReleaseMetadata } = (await import(
   // @ts-expect-error — scripts/shukka-upload.mjs has no declaration file
   '../scripts/shukka-upload.mjs'
 )) as {
+  apiRequest: (serverUrl: string, method: string, path: string, apiKey: string, body?: unknown) => Promise<{ status: number; ok: boolean; payload: unknown }>
+  finalizeWithRetry: (serverUrl: string, apiKey: string, options: { app: string; channel: string; version: string; uploadId: string; release: boolean; metadata: Record<string, unknown> }, attempts?: number) => Promise<{ version: string; channel: string }>
+  parseApiBody: (text: string) => unknown
   parseReleaseMetadata: (text: string) => Record<string, unknown>
   collectFiles: (directory: string, kind?: string) => Promise<CollectedFile[]>
   detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri' | 'sparkle'>
@@ -20,6 +23,11 @@ const { collectFiles, detectUpdaterKind, readInput, versionFromMetadata, parseRe
   ) => Promise<string>
   readInput: (actionInput: string, envName: string, fallback?: string) => string
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 function tempDir() {
   return mkdtempSync(join(tmpdir(), 'shukka-upload-'))
@@ -357,5 +365,88 @@ describe('release metadata input', () => {
     } finally {
       mock.restore()
     }
+  })
+})
+
+describe('uploader API resilience', () => {
+  const options = { app: 'acme', channel: 'stable', version: '1.0.0', uploadId: 'upload-1', release: false, metadata: {} }
+
+  it('parses JSON API bodies and preserves readable non-JSON bodies', () => {
+    expect(parseApiBody('<html>502 Bad Gateway</html>')).toEqual({ message: '<html>502 Bad Gateway</html>' })
+    expect(parseApiBody('')).toEqual({})
+    expect(parseApiBody('{"a":1}')).toEqual({ a: 1 })
+  })
+
+  it('retries a retryable finalize response after a missing-version probe', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response('<html>503 unavailable</html>', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{"error":"not_found"}', { status: 404 }))
+      .mockResolvedValueOnce(new Response('{"version":"1.0.0","channel":"stable"}', { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+
+    const result = finalizeWithRetry('https://shukka.test/', 'shk_key', options)
+    await vi.runAllTimersAsync()
+    await expect(result).resolves.toEqual({ version: '1.0.0', channel: 'stable' })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(fetch.mock.calls[1]).toEqual([
+      'https://shukka.test/api/v1/apps/acme/channels/stable/versions/1.0.0/metadata',
+      { method: 'GET', headers: { authorization: 'Bearer shk_key' } },
+    ])
+  })
+
+  it('accepts a successful probe after a network error without another finalize', async () => {
+    const fetch = vi.fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce(new Response('{"version":"1.0.0","metadata":{}}', { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+
+    await expect(finalizeWithRetry('https://shukka.test', 'shk_key', options)).resolves.toEqual({ version: '1.0.0', channel: 'stable' })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails a non-retryable finalize response without probing', async () => {
+    const exit = mockExit()
+    const fetch = vi.fn().mockResolvedValue(new Response('{"error":"conflict","message":"Version already exists"}', { status: 409 }))
+    vi.stubGlobal('fetch', fetch)
+    try {
+      await expect(finalizeWithRetry('https://shukka.test', 'shk_key', options)).rejects.toThrow('process.exit(1)')
+      expect(fetch).toHaveBeenCalledTimes(1)
+    } finally {
+      exit.restore()
+    }
+  })
+
+  it('fails after three retryable finalize responses and missing-version probes', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{"error":"not_found"}', { status: 404 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{"error":"not_found"}', { status: 404 }))
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('{"error":"not_found"}', { status: 404 }))
+    vi.stubGlobal('fetch', fetch)
+    const exit = mockExit()
+    try {
+      const result = finalizeWithRetry('https://shukka.test', 'shk_key', options)
+      const assertion = expect(result).rejects.toThrow('process.exit(1)')
+      await vi.runAllTimersAsync()
+      await assertion
+      expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/after 3 attempts/))
+      expect(fetch).toHaveBeenCalledTimes(6)
+    } finally {
+      exit.restore()
+    }
+  })
+
+  it('omits content-type and body for GET requests', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+
+    await apiRequest('https://shukka.test', 'GET', '/metadata', 'shk_key')
+    expect(fetch).toHaveBeenCalledWith('https://shukka.test/metadata', {
+      method: 'GET', headers: { authorization: 'Bearer shk_key' },
+    })
   })
 })
