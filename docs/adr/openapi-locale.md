@@ -10,7 +10,7 @@ Accepted.
 
 ## Decision
 
-1. **叙事字典**与面板 i18n 同构：`src/server/openapi-copy.ts` 里 `en` 为源语言与类型来源，`zh` 用 `satisfies typeof en` 编译期键对齐。只覆盖 OpenAPI 叙事字段（info、tags、summaries、descriptions、response descriptions）。
+1. **叙事字典**与面板 i18n 同构：`src/server/openapi-copy.ts` 里 `en` 为源语言与类型来源，`zh` 用 `satisfies typeof en` 编译期键对齐。只覆盖 OpenAPI 叙事字段（info、tags、summaries、descriptions、response descriptions）。operation `summary` 是短标题（文档站 Scalar 侧栏用它当接口名）；细节、限制、格式说明放 `description`。
 2. **`openApiDocument(origin, locale = 'en')`**：locale 为 `'en' | 'zh'`（与面板 locale 码一致）。路径、方法、参数名、`z.toJSONSchema` 输出、security scheme 名不进字典。
 3. **实例端点不变**：`GET /api/v1/openapi.json` 仍调用默认英文文档。中文只服务文档站静态快照，不给活实例加语言协商。
 4. **文档站快照**：`sync:openapi` 写出 `public/openapi.json`（en）与 `public/openapi.zh-CN.json`（zh）。Scalar `url` 按页面 `[lang]` 选择；文件名跟文档站 locale，不跟生成器短码。i18n middleware matcher 必须排除 `openapi*.json`，否则 `/openapi.zh-CN.json` 会被加上语言前缀。
