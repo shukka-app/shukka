@@ -1,4 +1,5 @@
 import { applyWorkerEnv } from '~/lib/worker-env.ts'
+import { withSecurityHeaders } from '~/lib/security-headers.ts'
 
 type WorkerEnv = Record<string, unknown>
 
@@ -12,6 +13,6 @@ export default {
     const { default: handler } = (await import('@tanstack/react-start/server-entry')) as {
       default: StartHandler
     }
-    return handler.fetch(request, env, ctx)
+    return withSecurityHeaders(await handler.fetch(request, env, ctx))
   },
 }

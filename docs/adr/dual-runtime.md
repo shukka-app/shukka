@@ -20,6 +20,7 @@ Worker 的 vars / secrets 是 bindings。Shukka 在模块加载时读 `process.e
 4. **云上密钥**：只接受 `SHUKKA_ENCRYPTION_KEY`。filepath / 默认写 `{data}/encryption.key` 在 isolate 上关闭。
 5. **云上数据库**：已有 `createWebDb()` + `SHUKKA_DB_URL`。不在 isolate 内 migrate。
 6. **不改** Node 的模块顶层 `await createDb()` / 默认生成密钥文件。
+7. **响应头**：Worker 入口用 `withSecurityHeaders`（`src/lib/security-headers.ts`）补齐与 Nitro `routeRules` 相同的四个加固头；静态资源由 `public/_headers` 覆盖。
 
 ## Alternatives
 
