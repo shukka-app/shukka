@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { defineConfig } from 'vite'
+import { SECURITY_HEADERS } from './src/lib/security-headers.ts'
 
 /**
  * Commit the running build was cut from — the panel pins agent-skill installs
@@ -33,12 +34,7 @@ export default defineConfig({
     nitro({
       routeRules: {
         '/**': {
-          headers: {
-            'x-frame-options': 'DENY',
-            'content-security-policy': "frame-ancestors 'none'",
-            'x-content-type-options': 'nosniff',
-            'referrer-policy': 'same-origin',
-          },
+          headers: { ...SECURITY_HEADERS },
         },
       },
     }),
