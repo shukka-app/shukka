@@ -5,14 +5,12 @@ description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为�
 
 ## GitHub Action
 
-`apps/shukka/action.yml` 是一个 JavaScript action：runner 自带的 Node 直接执行 `scripts/shukka-upload.mjs`，不调用 bash。Windows 自建 runner 只需 Actions runner（可用 MinGit），不必装 Git for Windows。
-
-这是相对 `uses: shukka-app/shukka@v1` 的 **major** 破坏；仓库根不再提供 `action.yml` stub。
+仓库根 `action.yml` 是一个 JavaScript action：runner 自带的 Node 直接执行 `apps/shukka/scripts/shukka-upload.mjs`，不调用 bash。Windows 自建 runner 只需 Actions runner（可用 MinGit），不必装 Git for Windows。`uses: shukka-app/shukka@v*` 不变。
 
 把目录内的构建产物完整发布为一个版本：
 
 ```yaml
-- uses: shukka-app/shukka/apps/shukka@v2
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

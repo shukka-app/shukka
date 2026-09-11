@@ -1,4 +1,4 @@
-# ADR: GitHub Action 随应用放在 apps/shukka，uses 路径破坏性变更
+# ADR: GitHub Action 入口留在仓库根，脚本在 apps/shukka
 
 ## Status
 
@@ -6,26 +6,24 @@ Accepted.
 
 ## Context
 
-JavaScript action 的契约仍是 [javascript-github-action](javascript-github-action.md)：`using: node24`，`main: scripts/shukka-upload.mjs`，不调 bash。产品迁到 `apps/shukka` 之后，`action.yml` 必须跟着走，否则根上会剩应用文件。GitHub 用 `uses: owner/repo/<path>@ref` 引用子目录 action。#86 已钉这是 major，且禁止根上留 stub。
+产品迁到 `apps/shukka` 之后，#87 原稿要把 `action.yml` 跟着走，并把 `uses:` 改成 `shukka-app/shukka/apps/shukka@v*`（major），禁止根 stub。`uses: owner/repo@ref` 只认仓库根的 `action.yml`。把入口挪进子目录会让已有 workflow 全部改一行，而 uploader 本身没有变。根上放一份真正的 JavaScript action metadata（`main` 指到应用内脚本）不是 stub，也不把 bash 请回来。
 
 ## Decision
 
-1. `action.yml` 只存在于 `apps/shukka/action.yml`。`runs.main` 仍是相对该文件的 `scripts/shukka-upload.mjs`。
-2. 对外文档与 Integration snippet：`uses: shukka-app/shukka/apps/shukka@v2`（major 浮动）。精确 tag 同样带路径：`.../apps/shukka@v2.0.0`。
-3. 本仓库 workflow：`uses: ./apps/shukka`。
-4. **不**在仓库根放 `action.yml`（即便是转发 stub）。旧 `uses: shukka-app/shukka@v*` 在本 major 之后无效。
-5. 发布 skill 的安装 snippet 指向嵌套 skill，不在根复制 `skills/`：
-   `npx skills add https://github.com/shukka-app/shukka/tree/<ref>/apps/shukka/skills/shukka-publish`。
+1. 仓库根保留 `action.yml`，作为 GitHub 的 action 入口（平台文件，和 `.github/` 同类）。`runs.using: node24`，`main: apps/shukka/scripts/shukka-upload.mjs`。
+2. 对外仍是 `uses: shukka-app/shukka@v*`。本仓库测试 `uses: ./`。
+3. 不在 `apps/shukka/action.yml` 再放一份，避免两个入口。
+4. 不写 composite / 转发 stub。
+5. 发布 skill 仍在 `apps/shukka/skills/shukka-publish`；安装 snippet 用 tree URL 直指该目录，不在根复制 `skills/`。
 
 ## Alternatives
 
-- **根 stub `action.yml` 转发到 `apps/shukka`**：GitHub 的 JavaScript action 不能把 `main` 指到另一个 action 目录而不把脚本也留在根附近；composite stub 会把 bash 请回来。与「根上不留应用文件」和「不留 stub」都冲突。拒绝。
-- **继续 `uses: shukka-app/shukka@v*`**：要求 `action.yml` 在根。拒绝。
-- **把 uploader 单独打成 `actions/publish` 包**：多一个发布面，本切片不做。
+- **`action.yml` 跟着应用到 `apps/shukka`**：`uses:` 变成子目录路径，已有 CI 全破。拒绝。
+- **根 composite stub 再调子目录 action**：多一层、可能把 bash 请回来。拒绝。
+- **根 `action.yml` + 根上再留一份 `scripts/shukka-upload.mjs`**：应用文件漏在根上。拒绝。
 
 ## Trade-offs & failure bounds
 
-- 已有 workflow 必须改 `uses:` 才能发版。这是故意的 major。
-- `v1` 标签仍指向根 `action.yml` 的旧 commit；新 major 的 ref 才有子目录 action。
-- 技能 CLI 按仓库内标准目录发现 skill；嵌套路径用 tree URL 直指 `apps/shukka/skills/shukka-publish`，避免依赖「找不到标准目录再递归」的兜底。
-- actionlint 检查 `apps/shukka/action.yml` 与 `.github/workflows/`。
+- 根 `git ls-files` 会看到 `action.yml`。这是 GitHub 解析 `uses: owner/repo@ref` 的入口，不是应用源码。
+- `main` 是相对 `action.yml` 的路径，必须跟着脚本走；搬 uploader 时要一起改这一行。
+- actionlint 检查根 `action.yml` 与 `.github/workflows/`。

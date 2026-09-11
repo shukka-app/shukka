@@ -105,8 +105,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ### GitHub Action
 
-- `apps/shukka/action.yml` 为 JavaScript action（`using: node24`，`main: scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）、可选 `updater-kind`；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。不调用 bash / pwsh / cmd。
-- 对外引用 `uses: shukka-app/shukka/apps/shukka@v2`（major）。本仓库测试 `uses: ./apps/shukka`。仓库根不放 `action.yml`。这是破坏性 major：旧 `uses: shukka-app/shukka@v*` 不再解析。
+- 仓库根 `action.yml` 为 JavaScript action（`using: node24`，`main: apps/shukka/scripts/shukka-upload.mjs`），inputs：`server-url`、`api-key`、`app`、`channel`、`version`、`directory`、`create-channel`、`release`（默认 false，对应 finalize 的 draft；`true` 则立即上线）、可选 `updater-kind`；将目录内构建产物完整发布为一个版本，outputs 为 `version` 与 `channel`。不调用 bash / pwsh / cmd。
+- 对外引用仍是 `uses: shukka-app/shukka@v*`。本仓库测试 `uses: ./`。根 `action.yml` 是 GitHub 入口，不是转发 stub；uploader 在 `apps/shukka/scripts/`。
 - **Kind**：`updater-kind` / `SHUKKA_UPDATER_KIND` 可覆盖；否则由目录内文件推断（`latest*.yml` → electron；`appcast.xml` 或 Sparkle 制品 + `.sig` → sparkle；`.sig` / `latest.json` / 已知 Tauri bundle 布局 → tauri）。服务端仍按该 app 的 `updaterKind` 校验清单。
 - **Collect**：Electron 只扫一层扁平目录（安装包、`*.blockmap`、`latest*.yml`），不递归。Tauri 在用户指向 `bundle/` 或已知平台子目录（`appimage` / `macos` / `nsis` / `msi` / `deb` / `rpm` / `dmg` / `updater` 等）时收集成对的 updater 制品 + `.sig` 以及可选的 `latest.json`；只递归已知 bundle 布局；跳过 `*.AppDir/`、解压树与共享库。Sparkle 只扫一层扁平目录（`appcast.xml`、zip/dmg/tar.*、匹配的 `.sig`），不递归。上传与 feed 只用 **basename**（与 S3 键 `{prefix}/{channel}/{version}/{filename}` 一致）；basename 冲突则失败。
 - **Version**：`version` / `SHUKKA_VERSION` 优先。Electron 省略时读 `latest*.yml` 的 `version:`。Tauri 省略时依次：`latest.json` 的 `version` → 从目录向上最近的 `tauri.conf.json` 的 `version` → 制品文件名中的 `_1.0.0_` 形 token；全部失败则报错并点名这些来源。不要求、不合成 `latest.json`（服务端已能从 `.sig` 对生成 feed）。Sparkle 省略时依次：`appcast.xml` 的 `sparkle:shortVersionString`（否则 `sparkle:version`）→ 制品文件名中的 `App-1.4.2.zip` 形 token；全部失败则报错并点名这些来源。
@@ -148,7 +148,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ## System-wide constraints
 
-- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store 包日后在 `packages/*`。根不放应用源码，也不放 `action.yml` stub。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`。
+- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store 包日后在 `packages/*`。根不放应用源码。GitHub Action 入口是根 `action.yml`（`main` 指向应用内脚本）。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`、`docs/adr/github-action-subdirectory.md`。
 - Repository agent entrypoint is root `AGENTS.md` (`CLAUDE.md` is a symlink to it); app commands live in `apps/shukka/AGENTS.md`.
 - Feature development workflow skill lives at `.agents/skills/feature-dev/` (also linked from `.claude/skills/`).
 - Self-host operator guide lives at `apps/shukka/docs/prd/deploy.md`; Compose / Ansible examples at `apps/shukka/deploy/` (`docs/prd/deploy-examples.md`); runtime choice at `docs/adr/self-host-runtime.md`.
@@ -164,7 +164,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - Panel, instance-level admin API, `/api/v1` App API, upload API and update feed live in one
   TanStack Start app (`src/routes/`), with domain services in `src/server/` and infrastructure
   in `src/lib/`. Nested `/api/admin/apps/:id` routes are gone.
-- GitHub Action is a node24 JavaScript action at `apps/shukka/action.yml` + `apps/shukka/scripts/shukka-upload.mjs` with kind-specific collect/version in `apps/shukka/scripts/updaters/*.mjs`; consumers use `shukka-app/shukka/apps/shukka@v2`. Agent skill at
+- GitHub Action is a node24 JavaScript action at repository root `action.yml` (`main: apps/shukka/scripts/shukka-upload.mjs`) with kind-specific collect/version in `apps/shukka/scripts/updaters/*.mjs`; consumers keep `uses: shukka-app/shukka@v*`. Agent skill at
   `.agents/skills/shukka-ops/`. See `docs/prd/adapter-upload.md`, `docs/adr/adapter-owned-uploader.md`, and `docs/adr/github-action-subdirectory.md`.
 - Verified end to end against MinIO: publish through the action, HTTP feed + 302, a
   host-platform `electron-updater` check/download, and channel rollback via

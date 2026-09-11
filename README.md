@@ -108,7 +108,7 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 Create an app in the panel, then an API key on its **API keys** tab. In CI:
 
 ```yaml
-- uses: shukka-app/shukka/apps/shukka@v2
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}
@@ -117,8 +117,6 @@ Create an app in the panel, then an API key on its **API keys** tab. In CI:
     directory: dist
     release: true   # omit to create a draft the feed cannot see; promote in the panel or PATCH .../channels/{channel} {"currentVersion":"…"}
 ```
-
-This path is a **major** break from `uses: shukka-app/shukka@v1`. There is no root `action.yml` stub.
 
 Point the whole `electron-builder` `dist/`, Tauri `src-tauri/target/release/bundle`,
 or Sparkle output directory at it. Electron: installers, `.blockmap`, `latest*.yml`

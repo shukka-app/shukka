@@ -49,7 +49,7 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite via
 | `nr --filter shukka test:e2e:rollback` | Publish two releases, PATCH rollback, then feed + electron-updater (`SHUKKA_URL`, `SHUKKA_API_KEY`) |
 | `nr --filter shukka test:e2e:tauri` | Tauri plugin-updater against a live instance (`SHUKKA_URL`) |
 | `nr --filter shukka db:generate` | Regenerate `drizzle/` migrations after editing `src/db/schema.ts` |
-| `actionlint apps/shukka/action.yml` | Lint the Action and workflows |
+| `actionlint action.yml` | Lint the Action and workflows |
 
 The runtime image `ghcr.io/shukka-app/shukka` is published by
 `.github/workflows/docker.yml` on `main` and on `v*.*.*` tags
@@ -60,9 +60,9 @@ electron-updater / rollback against the container. The same workflow starts
 `apps/shukka/deploy/compose.yaml` and `apps/shukka/deploy/ansible/playbook.yml`
 and walks health, setup, publish, and feed.
 
-The GitHub Action is a node24 JavaScript action at `apps/shukka`
-(`uses: shukka-app/shukka/apps/shukka@v2`; in-repo `uses: ./apps/shukka`).
-It does not call bash. CI matrices MinIO and the JuiceFS S3 gateway on Ubuntu
+The GitHub Action is a node24 JavaScript action at the repository root
+(`uses: shukka-app/shukka@v*`; in-repo `uses: ./`). `main` points at
+`apps/shukka/scripts/shukka-upload.mjs`. It does not call bash. CI matrices MinIO and the JuiceFS S3 gateway on Ubuntu
 (`.github/workflows/ci.yml` `s3` job, plus `.github/workflows/action-test.yml`
 publish / Tauri jobs). Windows action e2e stays on MinIO (no Docker). The
 action-test workflow then runs `apps/shukka/tests/e2e/` (Electron library + electron-updater)

@@ -4,7 +4,8 @@ This is a pnpm workspace. The product lives in `apps/shukka`. The public docs si
 
 | Path | Owns |
 |------|------|
-| `apps/shukka` | Panel, API, feed, GitHub Action, Docker, Compose/Ansible, internal PRD/ADR/spec |
+| `apps/shukka` | Panel, API, feed, Docker, Compose/Ansible, uploader, internal PRD/ADR/spec |
+| `action.yml` | GitHub Action entry (`main` points at `apps/shukka/scripts/shukka-upload.mjs`) |
 | `apps/docs` | Public documentation site (fumadocs) |
 | `packages/*` | Future store adapters — empty in this slice |
 

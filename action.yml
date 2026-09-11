@@ -54,4 +54,4 @@ outputs:
 # No bash/pwsh/cmd, so Windows self-hosted runners with only MinGit work.
 runs:
   using: 'node24'
-  main: 'scripts/shukka-upload.mjs'
+  main: 'apps/shukka/scripts/shukka-upload.mjs'

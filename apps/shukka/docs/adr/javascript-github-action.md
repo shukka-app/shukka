@@ -8,7 +8,7 @@
 
 ## Decision
 
-- `action.yml` 为 JavaScript action：`runs.using: node24`，`main: scripts/shukka-upload.mjs`。布局迁入工作区后该文件在 `apps/shukka/action.yml`，`uses:` 见 [github-action-subdirectory](github-action-subdirectory.md)。
+- `action.yml` 为 JavaScript action：`runs.using: node24`。布局迁入工作区后入口仍在仓库根，`main: apps/shukka/scripts/shukka-upload.mjs`，见 [github-action-subdirectory](github-action-subdirectory.md)。
 - runner 自带的 Node 直接执行上传脚本，不经过 bash / pwsh / cmd。MinGit-only 自建 Windows runner 只要 Actions runner 本身（含 node24）即可。
 - 脚本继续零依赖（只用 Node 内置 fetch/fs）。作为 action 时读 `INPUT_*`（`server-url` → `INPUT_SERVER-URL`）；脱离 action 时仍读 `SHUKKA_*`。输出仍写 `GITHUB_OUTPUT`。
 - 不引入 `@actions/core`、不提交 ncc `dist`。

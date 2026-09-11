@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: raven-actions/actionlint@v2
         with:
-          files: ".github/workflows/*.yml, apps/shukka/action.yml"
+          files: ".github/workflows/*.yml, action.yml"
 
   # Cloudflare Workers Free rejects a script over 3 MiB gzip. Static assets
   # (`dist/client`) do not count. Measure with the same wrangler dry-run total

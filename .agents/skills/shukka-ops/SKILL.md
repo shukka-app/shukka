@@ -37,7 +37,7 @@ node apps/shukka/scripts/shukka-upload.mjs
 In CI, use the action instead:
 
 ```yaml
-- uses: shukka-app/shukka/apps/shukka@v2
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

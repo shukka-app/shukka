@@ -18,6 +18,7 @@ apps/shukka/deploy/ansible
 apps/shukka/deploy/compose.yaml
 *.md
 LICENSE
+action.yml
 components.json
 drizzle.config.ts
 vitest.config.ts

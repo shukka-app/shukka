@@ -23,7 +23,7 @@ Shukka 是一个自托管的发版管理器：面板管理 app / channel / 版�
 7. 面板提供每个 channel 的 feed URL 和可复制的 electron-builder `publish` / electron-updater 配置片段。
 8. 基础下载计数：按版本记录 yml 拉取次数与制品 302 次数，面板展示。
 9. 面板认证：首次启动引导设置管理员密码（存 hash），登录换 session，面板内可改密。
-10. 配套 GitHub JavaScript action（`apps/shukka/action.yml` 以 runner Node 直接执行 `scripts/shukka-upload.mjs`；`uses: shukka-app/shukka/apps/shukka@v2`），用 actionlint 检查，并在 Ubuntu / Windows runner 上验证。
+10. 配套 GitHub JavaScript action（仓库根 `action.yml` 以 runner Node 直接执行 `apps/shukka/scripts/shukka-upload.mjs`；`uses: shukka-app/shukka@v*`），用 actionlint 检查，并在 Ubuntu / Windows runner 上验证。
 11. 仓库内提供 agent skill，指导 agent 通过 Shukka API 完成建 app / 建 channel / 发 key / 上传发版等操作。
 
 ## Non-goals

@@ -34,10 +34,10 @@ describe('buildIntegrationSnippets', () => {
     expect(snippets.builderConfig.code).not.toContain('createUpdaterArtifacts')
   })
 
-  it('points the GitHub Action and publish skill at apps/shukka', () => {
+  it('keeps the GitHub Action at the repo root and the publish skill nested', () => {
     const snippets = buildIntegrationSnippets({ app: electronApp, ...args })
-    expect(snippets.githubAction.code).toContain('uses: shukka-app/shukka/apps/shukka@v2')
-    expect(snippets.githubAction.code).not.toMatch(/uses: shukka-app\/shukka@v/)
+    expect(snippets.githubAction.code).toContain('uses: shukka-app/shukka@v1.2.0')
+    expect(snippets.githubAction.code).not.toContain('/apps/shukka@')
     expect(snippets.agentCli.code).toContain('/apps/shukka/skills/shukka-publish')
     expect(snippets.agentCli.code).not.toContain('archive/')
   })

@@ -5,14 +5,12 @@ description: Publish build artifacts as a version with the GitHub Action or the 
 
 ## GitHub Action
 
-`apps/shukka/action.yml` is a JavaScript action: the runner's bundled Node runs `scripts/shukka-upload.mjs` directly and does not call bash. A Windows self-hosted runner only needs the Actions runner (MinGit is fine); Git for Windows is not required.
-
-This path is a **major** break from `uses: shukka-app/shukka@v1`. There is no root `action.yml` stub.
+Root `action.yml` is a JavaScript action: the runner's bundled Node runs `apps/shukka/scripts/shukka-upload.mjs` directly and does not call bash. A Windows self-hosted runner only needs the Actions runner (MinGit is fine); Git for Windows is not required. `uses: shukka-app/shukka@v*` is unchanged.
 
 It publishes every artifact in a directory as one version:
 
 ```yaml
-- uses: shukka-app/shukka/apps/shukka@v2
+- uses: shukka-app/shukka@v1.2.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

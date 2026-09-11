@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - apps/shukka/action.yml
+      - action.yml
       - apps/shukka/scripts/shukka-upload.mjs
       - apps/shukka/scripts/updaters/**
       - apps/shukka/src/server/feed.ts
@@ -20,7 +20,7 @@ on:
       - .github/workflows/action-test.yml
   pull_request:
     paths:
-      - apps/shukka/action.yml
+      - action.yml
       - apps/shukka/scripts/shukka-upload.mjs
       - apps/shukka/scripts/updaters/**
       - apps/shukka/src/server/feed.ts
@@ -97,7 +97,7 @@ jobs:
 
       - name: Publish with the action
         id: publish
-        uses: ./apps/shukka
+        uses: ./
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Publish with the action
         id: publish
-        uses: ./apps/shukka
+        uses: ./
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}
@@ -323,7 +323,7 @@ jobs:
 
       - name: Publish with the action
         id: publish
-        uses: ./apps/shukka
+        uses: ./
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}

@@ -11,9 +11,9 @@ Accepted.
 ## Decision
 
 1. **pnpm workspace** 在仓库根：`pnpm-workspace.yaml` 含 `apps/*` 与 `packages/*`，一把 lockfile。`packageManager` 钉 pnpm。本地用 `ni`；CI `pnpm install --frozen-lockfile`。
-2. **当前产品**（TanStack Start 应用、Action、Docker、Compose/Ansible、内部 `docs/`、uploader 脚本、`skills/shukka-publish`）全部进入 `apps/shukka`。包名仍是 `shukka`，所以 `pnpm --filter shukka` 指向它。
+2. **当前产品**（TanStack Start 应用、Docker、Compose/Ansible、内部 `docs/`、uploader 脚本、`skills/shukka-publish`）全部进入 `apps/shukka`。包名仍是 `shukka`，所以 `pnpm --filter shukka` 指向它。GitHub Action 的 `action.yml` 留在仓库根（`main` 指到应用内脚本），见 [github-action-subdirectory](github-action-subdirectory.md)。
 3. **公开文档站**导入 `apps/docs`（包名 `shukka-docs`），保留 git 历史。不把文档站打进运行镜像。
-4. **根**只留工作区清单、lockfile、`.github/`、`LICENSE`、`.gitignore`、产品 README，以及 agent / Docker / act 等平台文件。`packages/` 本切片为空，留给 #88。
+4. **根**只留工作区清单、lockfile、`.github/`、`LICENSE`、`.gitignore`、产品 README、根 `action.yml`，以及 agent / Docker / act 等平台文件。`packages/` 本切片为空，留给 #88。
 5. **Docker**：build context 是工作区根，`file: apps/shukka/Dockerfile`。构建阶段用 pnpm 装 `shukka` 的依赖并 `pnpm build`；运行阶段仍是 Alpine + `.output` + `drizzle/`，`WORKDIR /app`。启动时 `./drizzle` 存在则 migrate，与今天相同。
 6. **从源码启动**的 cwd 是 `apps/shukka`（不再是 git 根）。镜像内 cwd 仍是 `/app`。
 
