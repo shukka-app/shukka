@@ -1,9 +1,8 @@
-import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
+import type { App } from '@shukka/store'
 import { randomToken } from '~/lib/crypto.ts'
-import { db } from '~/db/index.ts'
-import { artifacts, channels, pendingUploads, versions } from '~/db/schema.ts'
-import { isUniqueConstraint, ShukkaError } from '~/lib/errors.ts'
+import { ShukkaError } from '~/lib/errors.ts'
 import { clearObjectCache } from '~/lib/object-cache.ts'
+import { store } from '~/lib/store.ts'
 import {
   deleteObjects,
   getObjectText,
@@ -14,10 +13,9 @@ import {
   settingsFromApp,
   type S3Settings,
 } from '~/lib/storage.ts'
+import type { ReleaseMetadata } from '~/lib/release-metadata.ts'
 import { createChannel, getChannel, getVersion } from './channels.ts'
 import { adapterFor } from './updaters/index.ts'
-import type { App } from '~/db/schema.ts'
-import type { ReleaseMetadata } from '~/lib/release-metadata.ts'
 
 const PENDING_TTL_SECONDS = 60 * 60
 /** Real electron-builder/Tauri metadata is a few KB; this cap only exists to bound memory. */
@@ -61,19 +59,16 @@ function assertVersion(version: string): void {
  * needs the app's credentials; other apps clean up on their own next call.
  */
 async function purgeExpiredUploads(app: App, s3: S3Settings): Promise<void> {
-  const expired = await db
-    .select()
-    .from(pendingUploads)
-    .where(and(eq(pendingUploads.appId, app.id), sql`${pendingUploads.expiresAt} < ${nowSeconds()}`))
+  const expired = await store.listExpiredPending(app.id, nowSeconds())
   if (expired.length === 0) return
-  const keys = expired.flatMap((row) => (JSON.parse(row.files) as PendingFile[]).map((file) => file.s3Key))
+  const keys = expired.flatMap((row) => row.files.map((file) => file.s3Key))
   try {
     await deleteObjects(s3, keys)
   } catch (error) {
     console.error('Expired-upload cleanup failed; objects may be orphaned:', error)
     return
   }
-  await db.delete(pendingUploads).where(inArray(pendingUploads.id, expired.map((row) => row.id)))
+  await store.deletePendingUploads(expired.map((row) => row.id))
 }
 
 export async function initUpload(app: App, input: InitInput): Promise<InitResult> {
@@ -93,12 +88,7 @@ export async function initUpload(app: App, input: InitInput): Promise<InitResult
     channel = await createChannel(app.id, input.channel)
   }
 
-  const [clash] = await db
-    .select({ id: versions.id })
-    .from(versions)
-    .where(and(eq(versions.channelId, channel.id), eq(versions.version, input.version)))
-    .limit(1)
-  if (clash) {
+  if (await store.versionExists(channel.id, input.version)) {
     throw new ShukkaError('conflict', `Version ${input.version} already exists on channel ${channel.name}`)
   }
 
@@ -113,29 +103,20 @@ export async function initUpload(app: App, input: InitInput): Promise<InitResult
   const expiresAt = nowSeconds() + PENDING_TTL_SECONDS
   await purgeExpiredUploads(app, s3)
 
-  const [livePending] = await db
-    .select({ id: pendingUploads.id })
-    .from(pendingUploads)
-    .where(and(eq(pendingUploads.channelId, channel.id), eq(pendingUploads.version, input.version)))
-    .limit(1)
-  if (livePending) {
+  if (await store.getPendingByChannelVersion(channel.id, input.version)) {
     throw new ShukkaError('conflict', `Version ${input.version} already has a pending upload`)
   }
 
-  try {
-    await db.insert(pendingUploads).values({
-      id: uploadId,
-      appId: app.id,
-      channelId: channel.id,
-      version: input.version,
-      files: JSON.stringify(pendingFiles),
-      expiresAt,
-    })
-  } catch (error) {
-    if (isUniqueConstraint(error)) {
-      throw new ShukkaError('conflict', `Version ${input.version} already has a pending upload`)
-    }
-    throw error
+  const inserted = await store.insertPending({
+    id: uploadId,
+    appId: app.id,
+    channelId: channel.id,
+    version: input.version,
+    files: pendingFiles,
+    expiresAt,
+  })
+  if (!inserted.ok) {
+    throw new ShukkaError('conflict', `Version ${input.version} already has a pending upload`)
   }
 
   const files = await Promise.all(
@@ -161,7 +142,7 @@ export async function finalizeUpload(
   uploadId: string,
   options: { release?: boolean; metadata?: ReleaseMetadata } = {},
 ): Promise<FinalizeResult> {
-  const [pending] = await db.select().from(pendingUploads).where(eq(pendingUploads.id, uploadId)).limit(1)
+  const pending = await store.getPendingById(uploadId)
   if (!pending) throw new ShukkaError('not_found', 'Upload not found or already finalized')
   if (pending.appId !== app.id) throw new ShukkaError('forbidden', 'Upload belongs to another app')
   if (pending.expiresAt < nowSeconds()) {
@@ -169,11 +150,11 @@ export async function finalizeUpload(
     throw new ShukkaError('conflict', 'Upload expired; start a new upload')
   }
 
-  const [channel] = await db.select().from(channels).where(eq(channels.id, pending.channelId)).limit(1)
+  const channel = await store.getChannelById(pending.channelId)
   if (!channel) throw new ShukkaError('not_found', 'Channel was deleted during upload')
 
   const s3 = settingsFromApp(app)
-  const files = JSON.parse(pending.files) as PendingFile[]
+  const files = pending.files
   const adapter = adapterFor(app.updaterKind)
 
   // Every declared object must exist before the version becomes visible.
@@ -212,49 +193,27 @@ export async function finalizeUpload(
     }
   }
 
-  const now = nowSeconds()
   const release = options.release === true
-  let created
-  try {
-    created = await db.transaction(async (tx) => {
-      const [version] = await tx
-        .insert(versions)
-        .values({
-          appId: app.id,
-          channelId: channel.id,
-          version: pending.version,
-          metadata: options.metadata ?? {},
-          createdAt: now,
-          releasedAt: release ? now : null,
-        })
-        .returning()
-
-      await tx.insert(artifacts).values(
-        verified.map((file) => ({
-          versionId: version.id,
-          filename: file.filename,
-          s3Key: file.s3Key,
-          size: file.size,
-          kind: file.kind,
-        })),
-      )
-
-      if (release) {
-        await tx.update(channels).set({ currentVersionId: version.id }).where(eq(channels.id, channel.id))
-      }
-      await tx.delete(pendingUploads).where(eq(pendingUploads.id, uploadId))
-      return version
-    })
-  } catch (error) {
-    if (isUniqueConstraint(error)) {
-      throw new ShukkaError('conflict', 'Version already exists')
-    }
-    throw error
-  }
+  const created = await store.finalize({
+    uploadId,
+    appId: app.id,
+    channelId: channel.id,
+    version: pending.version,
+    metadata: options.metadata ?? {},
+    artifacts: verified.map((file) => ({
+      filename: file.filename,
+      s3Key: file.s3Key,
+      size: file.size,
+      kind: file.kind,
+    })),
+    release,
+    now: nowSeconds(),
+  })
+  if (!created.ok) throw new ShukkaError('conflict', 'Version already exists')
 
   return {
-    versionId: created.id,
-    version: created.version,
+    versionId: created.value.id,
+    version: created.value.version,
     channel: channel.name,
     artifacts: verified.map((file) => ({ filename: file.filename, size: file.size, kind: file.kind })),
   }
@@ -275,16 +234,11 @@ export async function presignVersionArtifact(
 }
 
 export async function listArtifacts(versionId: number) {
-  return db.select().from(artifacts).where(eq(artifacts.versionId, versionId)).orderBy(artifacts.filename)
+  return store.listArtifacts(versionId)
 }
 
 export async function listArtifactsForVersions(versionIds: number[]) {
-  if (versionIds.length === 0) return []
-  return db
-    .select()
-    .from(artifacts)
-    .where(inArray(artifacts.versionId, versionIds))
-    .orderBy(artifacts.filename)
+  return store.listArtifactsForVersions(versionIds)
 }
 
 export async function deleteVersionByName(app: App, channelName: string, version: string): Promise<void> {
@@ -293,29 +247,11 @@ export async function deleteVersionByName(app: App, channelName: string, version
 
 /** Removes a version, its stored objects, and repoints the channel if it was current. */
 export async function deleteVersion(app: App, versionId: number): Promise<void> {
-  const [version] = await db
-    .select()
-    .from(versions)
-    .where(and(eq(versions.id, versionId), eq(versions.appId, app.id)))
-    .limit(1)
+  const version = await store.getVersionForApp(app.id, versionId)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
 
-  const keys = (await listArtifacts(versionId)).map((artifact) => artifact.s3Key)
+  const keys = await store.listArtifactS3KeysForVersion(versionId)
   await deleteObjects(settingsFromApp(app), keys)
-
-  await db.transaction(async (tx) => {
-    const [channel] = await tx.select().from(channels).where(eq(channels.id, version.channelId)).limit(1)
-    await tx.delete(versions).where(eq(versions.id, versionId))
-
-    if (channel?.currentVersionId === versionId) {
-      const [fallback] = await tx
-        .select()
-        .from(versions)
-        .where(and(eq(versions.channelId, version.channelId), isNotNull(versions.releasedAt)))
-        .orderBy(desc(versions.releasedAt))
-        .limit(1)
-      await tx.update(channels).set({ currentVersionId: fallback?.id ?? null }).where(eq(channels.id, channel.id))
-    }
-  })
+  await store.deleteVersion(versionId)
   clearObjectCache()
 }

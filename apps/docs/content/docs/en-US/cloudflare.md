@@ -10,7 +10,7 @@ You can run Shukka on Cloudflare Workers instead of a VPS. Open the Worker URL, 
 | Topic | Node (Docker / VPS) | Cloudflare Workers |
 |------|------|------|
 | Database | Local SQLite file under `SHUKKA_DATA_DIR` | Remote libsql over HTTP (`SHUKKA_DB_URL`) |
-| Schema | Applied on process start when `drizzle/` is in the working directory | Apply `drizzle/` to the remote database **before** deploy. The Worker does not migrate. |
+| Schema | Applied on process start (`boot()`) | Applied on Worker start (`boot()`), from bundled migration SQL. |
 | Encryption key | Default file, or filepath, or value | **Value only**: `SHUKKA_ENCRYPTION_KEY` (64 hex characters). Filepath is rejected. |
 | Password hash | Default `scrypt` is fine | Set `SHUKKA_PASSWORD_HASH=pbkdf2` **before first setup** (Cloudflare Free CPU). Locked after init. |
 | Login rate limit | 10 failures / 15 minutes per IP | Off. Use the platform WAF / firewall. |
@@ -25,7 +25,7 @@ The Worker script on the Free plan must stay under Cloudflare's **3 MiB gzip** l
 3. A remote libsql database (Turso or any compatible HTTP endpoint).
 4. Wrangler logged in to the Cloudflare account that will own the Worker.
 
-Apply the SQL files under `drizzle/` to that database **in order**, with the Turso CLI or any client that can run those statements. The Worker does not apply migrations itself. Do not run `nr --filter shukka db:generate` against a production database.
+The Worker applies bundled sqlite migrations on start. Do not run `nr --filter shukka db:generate` against a production database.
 
 ## Secrets
 
@@ -88,4 +88,4 @@ curl -sS "https://<your-worker>/api/health"
 # {"status":"ok","db":"ok"}
 ```
 
-A failed Worker start is usually a missing `SHUKKA_ENCRYPTION_KEY` or `SHUKKA_DB_URL`, a filepath key, or a remote database that never received `drizzle/`.
+A failed Worker start is usually a missing `SHUKKA_ENCRYPTION_KEY` or `SHUKKA_DB_URL`, or a filepath key.

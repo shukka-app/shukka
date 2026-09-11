@@ -17,7 +17,7 @@ Accepted.
    - `runtime === "node"`（真 Node，不是 Bun/Deno 的 `isNode` 兼容）→ `@libsql/client`，URL `file:${SHUKKA_DB_PATH}`。
    - 其它（含 `isWorkerd` / edge）→ `@libsql/client/web`（HTTP，无原生）。
 3. **检测** 放在 `src/lib/runtime.ts`：`isNodeRuntime()`、`libsqlClientEntry()`。与 `isCloudFunction()` 同一套 `std-env`，不复制冲突逻辑。
-4. **Migrate**：仅 Node 且 `./drizzle` 存在时动态加载 `drizzle-orm/libsql/migrator`。isolate 内不 migrate（wrangler / Turso 施加属 #51）。
+4. **Migrate**（已被 [store-port](store-port.md) 取代）：当时仅 Node 且 `./drizzle` 存在时动态加载 `drizzle-orm/libsql/migrator`，isolate 内不 migrate。现在所有路径经 `boot()` 编程式 migrate；Worker 使用打包的 journal / SQL，不读 `node:fs`。
 5. **Node 连接后** 在适配器里执行 `PRAGMA journal_mode = WAL` 与 `PRAGMA foreign_keys = ON`。领域模块不碰 client / pragma。
 6. **Isolate 连接串**：`SHUKKA_DB_URL`（可选 `SHUKKA_DB_AUTH_TOKEN`）。本 issue 不接 D1，也不把它们写成自托管安装合同。
 7. **领域层**：`await` 查询构建器（不用 `.run()` / `.get()` / `.all()`）；事务是一个 `async (tx) => { ... }` 块。

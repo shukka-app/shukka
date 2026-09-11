@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetStore } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const objects = new Map<string, string>()
@@ -20,9 +21,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { and, eq, sql } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { admin, apiKeys, apps, hitBuckets, sessions, versions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const auth = await import('~/lib/auth.ts')
 const { createApp } = await import('~/server/apps.ts')
 const { finalizeUpload, initUpload } = await import('~/server/releases.ts')
@@ -80,13 +79,9 @@ async function upload(
 }
 
 async function artifactHits(versionId: number) {
-  const row = await db.select().from(versions).where(eq(versions.id, versionId)).get()
-  const buckets = await db
-    .select({ total: sql<number>`coalesce(sum(${hitBuckets.count}), 0)` })
-    .from(hitBuckets)
-    .where(and(eq(hitBuckets.versionId, versionId), eq(hitBuckets.kind, 'artifact')))
-    .get()
-  return { counter: row?.artifactHits ?? 0, buckets: buckets?.total ?? 0 }
+  const row = await store.getVersionById(versionId)
+  const buckets = (await store.listHitBuckets(versionId)).filter((entry) => entry.kind === 'artifact').reduce((sum, entry) => sum + entry.count, 0)
+  return { counter: row?.artifactHits ?? 0, buckets }
 }
 
 function params(filename: string, slug = 'acme', version = '1.0.0') {
@@ -94,9 +89,7 @@ function params(filename: string, slug = 'acme', version = '1.0.0') {
 }
 
 beforeEach(async () => {
-  await db.delete(admin).run()
-  await db.delete(sessions).run()
-  await db.delete(apps).run()
+  await resetStore()
   objects.clear()
   await auth.initializeAdmin('correct horse battery')
 })
@@ -123,7 +116,7 @@ describe('authenticated artifact download', () => {
     const app = await createApp(appInput)
     const { installer, result } = await upload(app, '1.0.0', { release: true })
     const issued = auth.generateApiKey()
-    await db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash: issued.hash, hint: issued.hint }).run()
+    await store.insertApiKey({ appId: app.id, name: 'ci', hash: issued.hash, hint: issued.hint })
 
     const response = await GET({
       request: new Request('https://shukka.test/download', {
@@ -160,7 +153,7 @@ describe('authenticated artifact download', () => {
     const other = await createApp({ ...appInput, name: 'Other', slug: 'other', s3Prefix: 'other' })
     const { installer } = await upload(app, '1.0.0')
     const foreign = auth.generateApiKey()
-    await db.insert(apiKeys).values({ appId: other.id, name: 'ci', hash: foreign.hash, hint: foreign.hint }).run()
+    await store.insertApiKey({ appId: other.id, name: 'ci', hash: foreign.hash, hint: foreign.hint })
 
     const anon = await GET({
       request: new Request('https://shukka.test/download'),

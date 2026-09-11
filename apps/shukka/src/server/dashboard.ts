@@ -1,12 +1,11 @@
-import { db } from '~/db/index.ts'
-import { apps } from '~/db/schema.ts'
+import type { App } from '@shukka/store'
+import { store } from '~/lib/store.ts'
 import { getApp, getAppBySlug, listApiKeys } from './apps.ts'
 import { listChannelsForApps, listVersionsForChannels } from './channels.ts'
 import { feedBaseUrl } from './feed.ts'
 import { notesConfig } from './release-notes.ts'
 import { listArtifactsForVersions } from './releases.ts'
 import { tauriFeedOrigin } from './updaters/tauri.ts'
-import type { App } from '~/db/schema.ts'
 
 /** Storage settings without the secret, safe to send to the panel. */
 export function publicApp(app: App) {
@@ -31,7 +30,7 @@ export function publicApp(app: App) {
 export type PublicApp = ReturnType<typeof publicApp>
 
 export async function appSummaries() {
-  const allApps = await db.select().from(apps).orderBy(apps.name)
+  const allApps = await store.listApps('name')
   const allChannels = await listChannelsForApps(allApps.map((app) => app.id))
   const allVersions = await listVersionsForChannels(allChannels.map((channel) => channel.id))
 

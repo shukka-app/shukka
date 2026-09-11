@@ -1,8 +1,7 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
-import { db } from '~/db/index.ts'
-import { apps, releaseNotes, versions } from '~/db/schema.ts'
+import type { App, Version } from '@shukka/store'
 import { ShukkaError } from '~/lib/errors.ts'
 import { renderMarkdown } from '~/lib/markdown.ts'
+import { store } from '~/lib/store.ts'
 import {
   LATEST_NOTES_LIMIT,
   canonicalLocale,
@@ -15,7 +14,6 @@ import {
 } from '~/lib/release-log.ts'
 import { getApp, getAppBySlug } from './apps.ts'
 import { getChannel, listPublishedVersions } from './channels.ts'
-import type { App, Version } from '~/db/schema.ts'
 
 /** Parses the stored config columns into the shared shape. */
 export function notesConfig(app: App): NotesConfig {
@@ -44,23 +42,16 @@ export async function updateNotesConfig(appId: number, input: NotesConfig): Prom
     throw new ShukkaError('invalid_request', 'The fallback locale must be one of the configured locales')
   }
 
-  await db
-    .update(apps)
-    .set({
-      releaseLogEnabled: input.enabled,
-      releaseLogLocales: JSON.stringify(locales),
-      releaseLogFallbackLocale: fallbackLocale,
-    })
-    .where(eq(apps.id, appId))
+  await store.updateNotesConfig(appId, {
+    enabled: input.enabled,
+    localesJson: JSON.stringify(locales),
+    fallbackLocale,
+  })
   return { enabled: input.enabled, locales, fallbackLocale }
 }
 
 async function getVersionForApp(appId: number, versionId: number): Promise<Version> {
-  const [version] = await db
-    .select()
-    .from(versions)
-    .where(and(eq(versions.id, versionId), eq(versions.appId, appId)))
-    .limit(1)
+  const version = await store.getVersionForApp(appId, versionId)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
   return version
 }
@@ -75,11 +66,7 @@ function assertNotesEnabled(app: App): void {
 /** All locales' notes for a version, sorted by locale for a deterministic fallback chain. */
 export async function listNotes(appId: number, versionId: number): Promise<NoteContent[]> {
   await getVersionForApp(appId, versionId)
-  return db
-    .select()
-    .from(releaseNotes)
-    .where(eq(releaseNotes.versionId, versionId))
-    .orderBy(asc(releaseNotes.locale))
+  return store.listNotes(versionId)
 }
 
 /** Upsert: re-saving a locale re-renders html/text with the current pipeline. */
@@ -91,15 +78,7 @@ export async function upsertNote(appId: number, versionId: number, locale: strin
   if (!markdown.trim()) throw new ShukkaError('invalid_request', 'Note markdown must not be empty')
 
   const { html, text } = renderMarkdown(markdown)
-  const [note] = await db
-    .insert(releaseNotes)
-    .values({ versionId, locale, markdown, html, text })
-    .onConflictDoUpdate({
-      target: [releaseNotes.versionId, releaseNotes.locale],
-      set: { markdown, html, text },
-    })
-    .returning()
-  return note
+  return store.upsertNote({ versionId, locale, markdown, html, text })
 }
 
 export async function deleteNote(appId: number, versionId: number, locale: string): Promise<void> {
@@ -107,10 +86,7 @@ export async function deleteNote(appId: number, versionId: number, locale: strin
   assertNotesEnabled(app)
   await getVersionForApp(appId, versionId)
   locale = canonicalLocale(locale)
-  const [deleted] = await db
-    .delete(releaseNotes)
-    .where(and(eq(releaseNotes.versionId, versionId), eq(releaseNotes.locale, locale)))
-    .returning()
+  const deleted = await store.deleteNote(versionId, locale)
   if (!deleted) throw new ShukkaError('not_found', `No ${locale} note on this version`)
 }
 
@@ -132,21 +108,12 @@ export async function publicNotes(appSlug: string, channelName: string, query: N
   if (query.from !== null) {
     selected = resolveNotesRange(channelVersions, query.from, query.to)
   } else {
-    const noted = await db
-      .selectDistinct({ versionId: releaseNotes.versionId })
-      .from(releaseNotes)
-      .innerJoin(versions, eq(releaseNotes.versionId, versions.id))
-      .where(eq(versions.channelId, channel.id))
-    const notedIds = new Set(noted.map((row) => row.versionId))
+    const notedIds = new Set(await store.listNotedVersionIds(channel.id))
     selected = channelVersions.filter((version) => notedIds.has(version.id)).slice(0, LATEST_NOTES_LIMIT)
   }
   if (selected.length === 0) return { notes: [] }
 
-  const noteRows = await db
-    .select()
-    .from(releaseNotes)
-    .where(inArray(releaseNotes.versionId, selected.map((version) => version.id)))
-    .orderBy(asc(releaseNotes.locale))
+  const noteRows = await store.listNotesForVersions(selected.map((version) => version.id))
 
   const byVersion = new Map<number, NoteContent[]>()
   for (const row of noteRows) {

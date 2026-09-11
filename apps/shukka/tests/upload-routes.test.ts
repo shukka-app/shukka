@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetStore } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const objects = new Map<string, string>()
@@ -20,8 +21,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { db } = await import('~/db/index.ts')
-const { admin, apiKeys, apps, sessions, versions, channels } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const auth = await import('~/lib/auth.ts')
 const { createApp } = await import('~/server/apps.ts')
 const initRoute = await import('~/routes/api/v1/upload.init.ts')
@@ -56,8 +56,19 @@ function makeApp(slug: string) {
 
 async function keyFor(appId: number) {
   const { plaintext, hash, hint } = auth.generateApiKey()
-  await db.insert(apiKeys).values({ appId, name: 'ci', hash, hint }).run()
+  await store.insertApiKey({ appId, name: 'ci', hash, hint })
   return plaintext
+}
+
+async function allVersions() {
+  const apps = await store.listApps('createdAt')
+  const channels = await store.listChannelsForApps(apps.map((app) => app.id))
+  return store.listVersionsForChannels(channels.map((channel) => channel.id))
+}
+
+async function allChannels() {
+  const apps = await store.listApps('createdAt')
+  return store.listChannelsForApps(apps.map((app) => app.id))
 }
 
 const initBody = {
@@ -72,9 +83,7 @@ const initBody = {
 
 describe('upload init route', () => {
   beforeEach(async () => {
-    await db.delete(admin).run()
-    await db.delete(sessions).run()
-    await db.delete(apps).run()
+    await resetStore()
     objects.clear()
     await auth.initializeAdmin('correct horse battery')
   })
@@ -177,9 +186,7 @@ describe('release metadata HTTP contract', () => {
   let appId: number
 
   beforeEach(async () => {
-    await db.delete(sessions).run()
-    await db.delete(admin).run()
-    await db.delete(apps).run()
+    await resetStore()
     objects.clear()
     cookie = `${auth.SESSION_COOKIE}=${await auth.initializeAdmin('correct horse battery')}`
     const app = await makeApp('acme')
@@ -263,15 +270,15 @@ describe('release metadata HTTP contract', () => {
 
   it('replaces and clears the entire object without changing release state or hit counters', async () => {
     expect((await upload('1.0.0', { release: true, metadata: { old: 1, nested: { first: true } } })).status).toBe(200)
-    const beforeVersions = await db.select().from(versions)
-    const beforeChannels = await db.select().from(channels)
+    const beforeVersions = await allVersions()
+    const beforeChannels = await allChannels()
     for (const next of [{ nested: { second: true } }, {}]) {
       const result = await metadata('PUT', '1.0.0', { authorization: `Bearer ${key}` }, { metadata: next })
       expect(result.status).toBe(200)
       expect(await result.json()).toEqual({ version: '1.0.0', metadata: next })
       expect(await (await metadata('GET', '1.0.0')).json()).toEqual({ version: '1.0.0', metadata: next })
-      expect(await db.select().from(versions)).toEqual(beforeVersions.map(row => ({ ...row, metadata: next })))
-      expect(await db.select().from(channels)).toEqual(beforeChannels)
+      expect(await allVersions()).toEqual(beforeVersions.map(row => ({ ...row, metadata: next })))
+      expect(await allChannels()).toEqual(beforeChannels)
     }
   })
 
@@ -295,7 +302,7 @@ describe('release metadata HTTP contract', () => {
 
   it('rejects overflowing JSON numbers before finalize and PUT can persist null in their place', async () => {
     expect((await upload('1.0.0', { release: true, metadata: { preserved: true } })).status).toBe(200)
-    const before = await db.select().from(versions)
+    const before = await allVersions()
     for (const raw of ['{"value":1e400}', '{"nested":[{"value":-1e400}]}']) {
       const headers = { authorization: `Bearer ${key}`, 'content-type': 'application/json' }
       const finalized = await routeHandler(finalizeRoute.Route, 'POST')({
@@ -312,12 +319,12 @@ describe('release metadata HTTP contract', () => {
       })
       expect(replaced.status).toBe(400)
     }
-    expect(await db.select().from(versions)).toEqual(before)
+    expect(await allVersions()).toEqual(before)
   })
 
   it('rejects invalid metadata before creating or mutating a version and measures compact UTF-8 bytes', async () => {
     expect((await upload('1.0.0', { release: true, metadata: { preserved: true } })).status).toBe(200)
-    const before = await db.select().from(versions)
+    const before = await allVersions()
     const boundary = { x: '界'.repeat(5458) + 'aa' }
     expect(Buffer.byteLength(JSON.stringify(boundary))).toBe(16384)
     const invalid = [null, [], 'text', 1, false, { x: boundary.x + 'a' }]
@@ -328,8 +335,8 @@ describe('release metadata HTTP contract', () => {
       expect((await metadata('PUT', '1.0.0', { cookie }, { metadata: value })).status).toBe(400)
     }
     expect((await metadata('PUT', '1.0.0', { cookie }, {})).status).toBe(400)
-    expect(await db.select().from(versions)).toEqual(before)
-    expect((await db.select().from(channels))[0].currentVersionId).toBe(before[0].id)
+    expect(await allVersions()).toEqual(before)
+    expect((await allChannels())[0].currentVersionId).toBe(before[0].id)
     expect((await metadata('PUT', '1.0.0', { cookie }, { metadata: boundary })).status).toBe(200)
     expect((await upload('3.0.0', { metadata: boundary })).status).toBe(200)
   })

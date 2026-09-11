@@ -144,7 +144,7 @@ and copy the key file at the same time. Artifacts live in each app's bucket. Man
 
 For a continuously updated off-host copy, or for platforms with an ephemeral container filesystem and no reliable local volume, see [Litestream](/en-US/docs/litestream) — it is built into the image and only takes a few environment variables.
 
-Upgrade: pull a new image or `git pull && ni && nr --filter shukka build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup when `drizzle/` is in the working directory. Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
+Upgrade: pull a new image or `git pull && ni && nr --filter shukka build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup (`boot()`). Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
 
 ## Health / smoke
 

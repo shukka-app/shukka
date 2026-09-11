@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetStore } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const runtimeState = vi.hoisted(() => ({ cloud: false }))
@@ -8,8 +9,6 @@ vi.mock('~/lib/runtime.ts', async (importOriginal) => {
   return { ...actual, isCloudFunction: () => runtimeState.cloud }
 })
 
-const { db } = await import('~/db/index.ts')
-const { admin, sessions } = await import('~/db/schema.ts')
 const auth = await import('~/lib/auth.ts')
 const loginRoute = await import('~/routes/api/admin/login.ts')
 const { isLimited, recordFailure, resetRateLimitForTests } = await import('~/lib/rate-limit.ts')
@@ -31,8 +30,7 @@ function routeHandler(route: unknown, method: string) {
 describe('login rate limit on cloud functions', () => {
   beforeEach(async () => {
     runtimeState.cloud = true
-    await db.delete(admin).run()
-    await db.delete(sessions).run()
+    await resetStore()
     resetRateLimitForTests()
     await auth.initializeAdmin('correct horse battery')
   })

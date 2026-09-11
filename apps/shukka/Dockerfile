@@ -7,8 +7,12 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/shukka/package.json apps/shukka/package.json
 COPY apps/docs/package.json apps/docs/package.json
+COPY packages/store/package.json packages/store/package.json
+COPY packages/store-sqlite/package.json packages/store-sqlite/package.json
 RUN pnpm install --frozen-lockfile --filter shukka...
 
+COPY packages/store ./packages/store
+COPY packages/store-sqlite ./packages/store-sqlite
 COPY apps/shukka ./apps/shukka
 WORKDIR /workspace/apps/shukka
 RUN pnpm build
@@ -31,7 +35,7 @@ RUN apk add --no-cache ca-certificates wget \
 # Nitro traces libsql into .output. Do not copy the rest of production
 # node_modules into the runtime image.
 COPY --from=build --chown=node:node /workspace/apps/shukka/.output ./.output
-COPY --from=build --chown=node:node /workspace/apps/shukka/drizzle ./drizzle
+COPY --from=build --chown=node:node /workspace/packages/store-sqlite/drizzle ./drizzle
 COPY apps/shukka/deploy/litestream/litestream.yml /etc/litestream.yml
 COPY apps/shukka/deploy/litestream/entrypoint.sh /usr/local/bin/shukka-entrypoint
 

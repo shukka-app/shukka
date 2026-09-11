@@ -14,7 +14,7 @@
 1. 换掉 `better-sqlite3`，改用 `@libsql/client` + `drizzle-orm/libsql`。
 2. 自托管仍是：单进程、`file:` SQLite、启动时对 `./drizzle` migrate（目录不存在则跳过，与今天相同）。
 3. 适配器用 `std-env` 选择，且只 `import()`：Node 用原生入口，其它用 `@libsql/client/web`。
-4. isolate 内不 `migrate('./drizzle')`。
+4. isolate 内不 `migrate('./drizzle')`（已被 [store-port](store-port.md) 取代：`boot()` 在所有路径 migrate）。
 5. 现有测试仍过；领域层可读，不把驱动类型漏进 `src/server/`。
 
 ## Non-goals

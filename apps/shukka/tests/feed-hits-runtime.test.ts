@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 process.env.SHUKKA_ENCRYPTION_KEY = 'ab'.repeat(32)
@@ -27,9 +28,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { eq } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { apps, hitBuckets, versions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const { createApp } = await import('~/server/apps.ts')
 const { finalizeUpload, initUpload } = await import('~/server/releases.ts')
 const { resolveFeedRequest } = await import('~/server/feed.ts')
@@ -56,7 +55,7 @@ async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: stri
 
 describe('feed hits on cloud functions', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -82,9 +81,9 @@ describe('feed hits on cloud functions', () => {
     await recordHit(result.versionId, 'metadata')
     await recordHit(result.versionId, 'artifact')
 
-    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await store.getVersionById(result.versionId)
     expect(row?.metadataHits).toBe(0)
     expect(row?.artifactHits).toBe(0)
-    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()).toHaveLength(0)
+    expect(await store.listHitBuckets(result.versionId)).toHaveLength(0)
   })
 })

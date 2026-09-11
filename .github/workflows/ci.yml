@@ -22,6 +22,7 @@ jobs:
       - run: pnpm --filter shukka lint
       - run: pnpm --filter shukka typecheck
       - run: pnpm --filter shukka test
+      - run: pnpm --filter @shukka/store-sqlite test
       - run: pnpm --filter shukka build
 
   docs:

@@ -1,0 +1,3 @@
+{
+  "ignorePatterns": ["drizzle", "src/migrations.bundle.ts"]
+}

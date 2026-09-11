@@ -1,5 +1,6 @@
 import { generateKeyPairSync, sign, verify } from 'node:crypto'
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const objects = new Map<string, string>()
@@ -21,8 +22,6 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { db } = await import('~/db/index.ts')
-const { apps } = await import('~/db/schema.ts')
 const { clearObjectCache } = await import('~/lib/object-cache.ts')
 const { parseAppcast } = await import('~/lib/appcast.ts')
 const { createApp } = await import('~/server/apps.ts')
@@ -118,7 +117,7 @@ describe('sparkle inferFeedTarget', () => {
 
 describe('updater kind sparkle', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -130,7 +129,7 @@ describe('updater kind sparkle', () => {
 
 describe('sparkle upload and feed', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
