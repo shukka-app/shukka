@@ -12,7 +12,7 @@ import subprocess
 import sys
 
 
-REVIEW_CONTEXT = """Before committing, review the staged, unstaged, and untracked changes against docs/spec.md and every relevant document under docs/adr/ and docs/prd/. Check for semantic drift or contradictions in product behavior, requirements, architecture decisions, interfaces, invariants, workflows, and constraints. If the implementation changes any documented fact, update and stage the relevant documentation in the same change. Preserve the existing documentation format and do not invent missing ADR or PRD rules. If no documentation update is needed, briefly state why, then retry the commit."""
+REVIEW_CONTEXT = """Before committing, review the staged, unstaged, and untracked changes against apps/shukka/docs/spec.md and every relevant document under apps/shukka/docs/adr/ and apps/shukka/docs/prd/. Check for semantic drift or contradictions in product behavior, requirements, architecture decisions, interfaces, invariants, workflows, and constraints. If the implementation changes any documented fact, update and stage the relevant documentation in the same change. Preserve the existing documentation format and do not invent missing ADR or PRD rules. If no documentation update is needed, briefly state why, then retry the commit."""
 
 def contains_git_commit(command: str) -> bool:
     return re.search(r"git\s+commit", command, flags=re.IGNORECASE) is not None

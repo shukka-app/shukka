@@ -31,13 +31,13 @@ SHUKKA_API_KEY="$SHUKKA_API_KEY" \
 SHUKKA_APP=my-app \
 SHUKKA_CHANNEL=stable \
 SHUKKA_DIRECTORY=dist \
-node scripts/shukka-upload.mjs
+node apps/shukka/scripts/shukka-upload.mjs
 ```
 
 In CI, use the action instead:
 
 ```yaml
-- uses: shukka-app/shukka@v1.0.2
+- uses: shukka-app/shukka/apps/shukka@v2
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

@@ -5,32 +5,32 @@ on:
   push:
     branches: [main]
     paths:
-      - action.yml
-      - scripts/shukka-upload.mjs
-      - scripts/updaters/**
-      - src/server/feed.ts
-      - src/server/releases.ts
-      - src/lib/update-metadata.ts
-      - src/routes/api/update/**
-      - tests/e2e/**
-      - src/server/updaters/**
-      - src/lib/storage.ts
-      - scripts/juicefs-dev.mjs
+      - apps/shukka/action.yml
+      - apps/shukka/scripts/shukka-upload.mjs
+      - apps/shukka/scripts/updaters/**
+      - apps/shukka/src/server/feed.ts
+      - apps/shukka/src/server/releases.ts
+      - apps/shukka/src/lib/update-metadata.ts
+      - apps/shukka/src/routes/api/update/**
+      - apps/shukka/tests/e2e/**
+      - apps/shukka/src/server/updaters/**
+      - apps/shukka/src/lib/storage.ts
+      - apps/shukka/scripts/juicefs-dev.mjs
       - .github/scripts/**
       - .github/workflows/action-test.yml
   pull_request:
     paths:
-      - action.yml
-      - scripts/shukka-upload.mjs
-      - scripts/updaters/**
-      - src/server/feed.ts
-      - src/server/releases.ts
-      - src/lib/update-metadata.ts
-      - src/routes/api/update/**
-      - tests/e2e/**
-      - src/server/updaters/**
-      - src/lib/storage.ts
-      - scripts/juicefs-dev.mjs
+      - apps/shukka/action.yml
+      - apps/shukka/scripts/shukka-upload.mjs
+      - apps/shukka/scripts/updaters/**
+      - apps/shukka/src/server/feed.ts
+      - apps/shukka/src/server/releases.ts
+      - apps/shukka/src/lib/update-metadata.ts
+      - apps/shukka/src/routes/api/update/**
+      - apps/shukka/tests/e2e/**
+      - apps/shukka/src/server/updaters/**
+      - apps/shukka/src/lib/storage.ts
+      - apps/shukka/scripts/juicefs-dev.mjs
       - .github/scripts/**
       - .github/workflows/action-test.yml
 
@@ -69,9 +69,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
+          cache: pnpm
 
       - name: Start ${{ matrix.s3 }}
         if: ${{ !env.ACT }}
@@ -80,9 +83,9 @@ jobs:
       - name: Build and start Shukka
         if: ${{ !env.ACT }}
         run: |
-          npm ci
-          npm run build
-          npm start &
+          pnpm install --frozen-lockfile
+          pnpm --filter shukka build
+          pnpm --filter shukka start &
           node .github/scripts/wait-for.mjs "$SHUKKA_URL/api/admin/session"
 
       - name: Provision app, bucket and API key
@@ -94,7 +97,7 @@ jobs:
 
       - name: Publish with the action
         id: publish
-        uses: ./
+        uses: ./apps/shukka
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}
@@ -109,13 +112,13 @@ jobs:
             "$SHUKKA_URL/api/update/demo-app/stable" "${{ steps.publish.outputs.version }}"
 
       - name: Install electron-updater e2e
-        run: npm ci --prefix tests/e2e
+        run: npm ci --prefix apps/shukka/tests/e2e
 
       - name: electron-updater check and download
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
-          xvfb-run -a node tests/e2e/run.mjs
+          xvfb-run -a node apps/shukka/tests/e2e/run.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -126,7 +129,7 @@ jobs:
           ELECTRON_DISABLE_SANDBOX: '1'
 
       - name: electron-updater rollback
-        run: xvfb-run -a node tests/e2e/run-rollback.mjs
+        run: xvfb-run -a node apps/shukka/tests/e2e/run-rollback.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -144,10 +147,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
-          cache: npm
+          cache: pnpm
 
       - name: Start MinIO
         if: ${{ !env.ACT }}
@@ -156,8 +161,8 @@ jobs:
       - name: Build and start Shukka
         if: ${{ !env.ACT }}
         run: |
-          npm ci
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm --filter shukka build
           node .github/scripts/start-server.mjs
 
       - name: Provision app, bucket and API key
@@ -169,7 +174,7 @@ jobs:
 
       - name: Publish with the action
         id: publish
-        uses: ./
+        uses: ./apps/shukka
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}
@@ -182,10 +187,10 @@ jobs:
         run: node .github/scripts/verify-feed.mjs "${{ env.SHUKKA_URL }}/api/update/demo-app/stable" "${{ steps.publish.outputs.version }}"
 
       - name: Install electron-updater e2e
-        run: npm ci --prefix tests/e2e
+        run: npm ci --prefix apps/shukka/tests/e2e
 
       - name: electron-updater check and download
-        run: node tests/e2e/run.mjs
+        run: node apps/shukka/tests/e2e/run.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -196,7 +201,7 @@ jobs:
           ELECTRON_DISABLE_SANDBOX: '1'
 
       - name: electron-updater rollback
-        run: node tests/e2e/run-rollback.mjs
+        run: node apps/shukka/tests/e2e/run-rollback.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -219,9 +224,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
+          cache: pnpm
 
       - uses: dtolnay/rust-toolchain@v1
         with:
@@ -229,7 +237,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.9.2
         with:
-          workspaces: tests/e2e/tauri-app/src-tauri
+          workspaces: apps/shukka/tests/e2e/tauri-app/src-tauri
 
       - name: Install Tauri Linux dependencies
         run: |
@@ -252,9 +260,9 @@ jobs:
       - name: Build and start Shukka
         if: ${{ !env.ACT }}
         run: |
-          npm ci
-          npm run build
-          npm start &
+          pnpm install --frozen-lockfile
+          pnpm --filter shukka build
+          pnpm --filter shukka start &
           node .github/scripts/wait-for.mjs "$SHUKKA_URL/api/admin/session"
 
       - name: Provision a Tauri app
@@ -265,7 +273,7 @@ jobs:
         run: node .github/scripts/provision.mjs
 
       - name: Tauri plugin-updater check and download
-        run: xvfb-run -a node tests/e2e/run-tauri.mjs
+        run: xvfb-run -a node apps/shukka/tests/e2e/run-tauri.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -281,10 +289,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
-          cache: npm
+          cache: pnpm
 
       - name: Start MinIO
         if: ${{ !env.ACT }}
@@ -293,8 +303,8 @@ jobs:
       - name: Build and start Shukka
         if: ${{ !env.ACT }}
         run: |
-          npm ci
-          npm run build
+          pnpm install --frozen-lockfile
+          pnpm --filter shukka build
           node .github/scripts/start-server.mjs
 
       - name: Provision a Sparkle app
@@ -309,11 +319,11 @@ jobs:
         env:
           SHUKKA_DIRECTORY: out
           SHUKKA_VERSION: 2.0.${{ github.run_number }}
-        run: node tests/e2e/prepare-sparkle-release.mjs
+        run: node apps/shukka/tests/e2e/prepare-sparkle-release.mjs
 
       - name: Publish with the action
         id: publish
-        uses: ./
+        uses: ./apps/shukka
         with:
           server-url: ${{ env.SHUKKA_URL }}
           api-key: ${{ steps.provision.outputs.api-key }}
@@ -324,7 +334,7 @@ jobs:
           release: true
 
       - name: Sparkle.framework check and download
-        run: node tests/e2e/run-sparkle-macos.mjs
+        run: node apps/shukka/tests/e2e/run-sparkle-macos.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_APP: demo-sparkle

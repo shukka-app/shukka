@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Starts the S3 backend selected by argv / S3_BACKEND (minio | juicefs).
-// MinIO is a Docker server; JuiceFS reuses scripts/juicefs-dev.mjs (gateway).
+// MinIO is a Docker server; JuiceFS reuses apps/shukka/scripts/juicefs-dev.mjs (gateway).
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -69,7 +69,7 @@ async function startMinio() {
 }
 
 function startJuicefs() {
-  const script = resolve(repoRoot, 'scripts/juicefs-dev.mjs')
+  const script = resolve(repoRoot, 'apps/shukka/scripts/juicefs-dev.mjs')
   const started = spawnSync(process.execPath, [script], { stdio: 'inherit' })
   if (started.status !== 0) fail('Could not start the JuiceFS S3 gateway')
 }

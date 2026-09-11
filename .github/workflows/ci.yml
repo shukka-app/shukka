@@ -13,21 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter shukka lint
+      - run: pnpm --filter shukka typecheck
+      - run: pnpm --filter shukka test
+      - run: pnpm --filter shukka build
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter shukka-docs build
+      - run: pnpm --filter shukka-docs sync:openapi
 
   actionlint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: raven-actions/actionlint@v2
+        with:
+          files: ".github/workflows/*.yml, apps/shukka/action.yml"
 
   # Cloudflare Workers Free rejects a script over 3 MiB gzip. Static assets
   # (`dist/client`) do not count. Measure with the same wrangler dry-run total
@@ -36,13 +52,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
-      - run: npm ci
-      - run: npm run build:worker
-      - run: npm run check:worker-size
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter shukka build:worker
+      - run: pnpm --filter shukka check:worker-size
 
   # Real S3 path against every supported compatible backend: write probe,
   # presigned PUT, finalize HeadObject, and a 302 download.
@@ -59,14 +76,15 @@ jobs:
       S3_BACKEND: ${{ matrix.s3 }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
+          cache: pnpm
       - name: Start ${{ matrix.s3 }}
         run: node .github/scripts/start-s3.mjs ${{ matrix.s3 }}
-      - run: npm ci
-      - run: npm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter shukka build
       - name: Start Shukka
         run: node .github/scripts/start-server.mjs
       - name: Provision app, bucket and API key
@@ -83,7 +101,7 @@ jobs:
           SHUKKA_RELEASE: 'true'
         run: |
           node .github/scripts/fake-release.mjs out "1.2.${{ github.run_number }}"
-          node scripts/shukka-upload.mjs
+          node apps/shukka/scripts/shukka-upload.mjs
       - name: Verify the update feed serves the new version
         run: |
           node .github/scripts/verify-feed.mjs \
