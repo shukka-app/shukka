@@ -126,13 +126,9 @@
                           "type": "string"
                         },
                         "s3Endpoint": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "s3Region": {
@@ -495,13 +491,9 @@
                           "type": "string"
                         },
                         "s3Endpoint": {
-                          "anyOf": [
-                            {
-                              "type": "string"
-                            },
-                            {
-                              "type": "null"
-                            }
+                          "type": [
+                            "string",
+                            "null"
                           ]
                         },
                         "s3Region": {

@@ -25,7 +25,7 @@ The Worker script on the Free plan must stay under Cloudflare's **3 MiB gzip** l
 3. A remote libsql database (Turso or any compatible HTTP endpoint).
 4. Wrangler logged in to the Cloudflare account that will own the Worker.
 
-Apply the SQL files under `drizzle/` to that database **in order**, with the Turso CLI or any client that can run those statements. The Worker does not apply migrations itself. Do not run `npm run db:generate` against a production database.
+Apply the SQL files under `drizzle/` to that database **in order**, with the Turso CLI or any client that can run those statements. The Worker does not apply migrations itself. Do not run `nr --filter shukka db:generate` against a production database.
 
 ## Secrets
 
@@ -51,14 +51,14 @@ Generate a key and keep a copy. If you lose `SHUKKA_ENCRYPTION_KEY`, stored S3 s
 
 ## Deploy
 
-From the shukka repository root:
+From the workspace root:
 
 ```bash
-npm ci
-npm run deploy:worker
+ni
+nr --filter shukka deploy:worker
 ```
 
-That runs `npm run build:worker` then `wrangler deploy`. Use the repo's `wrangler.jsonc`. `npm run build` is the Docker / VPS build — do not use it here.
+That runs `build:worker` then `wrangler deploy`. Use `apps/shukka/wrangler.jsonc`. `nr --filter shukka build` is the Docker / VPS build — do not use it here.
 
 Open the Worker URL. First visit is setup (password at least 8 characters). After that, create apps and publish as usual.
 

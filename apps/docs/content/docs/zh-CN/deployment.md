@@ -23,19 +23,19 @@ docker run -d --name shukka --restart unless-stopped \
   ghcr.io/shukka-app/shukka
 ```
 
-镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。推送 semver 标签（`vMAJOR.MINOR.PATCH`）会由 GitHub Actions 构建并发布；未加 tag 时拉的是 `latest`。钉版本用 `ghcr.io/shukka-app/shukka:0.1.0`。要从源码自行构建时，在仓库根执行 `docker build -t shukka .`，把上面的镜像名换成 `shukka`。
+镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。推送 semver 标签（`vMAJOR.MINOR.PATCH`）会由 GitHub Actions 构建并发布；未加 tag 时拉的是 `latest`。钉版本用 `ghcr.io/shukka-app/shukka:0.1.0`。要从源码自行构建时，在仓库根执行 `docker build -t shukka -f apps/shukka/Dockerfile .`，把上面的镜像名换成 `shukka`。
 
-同一份编排在 [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml)（Shukka + 示例 MinIO）。钉版本用 `SHUKKA_IMAGE`：
+同一份编排在 [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml)（Shukka + 示例 MinIO）。钉版本用 `SHUKKA_IMAGE`：
 
 ```bash
-docker compose -f deploy/compose.yaml up -d
+docker compose -f apps/shukka/deploy/compose.yaml up -d
 docker exec minio mkdir -p /data/releases
 ```
 
-Ansible 把该文件拷到主机并等到 `/api/health`：[`deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/deploy/ansible/playbook.yml)。Docker Compose v2 是前置条件。
+Ansible 把该文件拷到主机并等到 `/api/health`：[`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml)。Docker Compose v2 是前置条件。
 
 ```bash
-ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
+ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 ```
 
 同一份镜像也可以用 [Kamal](/zh-CN/docs/kamal) 部到主机（`kamal setup` 装 Docker 与 kamal-proxy，之后 `kamal deploy` 拉镜像换容器）。
@@ -50,12 +50,12 @@ ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
 需要 Node 24（与 CI / `Dockerfile` 一致）。
 
 ```bash
-npm ci
-npm run build
-npm start          # node .output/server/index.mjs ，默认 :3000
+ni                         # 仓库根 pnpm workspace
+nr --filter shukka build
+nr --filter shukka start   # node .output/server/index.mjs ，默认 :3000
 ```
 
-进程必须在仓库根启动，否则启动时不会执行数据库迁移。生产环境不要运行 `npm run db:generate`。
+进程必须在 `apps/shukka` 启动（镜像 `WORKDIR /app`），否则启动时不会执行数据库迁移。生产环境不要运行 `nr --filter shukka db:generate`。
 
 示例 unit（按主机改路径与用户）：
 
@@ -126,7 +126,7 @@ CI 与桌面客户端必须能访问该 endpoint（上传 PUT、下载跟 302）
 
 ### 本机 MinIO（可选）
 
-Shukka **不**随镜像带对象存储。需要自建 S3 时用 [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml) 里的 MinIO，或另起一个，再在面板创建 app（MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——上传由 CI 直传，不经过 Shukka。Shukka 仍只挂自己的数据卷。
+Shukka **不**随镜像带对象存储。需要自建 S3 时用 [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml) 里的 MinIO，或另起一个，再在面板创建 app（MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——上传由 CI 直传，不经过 Shukka。Shukka 仍只挂自己的数据卷。
 
 ## 备份与升级
 
@@ -144,7 +144,7 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 
 要一份持续更新的异地副本，或跑在容器盘短暂、没有可靠本地卷的平台上，见 [Litestream 复制](/zh-CN/docs/litestream)——镜像已内置，加几个环境变量即可。
 
-升级：拉新镜像或 `git pull && npm ci && npm run build`，停旧进程，用同一数据目录启动新进程。工作目录有 `drizzle/` 时启动会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
+升级：拉新镜像或 `git pull && ni && nr --filter shukka build`，停旧进程，用同一数据目录启动新进程。工作目录有 `drizzle/` 时启动会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
 
 ## 探活 / 冒烟
 

@@ -23,19 +23,19 @@ docker run -d --name shukka --restart unless-stopped \
   ghcr.io/shukka-app/shukka
 ```
 
-The image is on [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka) and can be pulled without logging in. Pushing a semver tag (`vMAJOR.MINOR.PATCH`) builds and publishes via GitHub Actions. Untagged pulls use `latest`. Pin a version with `ghcr.io/shukka-app/shukka:0.1.0`. To build from source, run `docker build -t shukka .` at the repo root and replace the image name above with `shukka`.
+The image is on [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka) and can be pulled without logging in. Pushing a semver tag (`vMAJOR.MINOR.PATCH`) builds and publishes via GitHub Actions. Untagged pulls use `latest`. Pin a version with `ghcr.io/shukka-app/shukka:0.1.0`. To build from source, run `docker build -t shukka -f apps/shukka/Dockerfile .` at the repo root and replace the image name above with `shukka`.
 
-The same stack as Compose (Shukka plus an example MinIO) is [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml). Pin the image with `SHUKKA_IMAGE`:
+The same stack as Compose (Shukka plus an example MinIO) is [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml). Pin the image with `SHUKKA_IMAGE`:
 
 ```bash
-docker compose -f deploy/compose.yaml up -d
+docker compose -f apps/shukka/deploy/compose.yaml up -d
 docker exec minio mkdir -p /data/releases
 ```
 
-Ansible copies that file onto a host and waits for `/api/health`: [`deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/deploy/ansible/playbook.yml). Docker Compose v2 must already be installed.
+Ansible copies that file onto a host and waits for `/api/health`: [`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml). Docker Compose v2 must already be installed.
 
 ```bash
-ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
+ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 ```
 
 The same image can also be deployed with [Kamal](/en-US/docs/kamal): `kamal setup` installs Docker and kamal-proxy, then `kamal deploy` pulls the image and swaps containers.
@@ -50,12 +50,12 @@ The same image can also be deployed with [Kamal](/en-US/docs/kamal): `kamal setu
 You need Node 24 (same as CI / `Dockerfile`).
 
 ```bash
-npm ci
-npm run build
-npm start          # node .output/server/index.mjs , default :3000
+ni                         # pnpm workspace at the git root
+nr --filter shukka build
+nr --filter shukka start   # node .output/server/index.mjs , default :3000
 ```
 
-The process must start at the repository root, or database migrations will not run on startup. Do not run `npm run db:generate` in production.
+The process must start in `apps/shukka` (the image uses `WORKDIR /app`), or database migrations will not run on startup. Do not run `nr --filter shukka db:generate` in production.
 
 Example unit (adjust paths and user for the host):
 
@@ -126,7 +126,7 @@ CI and desktop clients must be able to reach that endpoint (upload PUT, download
 
 ### Local MinIO (optional)
 
-Shukka does **not** ship object storage in the image. If you need self-hosted S3, use the MinIO service in [`deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/deploy/compose.yaml), or run MinIO separately, then create an app in the panel (MinIO: set the endpoint, enable path-style; the wizard defaults region to `us-east-1`). GitHub Actions must be able to reach that endpoint from the public internet — uploads go from CI straight to storage, not through Shukka. Shukka still only mounts its own data volume.
+Shukka does **not** ship object storage in the image. If you need self-hosted S3, use the MinIO service in [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml), or run MinIO separately, then create an app in the panel (MinIO: set the endpoint, enable path-style; the wizard defaults region to `us-east-1`). GitHub Actions must be able to reach that endpoint from the public internet — uploads go from CI straight to storage, not through Shukka. Shukka still only mounts its own data volume.
 
 ## Backup and upgrade
 
@@ -144,7 +144,7 @@ and copy the key file at the same time. Artifacts live in each app's bucket. Man
 
 For a continuously updated off-host copy, or for platforms with an ephemeral container filesystem and no reliable local volume, see [Litestream](/en-US/docs/litestream) — it is built into the image and only takes a few environment variables.
 
-Upgrade: pull a new image or `git pull && npm ci && npm run build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup when `drizzle/` is in the working directory. Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
+Upgrade: pull a new image or `git pull && ni && nr --filter shukka build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup when `drizzle/` is in the working directory. Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
 
 ## Health / smoke
 

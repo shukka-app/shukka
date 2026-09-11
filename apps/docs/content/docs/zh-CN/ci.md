@@ -5,12 +5,14 @@ description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为�
 
 ## GitHub Action
 
-仓库根的 `action.yml` 是一个 JavaScript action：runner 自带的 Node 直接执行 `scripts/shukka-upload.mjs`，不调用 bash。Windows 自建 runner 只需 Actions runner（可用 MinGit），不必装 Git for Windows。
+`apps/shukka/action.yml` 是一个 JavaScript action：runner 自带的 Node 直接执行 `scripts/shukka-upload.mjs`，不调用 bash。Windows 自建 runner 只需 Actions runner（可用 MinGit），不必装 Git for Windows。
+
+这是相对 `uses: shukka-app/shukka@v1` 的 **major** 破坏；仓库根不再提供 `action.yml` stub。
 
 把目录内的构建产物完整发布为一个版本：
 
 ```yaml
-- uses: shukka-app/shukka@v1.2.0
+- uses: shukka-app/shukka/apps/shukka@v2
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}
@@ -43,7 +45,7 @@ description: 用 GitHub Action 或零依赖上传脚本把构建产物发布为�
 
 ## 手动 / 其他 CI：上传脚本
 
-同一个上传器可以脱离 GitHub Actions 运行——`scripts/shukka-upload.mjs` 是零依赖 Node 脚本：
+同一个上传器可以脱离 GitHub Actions 运行——`apps/shukka/scripts/shukka-upload.mjs` 是零依赖 Node 脚本：
 
 ```bash
 SHUKKA_SERVER_URL=https://updates.example.com \
@@ -51,7 +53,7 @@ SHUKKA_API_KEY=shk_… \
 SHUKKA_APP=my-app \
 SHUKKA_CHANNEL=stable \
 SHUKKA_DIRECTORY=dist \
-node scripts/shukka-upload.mjs
+node apps/shukka/scripts/shukka-upload.mjs
 ```
 
 | 环境变量 | 必填 | 默认 | 说明 |

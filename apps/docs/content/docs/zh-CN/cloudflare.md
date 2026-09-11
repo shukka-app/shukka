@@ -25,7 +25,7 @@ Free 套餐上 Worker **脚本** gzip 不得超过 Cloudflare 的 **3 MiB** 上�
 3. 远程 libsql 数据库（Turso 或兼容 HTTP 端点）。
 4. Wrangler 已登录到将持有该 Worker 的 Cloudflare 账号。
 
-把 `drizzle/` 下的 SQL **按顺序**施加到该库，用 Turso CLI 或任何能执行这些语句的客户端。Worker 不会自己跑迁移。不要对生产库跑 `npm run db:generate`。
+把 `drizzle/` 下的 SQL **按顺序**施加到该库，用 Turso CLI 或任何能执行这些语句的客户端。Worker 不会自己跑迁移。不要对生产库跑 `nr --filter shukka db:generate`。
 
 ## Secrets
 
@@ -51,14 +51,14 @@ S3 凭证、管理员密码、API key **都不是**进程环境变量。部署�
 
 ## 部署
 
-在 shukka 仓库根：
+在工作区根：
 
 ```bash
-npm ci
-npm run deploy:worker
+ni
+nr --filter shukka deploy:worker
 ```
 
-即 `npm run build:worker` 再 `wrangler deploy`。用仓库里的 `wrangler.jsonc`。`npm run build` 是 Docker / VPS 的构建，不要用在这里。
+即 `build:worker` 再 `wrangler deploy`。用 `apps/shukka/wrangler.jsonc`。`nr --filter shukka build` 是 Docker / VPS 的构建，不要用在这里。
 
 打开 Worker URL。首次访问进入 setup（密码至少 8 位），之后照常建应用、发版。
 

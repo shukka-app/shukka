@@ -5,15 +5,15 @@ Shukka 的公开文档站，面向部署与使用 Shukka 的用户。基于 [fum
 ## 开发
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000
-npm run build      # 生产构建（next build）
-npm start          # 运行构建产物
+ni                              # 仓库根 pnpm workspace
+nr --filter shukka-docs dev     # http://localhost:3000
+nr --filter shukka-docs build
+nr --filter shukka-docs start
 ```
 
 ## 内容结构
 
-内容在 `content/docs/{zh-CN,en-US}/`（Fumadocs `parser: 'dir'`），与 [shukka 主仓库](https://github.com/akarachen/shukka)的关系是「从仓库事实提炼的对外文档」，不是 `docs/` 目录的镜像（主仓库的 `docs/prd/`、`docs/adr/`、`docs/spec.md` 是开发用内部文档）：
+内容在 `content/docs/{zh-CN,en-US}/`（Fumadocs `parser: 'dir'`），与 `apps/shukka` 的关系是「从仓库事实提炼的对外文档」，不是 `apps/shukka/docs/` 的镜像（那边的 `prd/`、`adr/`、`spec.md` 是开发用内部文档）：
 
 | 路径 | 内容 | 主要事实来源 |
 |------|------|--------------|
@@ -35,9 +35,9 @@ npm start          # 运行构建产物
 两份 JSON 都是从主仓库的 spec 生成器（`src/server/openapi.ts`，`openApiDocument(origin, locale)`）提取的静态快照。路径与 schema 相同，叙事文案分英文 / 简体中文。`middleware.ts` 的 matcher 排除 `openapi*.json`，否则 i18n 会给中文快照加上语言前缀。主仓库 API 变更后重新生成：
 
 ```bash
-npm run sync:openapi
+nr --filter shukka-docs sync:openapi
 # 可选环境变量：
-#   SHUKKA_REPO    shukka 检出路径（默认 ../shukka）
+#   SHUKKA_REPO    shukka 检出路径（默认 ../shukka，即 apps/shukka）
 #   SHUKKA_ORIGIN  写入 spec servers[0].url 的地址（默认 https://updates.example.com）
 ```
 

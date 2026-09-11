@@ -4,7 +4,7 @@
  * from the Shukka repo's spec builder (src/server/openapi.ts — a pure
  * function, imported standalone via tsx, nothing is written to the shukka repo).
  *
- *   npm run sync:openapi
+ *   pnpm --filter shukka-docs sync:openapi
  *
  * Env:
  *   SHUKKA_REPO    path to a shukka checkout (default: ../shukka)

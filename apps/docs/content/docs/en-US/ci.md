@@ -5,12 +5,14 @@ description: Publish build artifacts as a version with the GitHub Action or the 
 
 ## GitHub Action
 
-`action.yml` at the repository root is a JavaScript action: the runner's bundled Node runs `scripts/shukka-upload.mjs` directly and does not call bash. A Windows self-hosted runner only needs the Actions runner (MinGit is fine); Git for Windows is not required.
+`apps/shukka/action.yml` is a JavaScript action: the runner's bundled Node runs `scripts/shukka-upload.mjs` directly and does not call bash. A Windows self-hosted runner only needs the Actions runner (MinGit is fine); Git for Windows is not required.
+
+This path is a **major** break from `uses: shukka-app/shukka@v1`. There is no root `action.yml` stub.
 
 It publishes every artifact in a directory as one version:
 
 ```yaml
-- uses: shukka-app/shukka@v1.2.0
+- uses: shukka-app/shukka/apps/shukka@v2
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}
@@ -43,7 +45,7 @@ Hand it the entire output directory: installers, `.blockmap`, every `latest*.yml
 
 ## Manual / other CI: upload script
 
-The same uploader can run outside GitHub Actions — `scripts/shukka-upload.mjs` is a zero-dependency Node script:
+The same uploader can run outside GitHub Actions — `apps/shukka/scripts/shukka-upload.mjs` is a zero-dependency Node script:
 
 ```bash
 SHUKKA_SERVER_URL=https://updates.example.com \
@@ -51,7 +53,7 @@ SHUKKA_API_KEY=shk_… \
 SHUKKA_APP=my-app \
 SHUKKA_CHANNEL=stable \
 SHUKKA_DIRECTORY=dist \
-node scripts/shukka-upload.mjs
+node apps/shukka/scripts/shukka-upload.mjs
 ```
 
 | Environment variable | Required | Default | Description |

@@ -5,6 +5,7 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  turbopack: { root: import.meta.dirname },
   // Keep Netlify's publish dir away from a local `next dev` lock on `.next`.
   distDir: process.env.NEXT_DIST_DIR || '.next',
   transpilePackages: ['@scalar/api-reference-react'],
