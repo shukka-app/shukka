@@ -15,6 +15,11 @@
       "esbuild",
       "sharp",
       "workerd"
-    ]
+    ],
+    "supportedArchitectures": {
+      "os": ["current"],
+      "cpu": ["current"],
+      "libc": ["glibc", "musl"]
+    }
   }
 }
