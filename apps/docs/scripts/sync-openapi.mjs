@@ -2,7 +2,7 @@
 /**
  * Regenerates public/openapi.json (en) and public/openapi.zh-CN.json (zh)
  * from the Shukka repo's spec builder (src/server/openapi.ts — a pure
- * function, imported standalone via tsx, nothing is written to the shukka repo).
+ * function, imported standalone via the workspace tsx, nothing is written to the shukka repo).
  *
  *   pnpm --filter shukka-docs sync:openapi
  *
@@ -12,9 +12,12 @@
  *                  (default: https://updates.example.com)
  */
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const shukkaRepo = resolve(process.env.SHUKKA_REPO ?? join(root, '..', 'shukka'));
@@ -28,7 +31,7 @@ const snapshots = [
 function extract(locale) {
   const script = `import { openApiDocument } from './src/server/openapi.ts'; process.stdout.write(JSON.stringify(openApiDocument(${JSON.stringify(origin)}, ${JSON.stringify(locale)}), null, 2) + '\\n')`;
 
-  const json = execFileSync('npx', ['--yes', 'tsx', '-e', script], {
+  const json = execFileSync(process.execPath, [require.resolve('tsx/cli'), '-e', script], {
     cwd: shukkaRepo,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,

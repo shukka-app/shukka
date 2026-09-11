@@ -41,7 +41,7 @@ nr --filter shukka-docs sync:openapi
 #   SHUKKA_ORIGIN  写入 spec servers[0].url 的地址（默认 https://updates.example.com）
 ```
 
-该脚本在 shukka 仓库里以 `npx tsx -e` 一次性执行提取，不会向 shukka 仓库写入任何文件。
+该脚本用工作区里的 `tsx` 在 `apps/shukka` 一次性执行提取，不会向产品包写入任何文件。
 
 ## 主题
 
