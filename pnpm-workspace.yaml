@@ -1,3 +1,10 @@
 packages:
   - apps/*
   - packages/*
+
+# Nitro traces native sqlite from the Node server graph. pnpm isolation keeps
+# @libsql/client under store-sqlite, so the tracer cannot resolve it unless
+# those packages are visible at the workspace root.
+publicHoistPattern:
+  - '@libsql/*'
+  - libsql

@@ -23,6 +23,13 @@ export default defineConfig({
   define: { __GIT_SHA__: JSON.stringify(gitSha) },
   server: { port: 3000 },
   resolve: { tsconfigPaths: true },
+  // store-sqlite is workspace TS, so Vite compiles it into the app graph.
+  // Bundling @libsql/client with it drops the `libsql` native optional packages
+  // from nf3's trace. Keep them as runtime imports; Nitro copies the packages
+  // into .output (they are hoisted so the tracer can resolve them).
+  ssr: {
+    external: ['@libsql/client', 'libsql'],
+  },
   plugins: [
     tailwindcss(),
     tanstackStart({
@@ -32,6 +39,7 @@ export default defineConfig({
     }),
     viteReact(),
     nitro({
+      traceDeps: ['@libsql/client*', 'libsql*'],
       routeRules: {
         '/**': {
           headers: { ...SECURITY_HEADERS },

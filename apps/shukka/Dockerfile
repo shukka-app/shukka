@@ -32,8 +32,8 @@ RUN apk add --no-cache ca-certificates wget \
     && wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-${LITESTREAM_VERSION}-linux-${arch}.tar.gz" \
        | tar -xz -C /usr/local/bin
 
-# Nitro traces libsql into .output. Do not copy the rest of production
-# node_modules into the runtime image.
+# Nitro traces libsql (and its platform natives) into .output via traceDeps.
+# Do not copy the rest of production node_modules into the runtime image.
 COPY --from=build --chown=node:node /workspace/apps/shukka/.output ./.output
 COPY --from=build --chown=node:node /workspace/packages/store-sqlite/drizzle ./drizzle
 COPY apps/shukka/deploy/litestream/litestream.yml /etc/litestream.yml
