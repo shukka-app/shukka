@@ -1,0 +1,4 @@
+{
+  "title": "Shukka 文档",
+  "pages": ["index", "deployment", "litestream", "kamal", "cloudflare", "guide", "integration", "ci"]
+}
