@@ -34,6 +34,13 @@ docker exec minio mkdir -p /data/releases
 
 Ansible copies that file onto a host and waits for `/api/health`: [`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml). Docker Compose v2 must already be installed.
 
+Postgres is **opt-in** and **not** the Docker default. Overlay the optional file:
+
+```bash
+docker compose -f apps/shukka/deploy/compose.yaml \
+  -f apps/shukka/deploy/compose.postgres.yaml up -d
+```
+
 ```bash
 ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 ```
@@ -77,15 +84,16 @@ The process only reads these variables. S3 credentials, the admin password, and 
 | `PORT` or `NITRO_PORT` | `3000` | HTTP port (`NITRO_PORT` wins) |
 | `HOST` or `NITRO_HOST` | unset (listen on all addresses) | Bind address |
 | `SHUKKA_DATA_DIR` | `./data` (`/data` in the image) | SQLite directory; also where `encryption.key` is created when neither key variable is set |
-| `SHUKKA_DB_PATH` | `{data}/shukka.db` | Override the database file path |
+| `SHUKKA_DB_DRIVER` | unset (`sqlite`) | Metadata adapter. Unset or `sqlite` is the default. `postgres` requires a Postgres URL. **Not the Docker default** — the image and `compose.yaml` still use SQLite. Unsupported on Workers. |
+| `SHUKKA_DB_PATH` | `{data}/shukka.db` | Override the database file path (SQLite file mode only) |
 | `SHUKKA_ENCRYPTION_KEY_FILEPATH` | unset | Read the S3-secret AES key from this file (64 hex characters, 32 bytes). The process does not generate a key. If the path is outside the data directory, nothing is written under `./data` |
 | `SHUKKA_ENCRYPTION_KEY` | unset | The same hex key as a value. The process never writes a key file |
 | `SHUKKA_KEY_PATH` | unset | **Deprecated** alias of `SHUKKA_ENCRYPTION_KEY_FILEPATH`, kept for one version. Startup fails if it disagrees with FILEPATH, or if it is set together with `SHUKKA_ENCRYPTION_KEY` |
 | `SHUKKA_PASSWORD_HASH` | unset (`scrypt`) | Password KDF for **first setup only**: unset or `scrypt` → `scrypt$…`; `pbkdf2` → `pbkdf2$…`. Locked after init. Other values (including `argon2`) make setup return `invalid_request` |
 | `SHUKKA_TRUST_PROXY` | unset | Set `1` or `true` to trust the rightmost `X-Forwarded-For` / `X-Real-IP` hop as the login rate-limit key. Unset: those headers are ignored |
 | `SHUKKA_SECURE_COOKIES` | unset | Set `1` or `true` to force `Secure` on the session cookie. HTTPS requests (or `X-Forwarded-Proto: https`) also set `Secure` |
-| `SHUKKA_DB_URL` | unset | Remote libsql HTTP URL. **Workers only** — Docker / VPS does not read this |
-| `SHUKKA_DB_AUTH_TOKEN` | unset | Optional token for that remote database. **Workers only** |
+| `SHUKKA_DB_URL` | unset | Postgres URL when `SHUKKA_DB_DRIVER=postgres` (required). Otherwise a remote libsql HTTP URL for Workers / SCF. |
+| `SHUKKA_DB_AUTH_TOKEN` | unset | Optional token for remote libsql. Unused for Postgres. |
 | `NODE_ENV` | `production` in the image | Node production mode |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | unset | Terminate TLS on the Node process (usually worse than a reverse proxy) |
 | `NITRO_UNIX_SOCKET` | unset | Listen on a UNIX socket instead |

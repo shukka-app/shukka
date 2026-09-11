@@ -22,7 +22,7 @@ Shukka 是面板 + 上传 API + 更新 feed 的同一个 TanStack Start / Nitro 
 - **Fly.io / Railway / Render 等带卷的单实例 PaaS**：可以，前提是持久卷 + 单机。比 VPS 多一层平台抽象，卷丢失或多机器调度会踩 SQLite。
 - **无远程库的 Serverless / 无盘**：本地 `file:` SQLite 与默认密钥文件无法可靠存活。排除。
 - **Cloudflare Workers（第二路径）**：完整面板，远程 libsql + `SHUKKA_ENCRYPTION_KEY`。构建与入口见 [dual-runtime](dual-runtime.md)。不替代本 ADR 的 Docker 推荐分发。
-- **Postgres 换掉 SQLite**：能上多实例，但违背「一个容器 + 一个卷」的自托管假设，另开决策。
+- **Postgres 换掉 SQLite 作为默认**：违背「一个容器 + 一个卷」的推荐路径。Postgres 是 opt-in 适配器（`SHUKKA_DB_DRIVER=postgres`），默认镜像与 Compose 仍是 sqlite。见 [store-postgres](store-postgres.md)。
 - **全局 S3 环境变量、不要数据目录**：上传能工作，但 session、版本记录、计数、加密密钥仍要落盘；省不掉卷。
 
 ## Trade-offs & failure bounds

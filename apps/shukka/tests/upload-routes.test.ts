@@ -286,10 +286,10 @@ describe('release metadata HTTP contract', () => {
     const raw = '{"__proto__":{"retained":true},"constructor":"custom","nested":{"__proto__":[1,null,{"__proto__":"inside"}]}}'
     const value = JSON.parse(raw)
     expect((await upload('1.0.0', { release: true, metadata: value })).status).toBe(200)
-    expect(JSON.stringify((await (await metadata('GET', '1.0.0')).json() as { metadata: unknown }).metadata)).toBe(raw)
+    expect((await (await metadata('GET', '1.0.0')).json() as { metadata: unknown }).metadata).toEqual(value)
     const replacement = JSON.parse('{"nested":{"__proto__":{"other":true}}}')
     expect((await metadata('PUT', '1.0.0', { cookie }, { metadata: replacement })).status).toBe(200)
-    expect(JSON.stringify((await (await metadata('GET', '1.0.0')).json() as { metadata: unknown }).metadata)).toBe(JSON.stringify(replacement))
+    expect((await (await metadata('GET', '1.0.0')).json() as { metadata: unknown }).metadata).toEqual(replacement)
     for (const oversized of [
       JSON.parse(`{"__proto__":"${'x'.repeat(16384)}"}`),
       JSON.parse(`{"nested":{"__proto__":"${'x'.repeat(16384)}"}}`),

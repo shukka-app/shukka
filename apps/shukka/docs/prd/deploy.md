@@ -19,7 +19,7 @@ Shukka 是单管理员自托管服务。仓库已有 `Dockerfile` 和 README 里
 ## Non-goals
 
 - 不发明 `SHUKKA_PUBLIC_URL`。加密密钥来源（filepath / value / 默认文件）是本指南的运行时合同，实现见 `docs/adr/encryption-key-source.md`。Compose / Ansible 示例见 `docs/prd/deploy-examples.md`；健康探针与 GHCR 发布见 `docs/prd/health-endpoint.md`、`docs/prd/container-image.md`。
-- 不把 Shukka 做成多实例/HA，也不引入 Postgres。
+- 不把 Shukka 做成多实例/HA。Postgres 是 opt-in 元数据适配器，不是默认，也不随 Docker 镜像起一个 Postgres 进程。
 - 不写「如何把桌面应用接到 feed」——那是 shukka-ops，不是本机部署。
 - 不提供托管 SaaS。
 
@@ -59,6 +59,13 @@ docker exec minio mkdir -p /data/releases
 
 多机或重复安装用 `apps/shukka/deploy/ansible/playbook.yml`（把上面的 Compose 拷到主机并等到 health）。Docker Compose v2 是前置条件。见 `docs/prd/deploy-examples.md`。
 
+可选 Postgres overlay（**不是**默认文件；镜像默认仍是 sqlite）：
+
+```bash
+docker compose -f apps/shukka/deploy/compose.yaml \
+  -f apps/shukka/deploy/compose.postgres.yaml up -d
+```
+
 ### 运维：从源码 + systemd
 
 需要 Node 24（与 CI / `Dockerfile` 一致）。SQLite 走 libsql 的 `file:`，不再编译 `better-sqlite3`。
@@ -69,7 +76,7 @@ nr --filter shukka build
 nr --filter shukka start   # node .output/server/index.mjs ，默认 :3000
 ```
 
-进程的 cwd 必须是 `apps/shukka`（或镜像 `WORKDIR /app`）。SQLite 适配器在 `boot()` 里用打包的迁移 SQL migrate；镜像仍拷贝 `packages/store-sqlite/drizzle` 到 `/app/drizzle`。`nr --filter shukka db:generate` 只在改了 sqlite schema 之后由开发者执行，生产环境不要跑。
+进程的 cwd 必须是 `apps/shukka`（或镜像 `WORKDIR /app`）。SQLite 适配器在 `boot()` 里用打包的迁移 SQL migrate；镜像仍拷贝 `packages/store-sqlite/drizzle` 到 `/app/drizzle`。Postgres 适配器读 `/app/drizzle-postgres`（或包内 `drizzle/`）。`nr --filter shukka db:generate` / `db:generate:postgres` 只在改了对应 schema 之后由开发者执行，生产环境不要跑。
 
 示例 unit（按主机改路径与用户）：
 
@@ -90,13 +97,15 @@ Shukka **不**随镜像带对象存储。需要自建 S3 时用 `deploy/compose.
 
 ### 管理员：忘记密码
 
-没有邮箱找回。停掉写入后打开数据目录里的 SQLite，删掉管理员行与 session，重启后重走 setup（同一路径也用于把已有 `scrypt$` 换成 `pbkdf2$`）：
+没有邮箱找回。停掉写入后打开元数据库，删掉管理员行与 session，重启后重走 setup（同一路径也用于把已有 `scrypt$` 换成 `pbkdf2$`）。
+
+SQLite（默认）：
 
 ```bash
 sqlite3 /var/lib/shukka/shukka.db "DELETE FROM admin; DELETE FROM sessions;"
 ```
 
-Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / channel / 版本记录还在。
+Docker 卷默认在 `/data/shukka.db`。Postgres 时对同一表跑 `DELETE FROM admin; DELETE FROM sessions;`。删的是密码与登录态，app / channel / 版本记录还在。
 
 ## 环境变量
 
@@ -107,15 +116,16 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `PORT` 或 `NITRO_PORT` | `3000` | HTTP 端口（Nitro：`NITRO_PORT` 优先） |
 | `HOST` 或 `NITRO_HOST` | 未设（听全部地址） | 绑定地址 |
 | `SHUKKA_DATA_DIR` | `./data`（镜像内 `/data`） | SQLite 目录；未设置下方密钥变量时也是 `encryption.key` 的自动生成位置 |
-| `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径 |
+| `SHUKKA_DB_DRIVER` | unset（`sqlite`） | 元数据适配器。未设或 `sqlite`：文件 / 远程 libsql。`postgres`：Postgres（须同时设 Postgres URL）。其它值拒绝启动。**不是 Docker 默认**；镜像与 `compose.yaml` 仍走 SQLite。Worker 不支持 `postgres`。 |
+| `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径（仅 sqlite 文件模式） |
 | `SHUKKA_ENCRYPTION_KEY_FILEPATH` | 未设 | 从该文件读取 S3 secret 的 AES 密钥（64 位 hex，32 字节）。设置后只读该文件，不自动生成；路径不是数据目录时不写 `./data` |
 | `SHUKKA_ENCRYPTION_KEY` | 未设 | 直接提供同一格式的密钥。设置后不写密钥文件 |
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `SHUKKA_SECURE_COOKIES` | 未设 | 设 `1` 或 `true` 时 session cookie 恒带 `Secure`；未设时按请求协议 / `X-Forwarded-Proto` 判断 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
-| `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。设置后 Node 与 isolate 都走远程库（SCF 云函数磁盘短暂，必须走这条）。`boot()` 会 migrate，不必再跑 `migrate-remote.mjs`。 |
-| `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程库 token（可选）。 |
+| `SHUKKA_DB_URL` | 未设 | 连接 URL。`SHUKKA_DB_DRIVER=postgres` 时为 Postgres URL（必填）。否则为远程 libsql HTTP URL（Worker / SCF 等）。`boot()` 会 migrate。 |
+| `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程 libsql token（可选）。Postgres 不用。 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |
@@ -189,7 +199,7 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 
 ## 探活 / 冒烟
 
-编排器用 `GET /api/health`（`200 { status: "ok", db: "ok" }`，SQLite 不可达则 `503`）。面板初始化态仍看 session：
+编排器用 `GET /api/health`（`200 { status: "ok", db: "ok" }`，元数据库不可达则 `503`）。面板初始化态仍看 session：
 
 ```bash
 curl -sS "$SHUKKA_URL/api/health"
@@ -215,6 +225,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | Compose：Shukka + 可选 MinIO | 可行；用 `deploy/compose.yaml`，MinIO 要对 CI/客户端可达 |
 | Fly.io / Railway / Render 等带持久盘的单实例 PaaS | 可以，必须挂持久卷到 `SHUKKA_DATA_DIR`，**副本数 = 1** |
 | 多副本 / 滚动两实例共用一块 SQLite | 不要 |
+| 单机 Docker + 自备 Postgres（`SHUKKA_DB_DRIVER=postgres`） | 可行；Postgres 进程不在默认镜像里，须 overlay 或外部实例 |
 | Vercel / Netlify / Cloudflare Workers / 无盘 Lambda | 不适合：文件系统短暂、SQLite 单写者（serverless 运行时属后续议题） |
 
 ## 常见失败

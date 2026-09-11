@@ -1,6 +1,6 @@
 # Workspace
 
-This is a pnpm workspace. The product lives in `apps/shukka`. The public docs site lives in `apps/docs`. Metadata persistence is a domain port in `packages/store`; SQLite is the first adapter.
+This is a pnpm workspace. The product lives in `apps/shukka`. The public docs site lives in `apps/docs`. Metadata persistence is a domain port in `packages/store`; SQLite is the default adapter, Postgres is opt-in.
 
 | Path | Owns |
 |------|------|
@@ -9,6 +9,7 @@ This is a pnpm workspace. The product lives in `apps/shukka`. The public docs si
 | `apps/docs` | Public documentation site (fumadocs) |
 | `packages/store` | Plain records + use-case port + `StoreAdapter.boot()` |
 | `packages/store-sqlite` | libsql/drizzle adapter; `boot()` connects and migrates |
+| `packages/store-postgres` | postgres.js/drizzle adapter; `boot()` locks, migrates, then serves the same port |
 
 Local: `ni`, then `nr --filter shukka <script>` or `nr --filter shukka-docs <script>`.
 CI: `pnpm install --frozen-lockfile`.

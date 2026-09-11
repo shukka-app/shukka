@@ -23,7 +23,39 @@ jobs:
       - run: pnpm --filter shukka typecheck
       - run: pnpm --filter shukka test
       - run: pnpm --filter @shukka/store-sqlite test
+      - run: pnpm --filter @shukka/store-postgres lint
+      - run: pnpm --filter @shukka/store-postgres typecheck
       - run: pnpm --filter shukka build
+
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: shukka
+          POSTGRES_PASSWORD: shukka
+          POSTGRES_DB: shukka
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U shukka -d shukka"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      SHUKKA_DB_DRIVER: postgres
+      SHUKKA_DB_URL: postgres://shukka:shukka@localhost:5432/shukka
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shukka/store-postgres test
+      - run: pnpm --filter shukka test
 
   docs:
     runs-on: ubuntu-latest

@@ -34,6 +34,13 @@ docker exec minio mkdir -p /data/releases
 
 Ansible 把该文件拷到主机并等到 `/api/health`：[`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml)。Docker Compose v2 是前置条件。
 
+Postgres 是 **opt-in**，**不是** Docker 默认。需要时叠加 overlay：
+
+```bash
+docker compose -f apps/shukka/deploy/compose.yaml \
+  -f apps/shukka/deploy/compose.postgres.yaml up -d
+```
+
 ```bash
 ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 ```
@@ -77,15 +84,16 @@ Restart=on-failure
 | `PORT` 或 `NITRO_PORT` | `3000` | HTTP 端口（`NITRO_PORT` 优先） |
 | `HOST` 或 `NITRO_HOST` | 未设（监听全部地址） | 绑定地址 |
 | `SHUKKA_DATA_DIR` | `./data`（镜像内 `/data`） | SQLite 目录；两个密钥变量都未设时，也是 `encryption.key` 的自动生成位置 |
-| `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径 |
+| `SHUKKA_DB_DRIVER` | 未设（`sqlite`） | 元数据适配器。未设或 `sqlite` 为默认。`postgres` 须同时提供 Postgres URL。**不是 Docker 默认**——镜像与 `compose.yaml` 仍走 SQLite。Worker 不支持。 |
+| `SHUKKA_DB_PATH` | `{data}/shukka.db` | 覆盖数据库文件路径（仅 sqlite 文件模式） |
 | `SHUKKA_ENCRYPTION_KEY_FILEPATH` | 未设 | 从该文件读取 S3 secret 的 AES 密钥（64 位 hex，32 字节）。设置后不自动生成；路径不在数据目录时不写 `./data` |
 | `SHUKKA_ENCRYPTION_KEY` | 未设 | 直接提供同一格式的密钥。设置后不写密钥文件 |
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后锁定。其它值（含 `argon2`）使 setup 返回 `invalid_request` |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头 |
 | `SHUKKA_SECURE_COOKIES` | 未设 | 设 `1` 或 `true` 时强制 session cookie 带 `Secure`。HTTPS 请求（或 `X-Forwarded-Proto: https`）也会带 `Secure` |
-| `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。**仅 Workers** —— Docker / VPS 不读 |
-| `SHUKKA_DB_AUTH_TOKEN` | 未设 | 该远程库的可选 token。**仅 Workers** |
+| `SHUKKA_DB_URL` | 未设 | `SHUKKA_DB_DRIVER=postgres` 时为 Postgres URL（必填）。否则为 Worker / SCF 的远程 libsql HTTP URL。 |
+| `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程 libsql 的可选 token。Postgres 不用。 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上直接开 TLS（通常不如反代） |
 | `NITRO_UNIX_SOCKET` | 未设 | 改走 UNIX socket |

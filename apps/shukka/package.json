@@ -42,6 +42,7 @@
     "test:e2e:sparkle:macos": "node tests/e2e/run-sparkle-macos.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "db:generate": "pnpm --filter @shukka/store-sqlite db:generate",
+    "db:generate:postgres": "pnpm --filter @shukka/store-postgres db:generate",
     "juicefs": "node scripts/juicefs-dev.mjs",
     "lint:actions": "actionlint"
   },
@@ -49,6 +50,7 @@
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@shukka/store": "workspace:*",
+    "@shukka/store-postgres": "workspace:*",
     "@shukka/store-sqlite": "workspace:*",
     "@milkdown/crepe": "^7.22.1",
     "@shikijs/langs": "4.4.3",

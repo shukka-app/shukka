@@ -48,3 +48,4 @@ Accepted.
 - 并发 Worker / SCF 冷启动会在 write 事务上排队 migrate；残缺施加仍会使后到的进程起不来，与今天本地 migrate 失败相同。
 - 打包 SQL 会进 Worker 脚本体积；`check:worker-size` 卡住 3 MiB gzip。
 - HTTP 对外合同不变。改的是谁拥有查询，不是 feed / 上传 / health 的形状。
+- Postgres 适配器见 [store-postgres](store-postgres.md)。本切片不读 `SHUKKA_DB_DRIVER`。
