@@ -30,7 +30,7 @@ Before any commit, review staged, unstaged, and untracked changes against `docs/
 
 # Commands
 
-Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite (default) or opt-in Postgres via Drizzle, S3 for artifacts.
+Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite (default) or opt-in Postgres / MySQL via Drizzle, S3 for artifacts.
 
 | Command | Purpose |
 |---------|---------|
@@ -50,6 +50,7 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite (de
 | `nr --filter shukka test:e2e:tauri` | Tauri plugin-updater against a live instance (`SHUKKA_URL`) |
 | `nr --filter shukka db:generate` | Regenerate sqlite migrations after editing `packages/store-sqlite` schema |
 | `nr --filter shukka db:generate:postgres` | Regenerate postgres migrations after editing `packages/store-postgres` schema |
+| `nr --filter shukka db:generate:mysql` | Regenerate mysql migrations after editing `packages/store-mysql` schema |
 | `actionlint action.yml` | Lint the Action and workflows |
 
 The runtime image `ghcr.io/shukka-app/shukka` is published by

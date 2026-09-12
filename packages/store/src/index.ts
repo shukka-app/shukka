@@ -258,7 +258,9 @@ export type Store = {
 }
 
 /**
- * Postgres `pg_advisory_lock` key for `boot()` migrate.
+ * Shared `boot()` migrate lock identity.
+ * Postgres uses `pg_advisory_lock(MIGRATE_LOCK_KEY)`.
+ * MySQL uses `GET_LOCK(String(MIGRATE_LOCK_KEY), -1)`.
  * SQLite has no advisory locks; that adapter holds a libsql write
  * transaction (`BEGIN IMMEDIATE`) around the same critical section.
  */

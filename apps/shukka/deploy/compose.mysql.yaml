@@ -1,0 +1,42 @@
+# Optional MySQL overlay. The default compose.yaml stays SQLite.
+#
+#   docker compose -f apps/shukka/deploy/compose.yaml \
+#     -f apps/shukka/deploy/compose.mysql.yaml up -d
+#
+# The published image still defaults to SQLite. This file only adds a MySQL
+# process and points Shukka at it. Do not use this as the default stack.
+#
+# Then open http://localhost:3000 as with the SQLite compose example.
+
+name: shukka
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: shukka-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_USER: shukka
+      MYSQL_PASSWORD: shukka
+      MYSQL_DATABASE: shukka
+      MYSQL_ROOT_PASSWORD: shukka
+    volumes:
+      - shukka-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ushukka", "-pshukka"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  shukka:
+    environment:
+      SHUKKA_DB_DRIVER: mysql
+      SHUKKA_DB_URL: mysql://shukka:shukka@mysql:3306/shukka
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+volumes:
+  shukka-mysql:

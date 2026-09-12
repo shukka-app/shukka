@@ -25,7 +25,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Locale**: 面板 UI 语言，`en`（源语言与回退）或 `zh`；per-browser 存于 cookie。
 - **Theme preference**: 面板明暗主题偏好（light / dark）；per-browser 存于 cookie，无记录时跟随系统。
 - **View role**: 面板视图角色（admin / developer / content）；per-browser 存于 cookie，仅控制面板 UI 入口可见性，纯前端，无鉴权语义。
-- **Data directory**: 服务持久化根目录（默认 `./data`，`SHUKKA_DATA_DIR` 可改；容器内默认 `/data`），默认含 SQLite 文件。未设置 `SHUKKA_ENCRYPTION_KEY` / `SHUKKA_ENCRYPTION_KEY_FILEPATH` 时，S3 加密密钥自动生成在该目录的 `encryption.key`，整目录即备份边界。用 filepath 时备份边界含该文件；用 value 时备份边界是目录 **加上** 该 secret。`SHUKKA_DB_DRIVER=postgres` 时元数据在 Postgres，数据目录仍可能存放加密密钥。
+- **Data directory**: 服务持久化根目录（默认 `./data`，`SHUKKA_DATA_DIR` 可改；容器内默认 `/data`），默认含 SQLite 文件。未设置 `SHUKKA_ENCRYPTION_KEY` / `SHUKKA_ENCRYPTION_KEY_FILEPATH` 时，S3 加密密钥自动生成在该目录的 `encryption.key`，整目录即备份边界。用 filepath 时备份边界含该文件；用 value 时备份边界是目录 **加上** 该 secret。`SHUKKA_DB_DRIVER=postgres` / `mysql` 时元数据在对应引擎，数据目录仍可能存放加密密钥。
 - **Feature 质问**: the mandatory product-then-technical clarification loop driven by `$feature-dev` before implementation.
 - **PRD / ADR / Spec**: see documentation harness below.
 - **Runtime image**: GHCR 上的可部署镜像 `ghcr.io/{owner}/{repo}`（规范仓库为 `ghcr.io/shukka-app/shukka`），由 semver git 标签发布，与面向桌面应用的 GitHub JavaScript action 不是同一条发布面。
@@ -96,7 +96,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 - 面板、`/api/admin`、`/api/v1`、`/api/update` 同一 Node 进程、同一 HTTP 端口。默认端口 `3000`（`PORT` 或 `NITRO_PORT`）。
 - 所有 HTTP 响应带 `X-Frame-Options: DENY`、CSP `frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`；不设含 `script-src` 的严格 CSP（面板有内联脚本）。
-- 启动时 `boot()` 连接所选 store 适配器并编程式 migrate。overlapping `boot()` 串行化 migrate（SQLite / libsql：write 事务；Postgres：`pg_advisory_lock`）。SQLite 默认把 journal / SQL 打进适配器；镜像仍拷贝 `drizzle/` SQL 到 `/app/drizzle`（Nitro 不打包该目录）。生产不跑 `db:generate`。从源码启动的 cwd 是 `apps/shukka`。
+- 启动时 `boot()` 连接所选 store 适配器并编程式 migrate。overlapping `boot()` 串行化 migrate（SQLite / libsql：write 事务；Postgres：`pg_advisory_lock`；MySQL：`GET_LOCK`）。SQLite 默认把 journal / SQL 打进适配器；镜像仍拷贝 `drizzle/` SQL 到 `/app/drizzle`（Nitro 不打包该目录）。生产不跑 `db:generate`。从源码启动的 cwd 是 `apps/shukka`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。
 - 管理员密码存 `scheme$…` 形 hash。写入算法只在首次 setup 由 `SHUKKA_PASSWORD_HASH` 选定：未设或 `scrypt` 写 `scrypt$…`（默认，现有 Docker / VPS 不变）；`pbkdf2` 写 `pbkdf2$<iterations>$<salt-hex>$<derived-hex>`。初始化之后实例不得更换写入算法：改密与后续管理员 hash 沿用已存前缀，忽略后来的环境变量翻转。校验按已存前缀分派，始终同时接受 `scrypt$` 与 `pbkdf2$`。非法值（如 `argon2`）使 setup 以 `invalid_request` 失败。已有 `scrypt$` 要迁到只适合 pbkdf2 的运行时（如日后 CF Free）须重走 setup，面板不转换。
@@ -130,8 +130,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 版本制品一经 finalize 不可修改，只可删除（删除会清理 S3 对象；若删的是 current 则回退到剩余最新**已发布**版本，无则清空）。`releasedAt` 一旦非空不可改回空。Release note 是挂在版本上的可变元数据，draft 与 released 都可编辑，不改变版本记录本身。
 - Release note 的 `html` / `text` 是写时渲染产物（渲染器升级不回溯已存产物；`html` 经消毒，源文中的原始 HTML 被剥离）；随所属 version 删除级联清除。
 - 数据库中不存任何明文 secret（管理员密码存 `scheme$…` hash，API key 存 hash，S3 secret 加密）。管理员 hash 的写入 scheme 在首次 setup 锁定，此后不因环境变量改变。
-- 元数据默认在 SQLite（data directory，可用 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指定）。`SHUKKA_DB_DRIVER=postgres` 且 `SHUKKA_DB_URL` 为 Postgres URL 时改走 Postgres 适配器；秒仍为 integer，不改成 timestamptz。未设或 `sqlite` 保持默认。Worker 不支持 `postgres`。S3 加密密钥默认同目录自动生成（`{data}/encryption.key`）；可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（弃用别名 `SHUKKA_KEY_PATH`）改读路径，或用 `SHUKKA_ENCRYPTION_KEY` 直接提供 64 位 hex（32 字节）。两个新变量不能同时设；FILEPATH 与 `SHUKKA_KEY_PATH` 设成不同路径、或任一与 VALUE 同时出现，以及空值 / 非法 hex / filepath 文件不存在，均拒绝启动。默认与 filepath 模式下缺密钥文件则无法解密已存 S3 secret；value 模式下丢掉该环境变量同样无法解密。
-- 单个 Node 进程承载全部 HTTP 面；同一 SQLite 文件不可被多个 Shukka 进程同时写。Postgres 是 opt-in，不是 Docker 默认，也不随默认 Compose 起一个 Postgres 进程。
+- 元数据默认在 SQLite（data directory，可用 `SHUKKA_DATA_DIR` / `SHUKKA_DB_PATH` 指定）。`SHUKKA_DB_DRIVER=postgres` 且 `SHUKKA_DB_URL` 为 Postgres URL 时改走 Postgres 适配器；`SHUKKA_DB_DRIVER=mysql` 且 URL 为 MySQL URL 时改走 MySQL 适配器。秒仍为 integer，不改成 timestamptz / datetime。未设或 `sqlite` 保持默认。Worker 不支持 `postgres` / `mysql`。S3 加密密钥默认同目录自动生成（`{data}/encryption.key`）；可用 `SHUKKA_ENCRYPTION_KEY_FILEPATH`（弃用别名 `SHUKKA_KEY_PATH`）改读路径，或用 `SHUKKA_ENCRYPTION_KEY` 直接提供 64 位 hex（32 字节）。两个新变量不能同时设；FILEPATH 与 `SHUKKA_KEY_PATH` 设成不同路径、或任一与 VALUE 同时出现，以及空值 / 非法 hex / filepath 文件不存在，均拒绝启动。默认与 filepath 模式下缺密钥文件则无法解密已存 S3 secret；value 模式下丢掉该环境变量同样无法解密。
+- 单个 Node 进程承载全部 HTTP 面；同一 SQLite 文件不可被多个 Shukka 进程同时写。Postgres / MySQL 是 opt-in，不是 Docker 默认，也不随默认 Compose 起对应数据库进程。
 - S3 对象键布局固定为 `{prefix}/{channel}/{version}/{filename}`；制品文件名不含路径分隔符。
 - 删除 version、channel 或 app 都会同时删除其拥有的 S3 对象；删除 current version 还会把 channel 当前版本回退到剩余最新**已发布**版本（无剩余则清空）。
 - `version` 字符串与制品文件名都不得含路径分隔符或 `..`，保证对象键始终落在文档化的布局内。
@@ -149,7 +149,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ## System-wide constraints
 
-- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store port 在 `packages/store`，SQLite 适配器在 `packages/store-sqlite`，Postgres 适配器在 `packages/store-postgres`。根不放应用源码。GitHub Action 入口是根 `action.yml`（`main` 指向应用内脚本）。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`、`docs/adr/github-action-subdirectory.md`、`docs/prd/store-port.md`、`docs/adr/store-port.md`、`docs/prd/store-postgres.md`、`docs/adr/store-postgres.md`。
+- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store port 在 `packages/store`，SQLite 适配器在 `packages/store-sqlite`，Postgres 适配器在 `packages/store-postgres`，MySQL 适配器在 `packages/store-mysql`。根不放应用源码。GitHub Action 入口是根 `action.yml`（`main` 指向应用内脚本）。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`、`docs/adr/github-action-subdirectory.md`、`docs/prd/store-port.md`、`docs/adr/store-port.md`、`docs/prd/store-postgres.md`、`docs/adr/store-postgres.md`、`docs/prd/store-mysql.md`、`docs/adr/store-mysql.md`。
 - Repository agent entrypoint is root `AGENTS.md` (`CLAUDE.md` is a symlink to it); app commands live in `apps/shukka/AGENTS.md`.
 - Feature development workflow skill lives at `.agents/skills/feature-dev/` (also linked from `.claude/skills/`).
 - Self-host operator guide lives at `apps/shukka/docs/prd/deploy.md`; Compose / Ansible examples at `apps/shukka/deploy/` (`docs/prd/deploy-examples.md`); runtime choice at `docs/adr/self-host-runtime.md`.
@@ -188,14 +188,17 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   (`docs/prd/s3-js-client.md`, `docs/adr/s3-js-client.md`).
 - Metadata persistence is a domain store port (`packages/store`). SQLite is
   the default adapter (`packages/store-sqlite`, libsql + drizzle). Postgres is
-  an opt-in second adapter (`packages/store-postgres`, postgres.js + drizzle)
-  via `SHUKKA_DB_DRIVER=postgres` and a Postgres URL; seconds stay integer;
-  Worker+Postgres is not shipped. `boot()` connects and migrates under a
-  lock (SQLite write transaction; Postgres `pg_advisory_lock`), including
-  remote libsql and Workers (bundled SQL, no `node:fs`).
-  `scripts/migrate-remote.mjs` is gone
+  an opt-in adapter (`packages/store-postgres`, postgres.js + drizzle)
+  via `SHUKKA_DB_DRIVER=postgres` and a Postgres URL. MySQL is an opt-in
+  adapter (`packages/store-mysql`, mysql2 + drizzle) via
+  `SHUKKA_DB_DRIVER=mysql` and a MySQL URL. Seconds stay integer;
+  Worker+Postgres and Worker+MySQL are not shipped. `boot()` connects and
+  migrates under a lock (SQLite write transaction; Postgres
+  `pg_advisory_lock`; MySQL `GET_LOCK`), including remote libsql and
+  Workers (bundled SQL, no `node:fs`). `scripts/migrate-remote.mjs` is gone
   (`docs/prd/store-port.md`, `docs/adr/store-port.md`,
-  `docs/prd/store-postgres.md`, `docs/adr/store-postgres.md`).
+  `docs/prd/store-postgres.md`, `docs/adr/store-postgres.md`,
+  `docs/prd/store-mysql.md`, `docs/adr/store-mysql.md`).
 - OpenAPI narrative copy is English + Simplified Chinese; the live
   `GET /api/v1/openapi.json` stays English
   (`docs/prd/openapi-i18n.md`, `docs/adr/openapi-locale.md`).

@@ -30,4 +30,4 @@ Accepted.
 - compose / ansible job 各建一次镜像，换墙钟时间几乎仍由 `image` job 决定，多消耗构建分钟数。
 - Playbook 不安装 Docker：没有引擎的主机在「Check that Docker Compose is available」失败。
 - `container_name: shukka` / `minio` 固定名称，单主机不能并排跑两份示例栈。
-- Postgres 不在这份默认文件里。需要时用 `compose.postgres.yaml` overlay，见 [store-postgres](store-postgres.md)。
+- Postgres / MySQL 不在这份默认文件里。需要时用 `compose.postgres.yaml` / `compose.mysql.yaml` overlay，见 [store-postgres](store-postgres.md)、[store-mysql](store-mysql.md)。

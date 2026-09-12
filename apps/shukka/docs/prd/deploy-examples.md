@@ -22,7 +22,7 @@
 - 不让 playbook 安装 Docker / 配 TLS / 管反向代理。
 - 不做 Helm、K8s、多主机编排。
 - 不在 Compose / Ansible job 上重复 electron-updater / Tauri；那仍由 image job 与 Action test 覆盖。
-- 不把 Postgres 放进默认 Compose 文件；可选 overlay 见 `docs/prd/store-postgres.md`。
+- 不把 Postgres / MySQL 放进默认 Compose 文件；可选 overlay 见 `docs/prd/store-postgres.md`、`docs/prd/store-mysql.md`。
 
 ## Flows
 
@@ -33,7 +33,7 @@
 3. `docker exec minio mkdir -p /data/releases`（示例 bucket）。
 4. 打开面板 setup，创建 app 时填 Compose 文件头注释里的 MinIO 值。
 5. 已有自己的 S3/R2 时删掉 `minio` 服务，镜像用 `SHUKKA_IMAGE` 钉版本。
-6. 需要 Postgres 时叠加 `apps/shukka/deploy/compose.postgres.yaml`（默认文件仍是 sqlite）。
+6. 需要 Postgres 时叠加 `apps/shukka/deploy/compose.postgres.yaml`；需要 MySQL 时叠加 `apps/shukka/deploy/compose.mysql.yaml`（默认文件仍是 sqlite）。
 
 ### 运维：Ansible
 
