@@ -57,6 +57,7 @@ The server already accepts a Tauri upload of artifact + matching `.sig` without 
 - Sparkle version cannot be inferred: fail, naming `SHUKKA_VERSION` / Action `version`, `appcast.xml`, and an `App-1.4.2.zip` filename token.
 - Server still rejects a file list that does not satisfy the app’s `updaterKind` (Electron needs a `.yml`; Tauri needs `latest.json` and/or artifact + `.sig` pairs; Sparkle needs `appcast.xml` and/or archive + `.sig`).
 - Drafts still 404 on the public feed.
+- Finalize 遇网络错误、429 或 5xx 时最多重试 3 次（指数退避）；每次重试先以绑定 key 读取版本 metadata，已存在即成功，4xx 与 init 不重试。
 
 ## Acceptance criteria
 

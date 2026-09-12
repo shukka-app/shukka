@@ -1,17 +1,10 @@
 import { ShukkaError } from '~/lib/errors.ts'
+import { urlBasename } from '~/lib/url-basename.ts'
 import type { UpdateAdapter } from './types.ts'
 
 const MANIFEST = 'latest.json'
 
 /** Uploader-side collect/version (no latest.json required) lives in scripts/updaters/tauri.mjs. */
-
-function basename(url: string): string {
-  try {
-    return decodeURIComponent(new URL(url).pathname.split('/').pop() ?? url)
-  } catch {
-    return decodeURIComponent(url.split('/').pop() ?? url)
-  }
-}
 
 function parseLatestJson(text: string): {
   version: string
@@ -21,7 +14,8 @@ function parseLatestJson(text: string): {
   try {
     parsed = JSON.parse(text)
   } catch (error) {
-    throw new ShukkaError('metadata_error', 'latest.json is not valid JSON', String(error))
+    console.error('latest.json is not valid JSON:', error)
+    throw new ShukkaError('metadata_error', 'latest.json is not valid JSON')
   }
   if (!parsed || typeof parsed !== 'object') {
     throw new ShukkaError('metadata_error', 'latest.json is not an updater document')
@@ -93,7 +87,7 @@ export const tauriAdapter: UpdateAdapter = {
       const { version, platforms } = parseLatestJson(text)
       const referenced = Object.values(platforms).flatMap((platform) => {
         if (!platform?.url) return []
-        const name = basename(platform.url)
+        const name = urlBasename(platform.url)
         return name ? [name] : []
       })
       return { version, referenced }
@@ -119,7 +113,7 @@ export const tauriAdapter: UpdateAdapter = {
       const { platforms: declared } = parseLatestJson(await getText(uploaded.s3Key))
       for (const [target, platform] of Object.entries(declared)) {
         if (!platform?.url) continue
-        const name = basename(platform.url)
+        const name = urlBasename(platform.url)
         const artifact = artifacts.find((file) => file.filename === name)
         if (!artifact) continue
         const sigFile = artifacts.find((file) => file.filename === `${name}.sig`)

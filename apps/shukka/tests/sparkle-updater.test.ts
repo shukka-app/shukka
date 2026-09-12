@@ -117,8 +117,8 @@ describe('sparkle inferFeedTarget', () => {
 })
 
 describe('updater kind sparkle', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -129,8 +129,8 @@ describe('updater kind sparkle', () => {
 })
 
 describe('sparkle upload and feed', () => {
-  beforeEach(() => {
-    db.delete(apps).run()
+  beforeEach(async () => {
+    await db.delete(apps).run()
     objects.clear()
   })
 
@@ -175,6 +175,16 @@ describe('sparkle upload and feed', () => {
     expect(items[0]?.enclosure.url).toBe(`${ORIGIN}/api/update/acme/stable/${encodeURIComponent(ZIP)}`)
     expect(items[0]?.enclosure.edSignature).toBe('SIGNATURE')
     expect(items[0]?.enclosure.length).toBe(String(Buffer.byteLength('binary-zip')))
+  })
+
+  it('rejects a sidecar-built appcast without an EdDSA signature', async () => {
+    const app = await createApp(baseInput)
+    await publishSparkle(app, '1.4.2', [{ filename: `${ZIP}.sig`, body: '   ' }])
+
+    await expect(resolveFeedRequest('acme', 'stable', 'appcast.xml', ORIGIN)).rejects.toMatchObject({
+      code: 'not_found',
+      message: expect.stringMatching(/edSignature/),
+    })
   })
 
   it('rewrites uploaded appcast enclosure URLs and keeps signature + length', async () => {

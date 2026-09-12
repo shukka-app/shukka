@@ -23,7 +23,8 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
 
 const { eq } = await import('drizzle-orm')
 const { db } = await import('~/db/index.ts')
-const { apps, releaseNotes } = await import('~/db/schema.ts')
+const { admin, apps, releaseNotes, sessions } = await import('~/db/schema.ts')
+const auth = await import('~/lib/auth.ts')
 const { createApp, getApp } = await import('~/server/apps.ts')
 const { createChannel } = await import('~/server/channels.ts')
 const { deleteVersion, finalizeUpload, initUpload } = await import('~/server/releases.ts')
@@ -31,6 +32,7 @@ const notesServer = await import('~/server/release-notes.ts')
 const { verifyWritable } = await import('~/lib/storage.ts')
 const { ShukkaError } = await import('~/lib/errors.ts')
 const notesRoute = await import('~/routes/api/v1/apps.$appSlug.channels.$channel.notes.ts')
+const notesLocaleRoute = await import('~/routes/api/v1/apps.$appSlug.channels.$channel.versions.$version.notes.$locale.ts')
 
 const appInput = {
   name: 'Acme',
@@ -85,6 +87,8 @@ function routeHandler(route: unknown, method: string) {
 }
 
 beforeEach(async () => {
+  await db.delete(admin).run()
+  await db.delete(sessions).run()
   await db.delete(apps).run()
   objects.clear()
 })
@@ -399,5 +403,36 @@ describe('release notes lifecycle', () => {
     await notesServer.deleteNote(app.id, versionId, 'en-US')
     expect(await notesServer.listNotes(app.id, versionId)).toHaveLength(0)
     await expect(notesServer.deleteNote(app.id, versionId, 'en-US')).rejects.toThrow(/No en-US note/)
+  })
+})
+
+describe('release note write limits', () => {
+  it('rejects oversized markdown before rendering and accepts the boundary', async () => {
+    const app = await enabledApp()
+    await publish(app, 'stable', '1.0.0')
+    const cookie = `${auth.SESSION_COOKIE}=${await auth.initializeAdmin('correct horse battery')}`
+    const PUT = routeHandler(notesLocaleRoute.Route, 'PUT')
+    const params = { appSlug: app.slug, channel: 'stable', version: '1.0.0', locale: 'en-US' }
+
+    const oversized = await PUT({
+      request: new Request('https://shukka.test/notes', {
+        method: 'PUT',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ markdown: 'a'.repeat(64 * 1024 + 1) }),
+      }),
+      params,
+    })
+    expect(oversized.status).toBe(400)
+    expect(await oversized.json()).toMatchObject({ error: 'invalid_request' })
+
+    const accepted = await PUT({
+      request: new Request('https://shukka.test/notes', {
+        method: 'PUT',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ markdown: 'a'.repeat(64 * 1024) }),
+      }),
+      params,
+    })
+    expect(accepted.status).toBe(200)
   })
 })

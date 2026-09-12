@@ -112,6 +112,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_ENCRYPTION_KEY` | 未设 | 直接提供同一格式的密钥。设置后不写密钥文件 |
 | `SHUKKA_KEY_PATH` | 未设 | **已弃用**，等同 `SHUKKA_ENCRYPTION_KEY_FILEPATH`，保留一个版本。与 FILEPATH 设成不同路径、或与 VALUE 同时出现则拒绝启动 |
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
+| `SHUKKA_SECURE_COOKIES` | 未设 | 设 `1` 或 `true` 时 session cookie 恒带 `Secure`；未设时按请求协议 / `X-Forwarded-Proto` 判断 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
 | `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。设置后 Node 与 isolate 都走远程库（SCF 云函数磁盘短暂，必须走这条）；远程模式不在进程内 migrate，用 `nr --filter shukka db:migrate:remote` 带这两个变量线下施加 `drizzle/`。 |
 | `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程库 token（可选）。 |
@@ -152,7 +153,7 @@ SHUKKA_DB_URL=libsql://... SHUKKA_DB_AUTH_TOKEN=... nr --filter shukka db:migrat
 
 - 面板、`/api/v1`、`/api/update` 同端口同进程。反代把整个 origin 转到 Shukka，不要拆路径到不同后端。
 - 保留 `Host`。对外用 HTTPS。
-- Session cookie 名 `shukka_session`：`HttpOnly`、`SameSite=Lax`、14 天；**没有** `Secure` 标志。
+- Session cookie 名 `shukka_session`：`HttpOnly`、`SameSite=Lax`、14 天。`Secure` 在请求 URL 为 https、反代转发 `X-Forwarded-Proto: https`、或设置 `SHUKKA_SECURE_COOKIES=1` 时加上；TLS 终结在反代且回源 HTTP 时，生产环境应显式设 `SHUKKA_SECURE_COOKIES=1`。
 - 面板 Integration 与 feed 文档里的绝对 URL 来自 `request.url.origin`。Nitro node-server **默认不信任** `X-Forwarded-Proto`。TLS 终结在反代、回源是 HTTP 时，Shukka 看到的 origin 可能是 `http://…`。
   - Tauri：feed 与面板 Integration 的制品 URL 恒为 https（loopback 除外），不受回源协议影响。见 `docs/adr/tauri-feed-https.md`。
   - Electron：yml 原文透传、制品文件名相对；把 `https://…/api/update/{app}/{channel}` 写进 electron-builder 即可。

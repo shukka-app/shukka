@@ -46,7 +46,12 @@ export const setCurrentVersionBodySchema = z.object({
     .meta({ description: 'Version string, or null to clear current' }),
 })
 
-export const upsertNoteBodySchema = z.object({ markdown: z.string().min(1) })
+/** Release notes are a few KiB of Markdown; the cap bounds render CPU on the isolate. */
+export const NOTE_MARKDOWN_MAX_CHARS = 64 * 1024
+
+export const upsertNoteBodySchema = z.object({
+  markdown: z.string().min(1).max(NOTE_MARKDOWN_MAX_CHARS),
+})
 
 export const notesConfigSchema = z.object({
   enabled: z.boolean(),

@@ -1,6 +1,7 @@
 import { load } from 'cheerio'
 import { ShukkaError } from './errors.ts'
 import { isSparkleArchive, isSparkleMetadataFile } from './sparkle-files.ts'
+import { urlBasename } from './url-basename.ts'
 
 export { isSparkleArchive, isSparkleMetadataFile }
 
@@ -28,11 +29,7 @@ export function declaredSparkleVersion(item: Pick<SparkleItem, 'sparkleVersion' 
 }
 
 export function enclosureFilename(url: string): string {
-  try {
-    return decodeURIComponent(new URL(url).pathname.split('/').pop() ?? url)
-  } catch {
-    return decodeURIComponent(url.split('/').pop() ?? url)
-  }
+  return urlBasename(url)
 }
 
 /**
@@ -79,7 +76,8 @@ export function parseAppcast(text: string): SparkleItem[] {
   try {
     $ = load(text, { xml: true })
   } catch (error) {
-    throw new ShukkaError('metadata_error', 'appcast.xml is not valid XML', String(error))
+    console.error('appcast.xml is not valid XML:', error)
+    throw new ShukkaError('metadata_error', 'appcast.xml is not valid XML')
   }
 
   const items: SparkleItem[] = []
