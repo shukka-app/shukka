@@ -69,7 +69,7 @@ nr --filter shukka build
 nr --filter shukka start   # node .output/server/index.mjs ，默认 :3000
 ```
 
-进程的 cwd 必须是 `apps/shukka`（或镜像 `WORKDIR /app`），否则启动时找不到 `./drizzle`，迁移不会跑。`nr --filter shukka db:generate` 只在改了 `src/db/schema.ts` 之后由开发者执行，生产环境不要跑。
+进程的 cwd 必须是 `apps/shukka`（或镜像 `WORKDIR /app`）。SQLite 适配器在 `boot()` 里用打包的迁移 SQL migrate；镜像仍拷贝 `packages/store-sqlite/drizzle` 到 `/app/drizzle`。`nr --filter shukka db:generate` 只在改了 sqlite schema 之后由开发者执行，生产环境不要跑。
 
 示例 unit（按主机改路径与用户）：
 
@@ -114,7 +114,7 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 | `SHUKKA_TRUST_PROXY` | 未设 | 设 `1` 或 `true` 时采信反代追加的 `X-Forwarded-For`（最右一跳）与 `X-Real-IP` 作为登录限速键；未设则忽略这些头，所有直连客户端共用一个桶 |
 | `SHUKKA_SECURE_COOKIES` | 未设 | 设 `1` 或 `true` 时 session cookie 恒带 `Secure`；未设时按请求协议 / `X-Forwarded-Proto` 判断 |
 | `SHUKKA_PASSWORD_HASH` | 未设（`scrypt`） | 仅首次 setup 选用管理员口令哈希：未设或 `scrypt` → `scrypt$…`；`pbkdf2` → `pbkdf2$…`。初始化之后改密沿用已存前缀，再改此变量无效。非法值（如 `argon2`）使 setup 返回 `invalid_request`。见 `docs/prd/password-kdf.md` |
-| `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。设置后 Node 与 isolate 都走远程库（SCF 云函数磁盘短暂，必须走这条）；远程模式不在进程内 migrate，用 `nr --filter shukka db:migrate:remote` 带这两个变量线下施加 `drizzle/`。 |
+| `SHUKKA_DB_URL` | 未设 | 远程 libsql HTTP URL。设置后 Node 与 isolate 都走远程库（SCF 云函数磁盘短暂，必须走这条）。`boot()` 会 migrate，不必再跑 `migrate-remote.mjs`。 |
 | `SHUKKA_DB_AUTH_TOKEN` | 未设 | 远程库 token（可选）。 |
 | `NODE_ENV` | 镜像内 `production` | Node 生产模式 |
 | `NITRO_SSL_CERT` + `NITRO_SSL_KEY` | 未设 | 在 Node 进程上开 TLS（通常不如反代） |
@@ -129,7 +129,6 @@ Docker 卷默认在 `/data/shukka.db`。删的是密码与登录态，app / chan
 同一份面板，不是 feed-only。`nr --filter shukka build` 仍是 Docker 用的 Nitro 产物。Worker：
 
 ```bash
-# 远程库先施加 apps/shukka/drizzle/（Turso CLI 或等价），不要在 isolate 内 migrate
 npx wrangler secret put SHUKKA_ENCRYPTION_KEY
 npx wrangler secret put SHUKKA_DB_URL
 npx wrangler secret put SHUKKA_DB_AUTH_TOKEN   # 若远程库需要
@@ -141,11 +140,7 @@ Worker 必填 `SHUKKA_ENCRYPTION_KEY`（不要 filepath）与 `SHUKKA_DB_URL`。
 
 ## TCB / SCF 云函数（第三路径）
 
-SCF 是 Node 运行时但磁盘短暂、实例并发，本地 SQLite 文件不可用：必须设 `SHUKKA_DB_URL`（+ 可选 `SHUKKA_DB_AUTH_TOKEN`）走远程 libsql，并设 `SHUKKA_ENCRYPTION_KEY`。HTTP 函数包 = `scf_bootstrap` + Nitro 产物（`.output/`，依赖已被 Nitro trace 进 `.output/server/node_modules`），监听 `PORT=9000`。首次部署或 schema 变更后先线下迁移：
-
-```bash
-SHUKKA_DB_URL=libsql://... SHUKKA_DB_AUTH_TOKEN=... nr --filter shukka db:migrate:remote
-```
+SCF 是 Node 运行时但磁盘短暂、实例并发，本地 SQLite 文件不可用：必须设 `SHUKKA_DB_URL`（+ 可选 `SHUKKA_DB_AUTH_TOKEN`）走远程 libsql，并设 `SHUKKA_ENCRYPTION_KEY`。HTTP 函数包 = `scf_bootstrap` + Nitro 产物（`.output/`，依赖已被 Nitro trace 进 `.output/server/node_modules`），监听 `PORT=9000`。进程 `boot()` 会对远程库 migrate。
 
 仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
 

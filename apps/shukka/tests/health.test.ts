@@ -1,7 +1,7 @@
 import './setup-db.ts'
 import { describe, expect, it, vi } from 'vitest'
 
-const { db } = await import('~/db/index.ts')
+const { store } = await import('~/lib/store.ts')
 const { checkHealth } = await import('~/server/health.ts')
 const healthRoute = await import('~/routes/api/health.ts')
 
@@ -26,10 +26,7 @@ describe('checkHealth', () => {
   })
 
   it('reports degraded when the db query throws', async () => {
-    const dbModule = await import('~/db/index.ts')
-    const spy = vi.spyOn(dbModule.db, 'run').mockImplementation(() => {
-      throw new Error('database is locked')
-    })
+    const spy = vi.spyOn(store, 'ping').mockRejectedValue(new Error('database is locked'))
     try {
       expect(await checkHealth()).toEqual({ status: 'degraded', db: 'down', httpStatus: 503 })
     } finally {
@@ -50,9 +47,7 @@ describe('GET /api/health', () => {
   })
 
   it('returns 503 degraded when SQLite is down', async () => {
-    const spy = vi.spyOn(db, 'run').mockImplementation(() => {
-      throw new Error('database is locked')
-    })
+    const spy = vi.spyOn(store, 'ping').mockRejectedValue(new Error('database is locked'))
     try {
       const GET = routeHandler(healthRoute.Route, 'GET')
       const res = await GET({ request: new Request('https://shukka.test/api/health'), params: {} })

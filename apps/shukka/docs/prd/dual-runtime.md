@@ -16,7 +16,7 @@
 3. Worker 用 TanStack / Cloudflare 官方插件另打一次：`pnpm --filter shukka build:worker` + `wrangler deploy`。
 4. Worker 上不记 feed 命中、不跑进程内登录限速（已由 #46 / #52 保证）。
 5. Worker 必须设 `SHUKKA_ENCRYPTION_KEY` 与 `SHUKKA_DB_URL`；首次 setup 应设 `SHUKKA_PASSWORD_HASH=pbkdf2`。
-6. 不在 isolate 内 `migrate('./drizzle')`；schema 用 Turso CLI 或等价路径施加。
+6. 不在 isolate 内 `migrate('./drizzle')`（已被 [store-port](store-port.md) 取代：Worker `boot()` 用打包的 SQL migrate）。
 
 ## Non-goals
 
@@ -33,7 +33,7 @@
 
 ### 运维：Cloudflare Worker
 
-1. 准备远程 libsql（Turso 或兼容 HTTP）并施加 `drizzle/` 迁移。
+1. 准备远程 libsql（Turso 或兼容 HTTP）。进程 `boot()` 会 migrate。
 2. `wrangler secret put SHUKKA_ENCRYPTION_KEY`、`SHUKKA_DB_URL`（及可选 `SHUKKA_DB_AUTH_TOKEN`）。
 3. 尚未初始化时设 `SHUKKA_PASSWORD_HASH=pbkdf2`。
 4. `pnpm --filter shukka deploy:worker`。

@@ -144,7 +144,7 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 
 要一份持续更新的异地副本，或跑在容器盘短暂、没有可靠本地卷的平台上，见 [Litestream 复制](/zh-CN/docs/litestream)——镜像已内置，加几个环境变量即可。
 
-升级：拉新镜像或 `git pull && ni && nr --filter shukka build`，停旧进程，用同一数据目录启动新进程。工作目录有 `drizzle/` 时启动会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
+升级：拉新镜像或 `git pull && ni && nr --filter shukka build`，停旧进程，用同一数据目录启动新进程。启动时 `boot()` 会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
 
 ## 探活 / 冒烟
 

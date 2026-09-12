@@ -10,7 +10,7 @@ description: 把 Shukka 部署到 Cloudflare Workers。需要远程 libsql 数�
 | 主题 | Node（Docker / VPS） | Cloudflare Workers |
 |------|------|------|
 | 数据库 | `SHUKKA_DATA_DIR` 下的本地 SQLite | 远程 libsql HTTP（`SHUKKA_DB_URL`） |
-| 表结构 | 工作目录有 `drizzle/` 时进程启动会 migrate | 部署前把 `drizzle/` 施加到远程库。Worker 自己不 migrate |
+| 表结构 | 进程启动 `boot()` 时 migrate | Worker 启动 `boot()` 时用打包的 SQL migrate |
 | 加密密钥 | 默认文件、filepath 或 value 三选一 | **只接受 value**：`SHUKKA_ENCRYPTION_KEY`（64 位 hex）。filepath 会拒绝启动 |
 | 口令哈希 | 默认 `scrypt` 即可 | 首次 setup **之前**设 `SHUKKA_PASSWORD_HASH=pbkdf2`（Cloudflare Free CPU）。初始化后锁定 |
 | 登录限速 | 同一 IP 15 分钟 10 次失败 | 关闭。防爆破靠平台 WAF / 防火墙 |
@@ -25,7 +25,7 @@ Free 套餐上 Worker **脚本** gzip 不得超过 Cloudflare 的 **3 MiB** 上�
 3. 远程 libsql 数据库（Turso 或兼容 HTTP 端点）。
 4. Wrangler 已登录到将持有该 Worker 的 Cloudflare 账号。
 
-把 `drizzle/` 下的 SQL **按顺序**施加到该库，用 Turso CLI 或任何能执行这些语句的客户端。Worker 不会自己跑迁移。不要对生产库跑 `nr --filter shukka db:generate`。
+Worker 启动时会用打包的 sqlite 迁移 SQL 自己 migrate。不要对生产库跑 `nr --filter shukka db:generate`。
 
 ## Secrets
 
@@ -88,4 +88,4 @@ curl -sS "https://<your-worker>/api/health"
 # {"status":"ok","db":"ok"}
 ```
 
-Worker 起不来，多半是缺 `SHUKKA_ENCRYPTION_KEY` 或 `SHUKKA_DB_URL`、用了 filepath 密钥，或远程库从未施加过 `drizzle/`。
+Worker 起不来，多半是缺 `SHUKKA_ENCRYPTION_KEY` 或 `SHUKKA_DB_URL`，或用了 filepath 密钥。

@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** In-memory stand-in for S3, same harness as hits.test.ts. */
@@ -21,9 +22,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { eq } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { admin, apps, releaseNotes, sessions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const auth = await import('~/lib/auth.ts')
 const { createApp, getApp } = await import('~/server/apps.ts')
 const { createChannel } = await import('~/server/channels.ts')
@@ -87,9 +86,7 @@ function routeHandler(route: unknown, method: string) {
 }
 
 beforeEach(async () => {
-  await db.delete(admin).run()
-  await db.delete(sessions).run()
-  await db.delete(apps).run()
+  await resetApps()
   objects.clear()
 })
 
@@ -392,7 +389,7 @@ describe('release notes lifecycle', () => {
     await notesServer.upsertNote(app.id, versionId, 'zh-CN', '中文')
 
     await deleteVersion(await getApp(app.id), versionId)
-    expect(await db.select().from(releaseNotes).where(eq(releaseNotes.versionId, versionId)).all()).toHaveLength(0)
+    expect(await store.listNotes(versionId)).toHaveLength(0)
   })
 
   it('deletes a single locale note and complains about missing ones', async () => {

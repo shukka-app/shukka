@@ -1,7 +1,7 @@
 import { AwsClient } from 'aws4fetch'
 import { decryptSecret } from './crypto.ts'
 import { ShukkaError } from './errors.ts'
-import type { App } from '~/db/schema.ts'
+import type { App } from '@shukka/store'
 
 export type S3Settings = {
   endpoint: string | null

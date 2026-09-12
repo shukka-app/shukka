@@ -1,8 +1,6 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm'
-import { db } from '~/db/index.ts'
-import { artifacts, versions } from '~/db/schema.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 import { cachedText } from '~/lib/object-cache.ts'
+import { store } from '~/lib/store.ts'
 import { getObjectText, presignGet, settingsFromApp } from '~/lib/storage.ts'
 import { getAppBySlug } from './apps.ts'
 import { getChannel } from './channels.ts'
@@ -28,12 +26,12 @@ export async function resolveFeedRequest(
     throw new ShukkaError('not_found', `Channel "${channelName}" has no published version`)
   }
 
-  const [current] = await db.select().from(versions).where(eq(versions.id, channel.currentVersionId)).limit(1)
+  const current = await store.getVersionById(channel.currentVersionId)
   if (!current?.releasedAt) {
     throw new ShukkaError('not_found', `Channel "${channelName}" has no published version`)
   }
 
-  const currentArtifacts = await db.select().from(artifacts).where(eq(artifacts.versionId, current.id))
+  const currentArtifacts = await store.listArtifacts(current.id)
 
   if (adapter.generateFeedDocument) {
     const generated = await adapter.generateFeedDocument({
@@ -66,13 +64,7 @@ export async function resolveFeedRequest(
     return { kind: 'redirect', url: await presignGet(s3, currentMatch.s3Key) }
   }
 
-  const [artifact] = await db
-    .select({ s3Key: artifacts.s3Key, versionId: artifacts.versionId })
-    .from(artifacts)
-    .innerJoin(versions, eq(artifacts.versionId, versions.id))
-    .where(and(eq(versions.channelId, channel.id), eq(artifacts.filename, filename), isNotNull(versions.releasedAt)))
-    .orderBy(desc(versions.releasedAt), desc(versions.id))
-    .limit(1)
+  const artifact = await store.findPublishedArtifact(channel.id, filename)
   if (!artifact) throw new ShukkaError('not_found', `${filename} not found on channel "${channelName}"`)
 
   await recordHit(artifact.versionId, 'artifact')

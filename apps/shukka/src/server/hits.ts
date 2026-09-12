@@ -1,8 +1,6 @@
-import { and, eq, gte, lt, sql } from 'drizzle-orm'
-import { db } from '~/db/index.ts'
-import { channels, hitBuckets, versions } from '~/db/schema.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 import { isCloudFunction } from '~/lib/runtime.ts'
+import { store } from '~/lib/store.ts'
 import {
   DEFAULT_TREND_RANGE,
   TREND_RANGES,
@@ -23,27 +21,13 @@ export type HitKind = 'metadata' | 'artifact'
 
 /**
  * One feed hit: the lifetime counter stays authoritative and the hourly bucket
- * feeds trend charts. Both writes land in one transaction so the invariant
+ * feeds trend charts. Both writes land in one store method so the invariant
  * counter ≡ SUM(buckets) has no window (ADR: hit-trends). `now` is injectable
  * as a test seam.
  */
 export async function recordHit(versionId: number, kind: HitKind, now: number = nowSeconds()): Promise<void> {
   if (isCloudFunction()) return
-  const hourStart = Math.floor(now / HOUR) * HOUR
-  const column = kind === 'metadata' ? versions.metadataHits : versions.artifactHits
-  await db.transaction(async (tx) => {
-    await tx
-      .update(versions)
-      .set({ [kind === 'metadata' ? 'metadataHits' : 'artifactHits']: sql`${column} + 1` })
-      .where(eq(versions.id, versionId))
-    await tx
-      .insert(hitBuckets)
-      .values({ versionId, kind, hourStart, count: 1 })
-      .onConflictDoUpdate({
-        target: [hitBuckets.versionId, hitBuckets.kind, hitBuckets.hourStart],
-        set: { count: sql`${hitBuckets.count} + 1` },
-      })
-  })
+  await store.recordHit(versionId, kind, now)
 }
 
 /** `?range=` is loud when present but invalid, and defaults when missing. */
@@ -78,12 +62,8 @@ export async function channelTrend(
   range: TrendRange,
   now: number = nowSeconds(),
 ): Promise<ChannelTrend> {
-  const [channel] = await db
-    .select({ id: channels.id })
-    .from(channels)
-    .where(and(eq(channels.id, channelId), eq(channels.appId, appId)))
-    .limit(1)
-  if (!channel) throw new ShukkaError('not_found', 'Channel not found')
+  const channel = await store.getChannelById(channelId)
+  if (!channel || channel.appId !== appId) throw new ShukkaError('not_found', 'Channel not found')
 
   const granularity = range === 7 ? ('hour' as const) : ('day' as const)
   const step = granularity === 'hour' ? HOUR : DAY
@@ -91,26 +71,13 @@ export async function channelTrend(
   // Inclusive fixed-length window: `range` days' worth of buckets ending now.
   const start = end - range * DAY + step
 
-  // Integer division: CAST forces truncation back to the UTC day/hour boundary
-  // even if the driver binds the step as a real.
-  const bucket = sql<number>`cast(${hitBuckets.hourStart} / ${step} as integer) * ${step}`
-  const rows = await db
-    .select({ bucket, kind: hitBuckets.kind, count: sql<number>`sum(${hitBuckets.count})` })
-    .from(hitBuckets)
-    .innerJoin(versions, eq(hitBuckets.versionId, versions.id))
-    .where(and(eq(versions.channelId, channelId), gte(hitBuckets.hourStart, start)))
-    .groupBy(bucket, hitBuckets.kind)
-
+  const rows = await store.sumHitBucketsForChannel(channelId, start, step)
   return { granularity, points: fillPoints(rows, start, end, step) }
 }
 
 /** The 14 UTC days after release; days after `now` are omitted, not zero-filled. */
 export async function versionTrend(appId: number, versionId: number, now: number = nowSeconds()): Promise<VersionTrend> {
-  const [version] = await db
-    .select()
-    .from(versions)
-    .where(and(eq(versions.id, versionId), eq(versions.appId, appId)))
-    .limit(1)
+  const version = await store.getVersionForApp(appId, versionId)
   if (!version) throw new ShukkaError('not_found', 'Version not found')
   if (version.releasedAt == null) return { points: [] }
 
@@ -118,12 +85,6 @@ export async function versionTrend(appId: number, versionId: number, now: number
   const windowEnd = releaseDay + VERSION_TREND_DAYS * DAY
   const end = Math.min(Math.floor(now / DAY) * DAY, windowEnd - DAY)
 
-  const bucket = sql<number>`cast(${hitBuckets.hourStart} / ${DAY} as integer) * ${DAY}`
-  const rows = await db
-    .select({ bucket, kind: hitBuckets.kind, count: sql<number>`sum(${hitBuckets.count})` })
-    .from(hitBuckets)
-    .where(and(eq(hitBuckets.versionId, versionId), gte(hitBuckets.hourStart, releaseDay), lt(hitBuckets.hourStart, windowEnd)))
-    .groupBy(bucket, hitBuckets.kind)
-
+  const rows = await store.sumHitBucketsForVersion(versionId, releaseDay, windowEnd)
   return { points: end < releaseDay ? [] : fillPoints(rows, releaseDay, end, DAY) }
 }

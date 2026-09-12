@@ -5,7 +5,7 @@
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
   },
-  "ignorePatterns": ["src/routeTree.gen.ts", "dist", ".output", "drizzle"],
+  "ignorePatterns": ["src/routeTree.gen.ts", "dist", ".output"],
   "overrides": [
     {
       "files": ["src/routes/**", "src/components/ui/**"],

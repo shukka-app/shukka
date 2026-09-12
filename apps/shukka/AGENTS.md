@@ -48,7 +48,7 @@ Project: `shukka` — TanStack Start app (panel + API + update feed), SQLite via
 | `nr --filter shukka test:e2e` | electron-updater against a live instance (`SHUKKA_URL`) |
 | `nr --filter shukka test:e2e:rollback` | Publish two releases, PATCH rollback, then feed + electron-updater (`SHUKKA_URL`, `SHUKKA_API_KEY`) |
 | `nr --filter shukka test:e2e:tauri` | Tauri plugin-updater against a live instance (`SHUKKA_URL`) |
-| `nr --filter shukka db:generate` | Regenerate `drizzle/` migrations after editing `src/db/schema.ts` |
+| `nr --filter shukka db:generate` | Regenerate sqlite migrations after editing `packages/store-sqlite` schema |
 | `actionlint action.yml` | Lint the Action and workflows |
 
 The runtime image `ghcr.io/shukka-app/shukka` is published by

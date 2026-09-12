@@ -18,7 +18,7 @@ Worker 的 vars / secrets 是 bindings。Shukka 在模块加载时读 `process.e
 2. **`src/worker.ts`** 是 wrangler `main`：先 `applyWorkerEnv(env)`，再动态 `import('@tanstack/react-start/server-entry')`。这样 `createDb()` / `loadEncryptionKey()` 能读到 `process.env`。
 3. **`wrangler.jsonc`**：`nodejs_compat`，`compatibility_date` 2026-08-28。不把 secret 写进仓库。
 4. **云上密钥**：只接受 `SHUKKA_ENCRYPTION_KEY`。filepath / 默认写 `{data}/encryption.key` 在 isolate 上关闭。
-5. **云上数据库**：已有 `createWebDb()` + `SHUKKA_DB_URL`。不在 isolate 内 migrate。
+5. **云上数据库**：`SHUKKA_DB_URL` + web 客户端。不在 isolate 内 migrate（已被 [store-port](store-port.md) 取代：`boot()` 用打包 SQL migrate）。
 6. **不改** Node 的模块顶层 `await createDb()` / 默认生成密钥文件。
 7. **响应头**：Worker 入口用 `withSecurityHeaders`（`src/lib/security-headers.ts`）补齐与 Nitro `routeRules` 相同的四个加固头；静态资源由 `public/_headers` 覆盖。
 

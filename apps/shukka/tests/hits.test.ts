@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** In-memory stand-in for S3, same harness as release-flow.test.ts. */
@@ -21,9 +22,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { and, eq, sql } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { apps, hitBuckets, versions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const { getObjectText } = await import('~/lib/storage.ts')
 const { clearObjectCache } = await import('~/lib/object-cache.ts')
 const { createApp } = await import('~/server/apps.ts')
@@ -71,12 +70,7 @@ async function publish(app: Awaited<ReturnType<typeof createApp>>, channel: stri
 }
 
 async function bucketSum(versionId: number, kind: 'metadata' | 'artifact') {
-  const row = await db
-    .select({ total: sql<number>`coalesce(sum(${hitBuckets.count}), 0)` })
-    .from(hitBuckets)
-    .where(and(eq(hitBuckets.versionId, versionId), eq(hitBuckets.kind, kind)))
-    .get()
-  return row?.total ?? 0
+  return (await store.listHitBuckets(versionId)).filter((row) => row.kind === kind).reduce((sum, row) => sum + row.count, 0)
 }
 
 beforeEach(async () => {
@@ -85,7 +79,7 @@ beforeEach(async () => {
 
 describe('hit buckets', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -96,7 +90,7 @@ describe('hit buckets', () => {
     await recordHit(result.versionId, 'metadata', NOW)
     await recordHit(result.versionId, 'metadata', NOW)
 
-    const rows = await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
+    const rows = await store.listHitBuckets(result.versionId)
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ kind: 'metadata', hourStart: NOW, count: 2 })
   })
@@ -108,7 +102,7 @@ describe('hit buckets', () => {
     await recordHit(result.versionId, 'artifact', NOW - 1)
     await recordHit(result.versionId, 'artifact', NOW)
 
-    const rows = await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, result.versionId)).all()
+    const rows = await store.listHitBuckets(result.versionId)
     expect(rows.map((row) => row.hourStart).sort((a, b) => a - b)).toEqual([NOW - HOUR, NOW])
   })
 
@@ -121,7 +115,7 @@ describe('hit buckets', () => {
     await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
 
     expect(getObjectText).toHaveBeenCalledTimes(1)
-    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await store.getVersionById(result.versionId)
     expect(row?.metadataHits).toBe(2)
     expect(row?.metadataHits).toBe(await bucketSum(result.versionId, 'metadata'))
   })
@@ -134,7 +128,7 @@ describe('hit buckets', () => {
     await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
     await resolveFeedRequest('acme', 'stable', installer, ORIGIN)
 
-    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await store.getVersionById(result.versionId)
     expect(row?.metadataHits).toBe(2)
     expect(row?.artifactHits).toBe(1)
     expect(row?.metadataHits).toBe(await bucketSum(result.versionId, 'metadata'))
@@ -150,17 +144,17 @@ describe('hit buckets', () => {
     await recordHit(second.result.versionId, 'metadata', NOW)
 
     await deleteVersion(app, first.result.versionId)
-    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, first.result.versionId)).all()).toHaveLength(0)
-    expect(await db.select().from(hitBuckets).where(eq(hitBuckets.versionId, second.result.versionId)).all()).toHaveLength(1)
+    expect(await store.listHitBuckets(first.result.versionId)).toHaveLength(0)
+    expect(await store.listHitBuckets(second.result.versionId)).toHaveLength(1)
 
     await deleteChannel(app, (await getChannel(app.id, 'beta')).id)
-    expect(await db.select().from(hitBuckets).all()).toHaveLength(0)
+    expect(await store.listHitBuckets(second.result.versionId)).toHaveLength(0)
   })
 })
 
 describe('channelTrend', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -208,14 +202,14 @@ describe('channelTrend', () => {
 
 describe('versionTrend', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
   it('windows to the 14 UTC days after release and omits future days', async () => {
     const app = await createApp(appInput)
     const { result } = await publish(app, 'stable', '1.0.0')
-    const version = (await db.select().from(versions).where(eq(versions.id, result.versionId)).get())!
+    const version = (await store.getVersionById(result.versionId))!
     expect(version.releasedAt).toEqual(expect.any(Number))
     const releasedAt = version.releasedAt as number
     const releaseDay = Math.floor(releasedAt / DAY) * DAY

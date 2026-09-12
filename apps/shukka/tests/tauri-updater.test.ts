@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const objects = new Map<string, string>()
@@ -20,8 +21,6 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { db } = await import('~/db/index.ts')
-const { apps } = await import('~/db/schema.ts')
 const { clearObjectCache } = await import('~/lib/object-cache.ts')
 const { createApp } = await import('~/server/apps.ts')
 const { appDetailBySlug } = await import('~/server/dashboard.ts')
@@ -117,7 +116,7 @@ describe('electron inferFeedTarget', () => {
 
 describe('updater kind on create', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -134,7 +133,7 @@ describe('updater kind on create', () => {
 
 describe('tauri upload and feed', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 

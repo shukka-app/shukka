@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetStore } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('~/lib/storage.ts', async (importOriginal) => {
@@ -10,9 +11,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { eq } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { admin, apiKeys, apps, artifacts, channels, sessions, versions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const auth = await import('~/lib/auth.ts')
 const { createApp } = await import('~/server/apps.ts')
 const { headObject } = await import('~/lib/storage.ts')
@@ -64,25 +63,23 @@ function appPayload(slug: string, overrides: Record<string, unknown> = {}) {
 
 async function issueKey(appId: number) {
   const { plaintext, hash, hint } = auth.generateApiKey()
-  const key = await db.insert(apiKeys).values({ appId, name: 'ci', hash, hint }).returning().get()
+  const key = await store.insertApiKey({ appId, name: 'ci', hash, hint })
   return { plaintext, key }
 }
 
 async function addPublishedArtifact(appId: number, s3Key = 'acme/stable/1.0.0/App.exe') {
-  const channel = await db.select().from(channels).where(eq(channels.appId, appId)).get()
+  const [channel] = await store.listChannels(appId)
   if (!channel) throw new Error('missing channel')
-  const version = await db
-    .insert(versions)
-    .values({
-      appId,
-      channelId: channel.id,
-      version: '1.0.0',
-      releasedAt: Math.floor(Date.now() / 1000),
-    })
-    .returning()
-    .get()
-  await db.insert(artifacts).values({
-    versionId: version.id,
+  const inserted = await store.insertVersion({
+    appId,
+    channelId: channel.id,
+    version: '1.0.0',
+    createdAt: Math.floor(Date.now() / 1000),
+    releasedAt: Math.floor(Date.now() / 1000),
+  })
+  if (!inserted.ok) throw new Error('failed to insert version')
+  await store.insertArtifact({
+    versionId: inserted.value.id,
     filename: 'App.exe',
     s3Key,
     size: 64,
@@ -93,9 +90,7 @@ async function addPublishedArtifact(appId: number, s3Key = 'acme/stable/1.0.0/Ap
 
 describe('app API auth matrix', () => {
   beforeEach(async () => {
-    await db.delete(admin).run()
-    await db.delete(sessions).run()
-    await db.delete(apps).run()
+    await resetStore()
     vi.mocked(headObject).mockClear()
     await auth.initializeAdmin('correct horse battery')
   })
@@ -103,7 +98,7 @@ describe('app API auth matrix', () => {
   it('lets a bound API key read and patch the app, but not delete it or manage keys', async () => {
     const app = await makeApp('acme')
     const { plaintext, hash, hint } = auth.generateApiKey()
-    const key = await db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash, hint }).returning().get()
+    const key = await store.insertApiKey({ appId: app.id, name: 'ci', hash, hint })
 
     const GET = routeHandler(appRoute.Route, 'GET')
     const ok = await GET({
@@ -173,7 +168,7 @@ describe('app API auth matrix', () => {
   it('includes key metadata on session app detail', async () => {
     const app = await makeApp('acme')
     const { hash, hint } = auth.generateApiKey()
-    await db.insert(apiKeys).values({ appId: app.id, name: 'ci', hash, hint }).returning().get()
+    await store.insertApiKey({ appId: app.id, name: 'ci', hash, hint })
     const token = await auth.login('correct horse battery')
     const GET = routeHandler(appRoute.Route, 'GET')
     const listed = await GET({
@@ -245,7 +240,7 @@ describe('app API auth matrix', () => {
     })
     expect(patched.status).toBe(200)
     expect(((await patched.json()) as { app: { name: string } }).app.name).toBe('Acme')
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.name).toBe('Acme')
+    expect((await store.getApp(app.id))?.name).toBe('Acme')
   })
 
   it('forbids a key PATCH that changes s3Endpoint', async () => {
@@ -262,7 +257,7 @@ describe('app API auth matrix', () => {
     })
     expect(denied.status).toBe(403)
     expect(((await denied.json()) as { error: string }).error).toBe('forbidden')
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.s3Endpoint).toBeNull()
+    expect((await store.getApp(app.id))?.s3Endpoint).toBeNull()
   })
 
   it('lets a key PATCH resubmit unchanged storage fields', async () => {
@@ -278,7 +273,7 @@ describe('app API auth matrix', () => {
       params: { appSlug: 'acme' },
     })
     expect(patched.status).toBe(200)
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.slug).toBe('acme')
+    expect((await store.getApp(app.id))?.slug).toBe('acme')
   })
 
   it('forbids a key PATCH that includes s3SecretAccessKey', async () => {
@@ -317,7 +312,7 @@ describe('app API auth matrix', () => {
     expect(((await missing.json()) as { message: string }).message).toMatch(
       /not found at the new storage location/,
     )
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.s3Bucket).toBe('releases')
+    expect((await store.getApp(app.id))?.s3Bucket).toBe('releases')
     expect(headObject).toHaveBeenCalledWith(expect.objectContaining({ bucket: 'other-bucket' }), s3Key)
 
     vi.mocked(headObject).mockResolvedValueOnce({ size: 64 })
@@ -330,7 +325,7 @@ describe('app API auth matrix', () => {
       params: { appSlug: 'acme' },
     })
     expect(ok.status).toBe(200)
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.s3Bucket).toBe('other-bucket')
+    expect((await store.getApp(app.id))?.s3Bucket).toBe('other-bucket')
   })
 
   it('does not probe artifacts when changing storage identity with no versions', async () => {
@@ -348,6 +343,6 @@ describe('app API auth matrix', () => {
     })
     expect(patched.status).toBe(200)
     expect(headObject).not.toHaveBeenCalled()
-    expect((await db.select().from(apps).where(eq(apps.id, app.id)).get())?.s3Bucket).toBe('other-bucket')
+    expect((await store.getApp(app.id))?.s3Bucket).toBe('other-bucket')
   })
 })

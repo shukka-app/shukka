@@ -70,7 +70,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 ### Health（无鉴权）
 
 - `GET /api/health` 公开无鉴权，不依赖任何 app / channel / 登录态或 S3 配置；未初始化实例也返回 200。
-- 执行一次 SQLite 轻量查询（`SELECT 1`）作为依赖探针；成功返回 `200 { status: "ok", db: "ok" }`，SQLite 抛错返回 `503 { status: "degraded", db: "down" }`（不走业务错误信封 `{ error, message }`，不泄内部错误文本）。响应 `cache-control: no-store`。
+- 执行一次元数据存储轻量探针（SQLite 适配器为 `SELECT 1`）；成功返回 `200 { status: "ok", db: "ok" }`，存储抛错返回 `503 { status: "degraded", db: "down" }`（不走业务错误信封 `{ error, message }`，不泄内部错误文本）。响应 `cache-control: no-store`。
 - 不探 S3（配置 per-app，无默认实例可探）；不在 `/api/v1/openapi.json` 公开文档中，与 session-only 管理路由同一处理。
 
 ### Panel
@@ -96,7 +96,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 - 面板、`/api/admin`、`/api/v1`、`/api/update` 同一 Node 进程、同一 HTTP 端口。默认端口 `3000`（`PORT` 或 `NITRO_PORT`）。
 - 所有 HTTP 响应带 `X-Frame-Options: DENY`、CSP `frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`；不设含 `script-src` 的严格 CSP（面板有内联脚本）。
-- 启动时若进程 cwd 下存在 `drizzle/`，对 SQLite 自动 migrate；生产不跑 `db:generate`。镜像 `WORKDIR /app` 并拷贝 `drizzle/`；从源码启动的 cwd 是 `apps/shukka`。
+- 启动时 `boot()` 连接所选 store 适配器并编程式 migrate。overlapping `boot()` 串行化 migrate（SQLite / libsql：write 事务；Postgres：`pg_advisory_lock`）。SQLite 默认把 journal / SQL 打进适配器；镜像仍拷贝 `drizzle/` SQL 到 `/app/drizzle`（Nitro 不打包该目录）。生产不跑 `db:generate`。从源码启动的 cwd 是 `apps/shukka`。
 - `GET /api/admin/session` 无需鉴权，返回 `{ initialized, authenticated }`，作为进程探活（不是独立 `/health`）。
 - 管理员密码不从环境变量读取：未初始化时面板走 setup；忘记密码的恢复路径是删除 `admin`（及 `sessions`）行后重走 setup。
 - 管理员密码存 `scheme$…` 形 hash。写入算法只在首次 setup 由 `SHUKKA_PASSWORD_HASH` 选定：未设或 `scrypt` 写 `scrypt$…`（默认，现有 Docker / VPS 不变）；`pbkdf2` 写 `pbkdf2$<iterations>$<salt-hex>$<derived-hex>`。初始化之后实例不得更换写入算法：改密与后续管理员 hash 沿用已存前缀，忽略后来的环境变量翻转。校验按已存前缀分派，始终同时接受 `scrypt$` 与 `pbkdf2$`。非法值（如 `argon2`）使 setup 以 `invalid_request` 失败。已有 `scrypt$` 要迁到只适合 pbkdf2 的运行时（如日后 CF Free）须重走 setup，面板不转换。
@@ -149,7 +149,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
 ## System-wide constraints
 
-- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store 包日后在 `packages/*`。根不放应用源码。GitHub Action 入口是根 `action.yml`（`main` 指向应用内脚本）。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`、`docs/adr/github-action-subdirectory.md`。
+- Git 根是 pnpm workspace（`apps/*`、`packages/*`）。产品在 `apps/shukka`，公开文档站在 `apps/docs`，store port 在 `packages/store`，SQLite 适配器在 `packages/store-sqlite`。根不放应用源码。GitHub Action 入口是根 `action.yml`（`main` 指向应用内脚本）。见 `docs/prd/monorepo-layout.md`、`docs/adr/pnpm-workspace.md`、`docs/adr/github-action-subdirectory.md`、`docs/prd/store-port.md`、`docs/adr/store-port.md`。
 - Repository agent entrypoint is root `AGENTS.md` (`CLAUDE.md` is a symlink to it); app commands live in `apps/shukka/AGENTS.md`.
 - Feature development workflow skill lives at `.agents/skills/feature-dev/` (also linked from `.claude/skills/`).
 - Self-host operator guide lives at `apps/shukka/docs/prd/deploy.md`; Compose / Ansible examples at `apps/shukka/deploy/` (`docs/prd/deploy-examples.md`); runtime choice at `docs/adr/self-host-runtime.md`.
@@ -186,9 +186,11 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   (`docs/prd/feed-hits-serverless.md`, `docs/adr/feed-hits-serverless.md`).
 - S3 talk is aws4fetch (SigV4 + fetch), not `@aws-sdk/client-s3`
   (`docs/prd/s3-js-client.md`, `docs/adr/s3-js-client.md`).
-- Metadata SQLite is libsql (`@libsql/client` + `drizzle-orm/libsql`); Node
-  uses `file:`, isolates use the web client and do not migrate in-process
-  (`docs/prd/libsql-async.md`, `docs/adr/libsql-async.md`).
+- Metadata persistence is a domain store port (`packages/store`). SQLite is
+  the first adapter (`packages/store-sqlite`, libsql + drizzle). `boot()`
+  connects and migrates under a lock, including remote libsql and Workers
+  (bundled SQL, no `node:fs`). `scripts/migrate-remote.mjs` is gone
+  (`docs/prd/store-port.md`, `docs/adr/store-port.md`).
 - OpenAPI narrative copy is English + Simplified Chinese; the live
   `GET /api/v1/openapi.json` stays English
   (`docs/prd/openapi-i18n.md`, `docs/adr/openapi-locale.md`).
@@ -203,7 +205,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   examples live in `apps/shukka/deploy/` per `docs/prd/deploy-examples.md` and
   `docs/adr/compose-and-ansible.md`.
 - Workspace layout per `docs/prd/monorepo-layout.md` and `docs/adr/pnpm-workspace.md`.
-  Public docs site lives in `apps/docs`.
+  Public docs site lives in `apps/docs`. Store port per `docs/prd/store-port.md`.
 - Runtime image published to GHCR on `v*.*.*` tags per `docs/prd/container-image.md`
   and `docs/adr/ghcr-on-semver-tag.md`. PR / `main` builds that image and walks the
   container path per `docs/adr/docker-image-ci.md` (no push), including the

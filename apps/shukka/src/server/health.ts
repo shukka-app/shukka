@@ -1,5 +1,4 @@
-import { sql } from 'drizzle-orm'
-import { db } from '~/db/index.ts'
+import { store } from '~/lib/store.ts'
 
 export type HealthStatus = 'ok' | 'degraded'
 export type DbState = 'ok' | 'down'
@@ -10,10 +9,10 @@ export type HealthReport = {
   httpStatus: number
 }
 
-/** Lightweight liveness probe: process up + SQLite `SELECT 1`. Never throws. */
+/** Lightweight liveness probe: process up + store ping. Never throws. */
 export async function checkHealth(): Promise<HealthReport> {
   try {
-    await db.run(sql`SELECT 1`)
+    await store.ping()
     return { status: 'ok', db: 'ok', httpStatus: 200 }
   } catch {
     return { status: 'degraded', db: 'down', httpStatus: 503 }

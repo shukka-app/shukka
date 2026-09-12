@@ -9,7 +9,7 @@ import {
 } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { dataDir } from '~/db/index.ts'
+import { dataDir } from '~/lib/data-dir.ts'
 import { ShukkaError } from '~/lib/errors.ts'
 import { isCloudFunction } from '~/lib/runtime.ts'
 

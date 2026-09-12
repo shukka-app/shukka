@@ -12,7 +12,8 @@ on:
       - pnpm-workspace.yaml
       - apps/shukka/package.json
       - apps/shukka/src/**
-      - apps/shukka/drizzle/**
+      - packages/store/**
+      - packages/store-sqlite/**
       - apps/shukka/public/**
       - apps/shukka/vite.config.ts
       - apps/shukka/tsconfig.json
@@ -31,7 +32,8 @@ on:
       - pnpm-workspace.yaml
       - apps/shukka/package.json
       - apps/shukka/src/**
-      - apps/shukka/drizzle/**
+      - packages/store/**
+      - packages/store-sqlite/**
       - apps/shukka/public/**
       - apps/shukka/vite.config.ts
       - apps/shukka/tsconfig.json

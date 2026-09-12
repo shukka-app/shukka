@@ -1,4 +1,5 @@
 import './setup-db.ts'
+import { resetApps } from './store-reset.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** In-memory stand-in for S3 so the protocol invariants can be tested without a bucket. */
@@ -28,9 +29,7 @@ vi.mock('~/lib/storage.ts', async (importOriginal) => {
   }
 })
 
-const { eq } = await import('drizzle-orm')
-const { db } = await import('~/db/index.ts')
-const { apps, pendingUploads, versions } = await import('~/db/schema.ts')
+const { store } = await import('~/lib/store.ts')
 const { createApp, DEFAULT_CHANNEL, updateApp } = await import('~/server/apps.ts')
 const { createChannel, deleteChannel, getChannel, listChannelsForApps, listVersionsForChannels } =
   await import('~/server/channels.ts')
@@ -83,7 +82,7 @@ beforeEach(async () => {
 
 describe('release flow', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -172,7 +171,7 @@ describe('release flow', () => {
 
     await deleteVersion(app, live.result.versionId)
     expect((await getChannel(app.id, 'stable')).currentVersionId).toBe(first.result.versionId)
-    expect((await db.select().from(versions).where(eq(versions.id, draft.versionId)).get())?.releasedAt).toBeNull()
+    expect((await store.getVersionById(draft.versionId))?.releasedAt).toBeNull()
   })
 
   it('rejects a channel name that is not a URL token', async () => {
@@ -205,7 +204,7 @@ describe('release flow', () => {
     await resolveFeedRequest('acme', 'stable', 'latest.yml', ORIGIN)
     await resolveFeedRequest('acme', 'stable', installer, ORIGIN)
 
-    const row = await db.select().from(versions).where(eq(versions.id, result.versionId)).get()
+    const row = await store.getVersionById(result.versionId)
     expect(row?.metadataHits).toBe(2)
     expect(row?.artifactHits).toBe(1)
   })
@@ -243,7 +242,7 @@ describe('release flow', () => {
       version: '1.0.1',
       files: [{ filename: 'latest.yml' }],
     })
-    await db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+    await store.setPendingExpiresAt(first.uploadId, 1)
     await expect(
       initUpload(app, {
         channel: 'stable',
@@ -263,7 +262,7 @@ describe('release flow', () => {
     for (const file of first.files) {
       objects.set(file.key, file.filename === 'latest.yml' ? metadataFor('1.0.0', 'Acme-Setup-1.0.0.exe') : 'binary')
     }
-    await db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+    await store.setPendingExpiresAt(first.uploadId, 1)
 
     const second = await initUpload(app, {
       channel: 'stable',
@@ -272,7 +271,7 @@ describe('release flow', () => {
     })
     expect(second.uploadId).toBeTruthy()
     for (const file of first.files) expect(objects.has(file.key)).toBe(false)
-    expect(await db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeUndefined()
+    expect(await store.getPendingById(first.uploadId)).toBeNull()
   })
 
   it('deletes stored objects when finalize rejects an expired upload', async () => {
@@ -283,7 +282,7 @@ describe('release flow', () => {
       files: [{ filename: 'latest.yml' }],
     })
     objects.set(init.files[0].key, metadataFor('1.0.0', 'latest.yml'))
-    await db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, init.uploadId)).run()
+    await store.setPendingExpiresAt(init.uploadId, 1)
 
     await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/expired/)
     expect(objects.has(init.files[0].key)).toBe(false)
@@ -297,7 +296,7 @@ describe('release flow', () => {
       files: [{ filename: 'latest.yml' }],
     })
     objects.set(first.files[0].key, metadataFor('2.0.0', 'latest.yml'))
-    await db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+    await store.setPendingExpiresAt(first.uploadId, 1)
 
     const second = await initUpload(app, {
       channel: 'stable',
@@ -315,7 +314,7 @@ describe('release flow', () => {
       files: [{ filename: 'latest.yml' }],
     })
     objects.set(first.files[0].key, metadataFor('1.0.0', 'latest.yml'))
-    await db.update(pendingUploads).set({ expiresAt: 1 }).where(eq(pendingUploads.id, first.uploadId)).run()
+    await store.setPendingExpiresAt(first.uploadId, 1)
 
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(deleteObjects).mockRejectedValueOnce(new Error('s3 down'))
@@ -327,7 +326,7 @@ describe('release flow', () => {
           files: [{ filename: 'latest.yml' }],
         }),
       ).resolves.toMatchObject({ files: expect.any(Array) })
-      expect(await db.select().from(pendingUploads).where(eq(pendingUploads.id, first.uploadId)).get()).toBeDefined()
+      expect(await store.getPendingById(first.uploadId)).toBeTruthy()
       expect(objects.has(first.files[0].key)).toBe(true)
     } finally {
       log.mockRestore()
@@ -344,7 +343,7 @@ describe('release flow', () => {
     objects.set(init.files[0].key, metadataFor('1.0.1', 'Acme-Setup-1.0.1.exe'))
     objects.set(init.files[1].key, 'binary')
     const channel = await getChannel(app.id, 'stable')
-    await db.insert(versions).values({
+    await store.insertVersion({
       appId: app.id,
       channelId: channel.id,
       version: '1.0.1',
@@ -363,7 +362,7 @@ describe('release flow', () => {
     const published = await publish(app, 'stable', '1.0.0')
     vi.mocked(deleteObjects).mockRejectedValueOnce(new Error('s3 down'))
     await expect(deleteVersion(app, published.result.versionId)).rejects.toThrow()
-    expect(await db.select().from(versions).where(eq(versions.id, published.result.versionId)).get()).toBeDefined()
+    expect(await store.getVersionById(published.result.versionId)).toBeTruthy()
   })
 
   it('treats only S3 not-found shapes as a missing object', () => {
@@ -418,7 +417,7 @@ describe('release flow', () => {
     objects.set(init.files[0].key, 'version: 1.0.0\n' + 'x'.repeat(1024 * 1024))
 
     await expect(finalizeUpload(app, init.uploadId)).rejects.toThrow(/metadata size limit/)
-    expect(await db.select().from(versions).all()).toEqual([])
+    expect(await store.listVersions((await getChannel(app.id, 'stable')).id)).toEqual([])
   })
 
   it('does not leak storage internals when the public feed cannot read metadata', async () => {
@@ -475,8 +474,8 @@ describe('release flow', () => {
     await expect(resolveFeedRequest('acme', 'stable', second.installer, ORIGIN)).resolves.toMatchObject({
       kind: 'redirect',
     })
-    expect((await db.select().from(versions).where(eq(versions.id, first.result.versionId)).get())?.releasedAt).not.toBeNull()
-    expect((await db.select().from(versions).where(eq(versions.id, second.result.versionId)).get())?.releasedAt).not.toBeNull()
+    expect((await store.getVersionById(first.result.versionId))?.releasedAt).not.toBeNull()
+    expect((await store.getVersionById(second.result.versionId))?.releasedAt).not.toBeNull()
   })
 
   it('resolves a shared artifact filename to the current version first', async () => {
@@ -494,7 +493,7 @@ describe('release flow', () => {
     const rolled = await resolveFeedRequest('acme', 'stable', 'MyApp.AppImage', ORIGIN)
     expect(rolled.kind).toBe('redirect')
     expect((rolled as { url: string }).url).toContain('/1.0.0/')
-    expect((await db.select().from(versions).where(eq(versions.id, first.result.versionId)).get())?.artifactHits).toBe(1)
+    expect((await store.getVersionById(first.result.versionId))?.artifactHits).toBe(1)
   })
 
   it('serves fresh metadata after a version is deleted and republished', async () => {
@@ -553,7 +552,7 @@ describe('release flow', () => {
 
 describe('destructive operations', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -576,7 +575,7 @@ describe('destructive operations', () => {
 
 describe('input validation', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -603,7 +602,7 @@ describe('input validation', () => {
 
 describe('metadata consistency', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 
@@ -624,7 +623,7 @@ describe('metadata consistency', () => {
 
 describe('dashboard appDetail shape', () => {
   beforeEach(async () => {
-    await db.delete(apps).run()
+    await resetApps()
     objects.clear()
   })
 

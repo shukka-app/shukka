@@ -2,10 +2,9 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import './setup-db.ts'
+import { resetStore } from './store-reset.ts'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-const { db } = await import('~/db/index.ts')
-const { admin, sessions } = await import('~/db/schema.ts')
 const auth = await import('~/lib/auth.ts')
 const { openApiDocument } = await import('~/server/openapi.ts')
 const openapiRoute = await import('~/routes/api/v1/openapi[.]json.ts')
@@ -28,8 +27,7 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 describe('GET /api/v1/openapi.json', () => {
   beforeEach(async () => {
-    await db.delete(admin).run()
-    await db.delete(sessions).run()
+    await resetStore()
     await auth.initializeAdmin('correct horse battery')
   })
 

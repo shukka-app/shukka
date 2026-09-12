@@ -1,0 +1,28 @@
+{
+  "name": "@shukka/store-sqlite",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate && node scripts/bundle-migrations.mjs",
+    "bundle:migrations": "node scripts/bundle-migrations.mjs",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@shukka/store": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "std-env": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "drizzle-kit": "^0.31.10",
+    "oxlint": "^1.75.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.10"
+  }
+}
