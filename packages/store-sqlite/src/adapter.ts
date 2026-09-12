@@ -32,6 +32,7 @@ async function connect() {
   const dbPath = process.env.SHUKKA_DB_PATH ?? resolve(dataDir, 'shukka.db')
   mkdirSync(dirname(dbPath), { recursive: true })
   const client = createClient({ url: `file:${dbPath}` })
+  await client.execute('PRAGMA busy_timeout = 30000')
   await client.execute('PRAGMA journal_mode = WAL')
   await client.execute('PRAGMA foreign_keys = ON')
   return drizzle(client, { schema })

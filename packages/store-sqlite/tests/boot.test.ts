@@ -117,4 +117,18 @@ describe('sqliteAdapter.boot', () => {
     expect(version?.metadataHits).toBe(1)
     expect(await store.listHitBuckets(finalized.value.id)).toHaveLength(1)
   })
+
+  it('serializes overlapping boot() migrate on one file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'store-sqlite-lock-'))
+    process.env.SHUKKA_DATA_DIR = dir
+    process.env.SHUKKA_DB_PATH = join(dir, 'test.db')
+    delete process.env.SHUKKA_DB_URL
+
+    const { sqliteAdapter } = await import('../src/index.ts')
+    const [a, b] = await Promise.all([sqliteAdapter.boot(), sqliteAdapter.boot()])
+    await a.ping()
+    await b.ping()
+    expect(await a.listApps('name')).toEqual([])
+    expect(await b.listApps('name')).toEqual([])
+  })
 })

@@ -15,7 +15,7 @@
 ## Goals
 
 1. `packages/store` 提供普通 record 类型、领域用例 port、以及 `StoreAdapter { boot(): Promise<Store> }`。方法对齐今天已有的领域，不为 CloudBase 预留方法。原子单位是方法，不是 `db.transaction(fn)`。
-2. `packages/store-sqlite` 承接现有 schema、libsql 客户端、`drizzle/` 迁移。`boot()` = 连接 + Drizzle 编程式 migrate。Worker 不得依赖 `node:fs`（把 journal / SQL 打进包）。
+2. `packages/store-sqlite` 承接现有 schema、libsql 客户端、`drizzle/` 迁移。`boot()` = 连接 + 加锁 + Drizzle 编程式 migrate。Worker 不得依赖 `node:fs`（把 journal / SQL 打进包）。overlapping `boot()` 必须串行化 migrate（SQLite：write 事务；Postgres：advisory lock）。
 3. 应用用 `std-env` + 动态 `import()` 加载 sqlite 适配器，然后 `await adapter.boot()`。模块顶层 await 保留。
 4. `apps/shukka` 的 domain / routes / health / auth / keys 不再 import `~/db`、`drizzle-orm`、libsql 或方言 schema。keys 路由不再直接 insert。
 5. `dataDir` 离开 db 模块；`crypto.ts` 不得为了找目录而 import store 包。

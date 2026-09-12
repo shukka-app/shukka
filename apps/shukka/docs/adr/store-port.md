@@ -24,15 +24,16 @@ Accepted.
    - recordHit：计数器 + 小时 bucket（领域在 `isCloudFunction()` 上仍 no-op，适配器本身总是写）
 3. **冲突**：sqlite 适配器把唯一约束映射为 port 的 `conflict`。领域再变成 `ShukkaError('conflict')`。`isUniqueConstraint` 不离开适配器。
 4. **`packages/store-sqlite`**：搬走 schema、libsql 客户端、`drizzle/`。`boot()` 连接（Node `file:` / 远程 Node / isolate HTTP）然后编程式 migrate。
-5. **Migrate**：
+5. **Migrate 必须加锁。** overlapping `boot()` 串行化 journal 施加。SQLite / libsql：整段 migrate 包在一次 write 事务里（`client.transaction()` → `BEGIN IMMEDIATE`）。Postgres：session `pg_advisory_lock(MIGRATE_LOCK_KEY)`（钥匙在 `packages/store`）。Drizzle migrator 自己没有这把锁。
+6. **Migrate**：
    - 作者仍在该包 `drizzle-kit generate`。
    - 运行时把 journal + SQL 打进适配器模块，按 Drizzle `__drizzle_migrations` 表施加（与 `drizzle-orm/libsql/migrator` 同一套 hash / `created_at`）。Worker 不读 `node:fs`。
    - Node 动态加载 migrator 会把 `node:fs` 拉进图，所以 isolate 路径不得 import 它。
    - Docker 仍把 `drizzle/` SQL 拷到镜像 `/app/drizzle`（Nitro 不会打包那个目录；运维与源码启动仍能看见文件）。
    - `scripts/migrate-remote.mjs` 删除。`SHUKKA_DB_URL` 也走 `boot()`。
-6. **应用入口**：`std-env` + 动态 `import()` sqlite 适配器，`await adapter.boot()`。模块顶层 await 保留（今天的 `export const db = await createDb()`）。本切片不读 `SHUKKA_DB_DRIVER`。
-7. **`dataDir`** 属于进程路径（加密密钥文件），不属于 store。`crypto.ts` 不 import store 包。
-8. **测试**：应用测试走领域 / store。`.get()` / `.all()` / `.run()` 只允许出现在 sqlite 适配器测试里。
+7. **应用入口**：`std-env` + 动态 `import()` sqlite 适配器，`await adapter.boot()`。模块顶层 await 保留（今天的 `export const db = await createDb()`）。本切片不读 `SHUKKA_DB_DRIVER`。
+8. **`dataDir`** 属于进程路径（加密密钥文件），不属于 store。`crypto.ts` 不 import store 包。
+9. **测试**：应用测试走领域 / store。`.get()` / `.all()` / `.run()` 只允许出现在 sqlite 适配器测试里。
 
 ## Alternatives
 
@@ -44,6 +45,6 @@ Accepted.
 ## Trade-offs & failure bounds
 
 - 只有 sqlite 实现时 port 看起来像多包。这是有意的：#89 落地前先把领域从方言解开。
-- 并发 Worker / SCF 冷启动可能同时 migrate。Drizzle 的 `__drizzle_migrations` 表让已施加的条目跳过；残缺施加仍会使进程起不来，与今天本地 migrate 失败相同。
+- 并发 Worker / SCF 冷启动会在 write 事务上排队 migrate；残缺施加仍会使后到的进程起不来，与今天本地 migrate 失败相同。
 - 打包 SQL 会进 Worker 脚本体积；`check:worker-size` 卡住 3 MiB gzip。
 - HTTP 对外合同不变。改的是谁拥有查询，不是 feed / 上传 / health 的形状。

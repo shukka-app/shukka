@@ -257,6 +257,17 @@ export type Store = {
   deleteNote(versionId: number, locale: string): Promise<ReleaseNote | null>
 }
 
+/**
+ * Postgres `pg_advisory_lock` key for `boot()` migrate.
+ * SQLite has no advisory locks; that adapter holds a libsql write
+ * transaction (`BEGIN IMMEDIATE`) around the same critical section.
+ */
+export const MIGRATE_LOCK_KEY = 859_001
+
 export type StoreAdapter = {
+  /**
+   * Connect and apply pending migrations.
+   * Overlapping `boot()` calls must serialize migrate.
+   */
   boot(): Promise<Store>
 }
