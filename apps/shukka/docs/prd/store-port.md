@@ -25,7 +25,7 @@
 
 ## Non-goals
 
-- `packages/store-postgres`（#89；本切片之后由该 issue 落地）。
+- `packages/store-postgres`（#89）。
 - 改 feed 合同、S3、KDF。
 - CloudBase 原生数据库。
 - 把 SQLite 默认换成别的。

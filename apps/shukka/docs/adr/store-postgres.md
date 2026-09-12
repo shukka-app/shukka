@@ -16,7 +16,7 @@ Worker 有 3 MiB gzip 上限，且 postgres.js / `node:fs` migrator 不适合 is
 
 1. **`packages/store-postgres`**：自己的 `pgTable` schema 与 `drizzle/`，不和 sqlite 共用 schema。唯一约束意图对齐（slug、channel 名、channel+version、pending channel+version、api key hash、hit bucket、note locale）。版本 `metadata` 为 `jsonb`。unix seconds 列为 `integer`，不用 `timestamptz`。
 2. **连接**：`postgres`（postgres.js）。禁止原生 `pg` addon。
-3. **`boot()`**：连接 → session `pg_advisory_lock` → `drizzle-orm/postgres-js/migrator`（读包内 / 镜像 `drizzle-postgres/` 的 journal+SQL）→ unlock → 返回 `Store`。migrate 用 `max: 1` 客户端，保证锁与 migrator 同一 session。
+3. **`boot()`**：连接 → session `pg_advisory_lock(MIGRATE_LOCK_KEY)`（钥匙在 `packages/store`，与 sqlite 的 write 事务同一合同）→ `drizzle-orm/postgres-js/migrator`（读包内 / 镜像 `drizzle-postgres/` 的 journal+SQL）→ unlock → 返回 `Store`。migrate 用 `max: 1` 客户端，保证锁与 migrator 同一 session。Drizzle migrator 自己没有锁。
 4. **冲突**：Postgres `23505` → port `conflict`。`isUniqueConstraint` 不离开适配器。
 5. **应用入口**：`std-env` 确认 Node 后动态 `import('@shukka/store-postgres')`。`SHUKKA_DB_DRIVER` 未设或 `sqlite` 走 sqlite 适配器。Worker Vite 把该包名 alias 到抛错 stub，isolate 图不含 postgres.js。
 6. **URL**：`SHUKKA_DB_DRIVER=postgres` 时 `SHUKKA_DB_URL` 是 Postgres 连接串。sqlite 远程 libsql 仍用同一变量名、不同 driver。缺 URL 则 boot 失败。

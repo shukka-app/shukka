@@ -191,7 +191,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   an opt-in second adapter (`packages/store-postgres`, postgres.js + drizzle)
   via `SHUKKA_DB_DRIVER=postgres` and a Postgres URL; seconds stay integer;
   Worker+Postgres is not shipped. `boot()` connects and migrates under a
-  lock, including remote libsql and Workers (bundled SQL, no `node:fs`).
+  lock (SQLite write transaction; Postgres `pg_advisory_lock`), including
+  remote libsql and Workers (bundled SQL, no `node:fs`).
   `scripts/migrate-remote.mjs` is gone
   (`docs/prd/store-port.md`, `docs/adr/store-port.md`,
   `docs/prd/store-postgres.md`, `docs/adr/store-postgres.md`).

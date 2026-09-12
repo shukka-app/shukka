@@ -1,15 +1,12 @@
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Store, StoreAdapter } from '@shukka/store'
+import { MIGRATE_LOCK_KEY, type Store, type StoreAdapter } from '@shukka/store'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import { createPostgresStore } from './postgres-store.ts'
 import * as schema from './schema.ts'
-
-/** Session lock so overlapping `boot()` migrate calls cannot race `__drizzle_migrations`. */
-const MIGRATE_LOCK_KEY = 859_001
 
 function resolveMigrationsFolder(): string {
   const candidates = [
