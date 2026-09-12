@@ -1,0 +1,185 @@
+@layer scalar-base, scalar-theme, scalar-config, theme, base, components, utilities;
+@import 'tailwindcss';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/geist-mono';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Shukka panel theme, ported from shukka src/styles.css: warm greige
+ * monochrome, one ink color per theme, burnt-orange accent rationed to
+ * focus/active states. Flat — hairline borders, no shadows.
+ * The fd-* tokens below reference the panel tokens, so .dark only needs
+ * to flip the underlying ink/paper values.
+ */
+:root {
+  --ink: #26251e;
+  --paper: #f7f7f4;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: #f2f1ed;
+  --card-foreground: var(--ink);
+  --popover: #f7f7f4;
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: #ebeae5;
+  --secondary-foreground: var(--ink);
+  --muted: #efeeea;
+  --muted-foreground: color-mix(in oklab, var(--ink) 60%, transparent);
+  --accent: #e6e5e0;
+  --accent-foreground: var(--ink);
+  --flare: #f54e00;
+  --destructive: #cf2d56;
+  --destructive-foreground: #f7f7f4;
+  --success: #1f8a65;
+  --border: color-mix(in oklab, var(--ink) 10%, transparent);
+  --input: color-mix(in oklab, var(--ink) 12%, transparent);
+  --ring: var(--flare);
+  --radius: 0.375rem;
+
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-secondary-foreground: var(--secondary-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-ring: var(--ring);
+  --color-fd-overlay: color-mix(in oklab, var(--ink) 20%, transparent);
+}
+
+.dark {
+  --ink: #edecec;
+  --paper: #14120b;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: #1b1913;
+  --card-foreground: var(--ink);
+  --popover: #1d1b15;
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #1b1913;
+  --secondary: #26241e;
+  --secondary-foreground: var(--ink);
+  --muted: #201e18;
+  --muted-foreground: color-mix(in oklab, var(--ink) 60%, transparent);
+  --accent: #26241e;
+  --accent-foreground: var(--ink);
+  --flare: #f97316;
+  --destructive: #d24d6e;
+  --destructive-foreground: #edecec;
+  --success: #34a37e;
+  --border: color-mix(in oklab, var(--ink) 12%, transparent);
+  --input: color-mix(in oklab, var(--ink) 18%, transparent);
+  --ring: var(--flare);
+}
+
+/* neutral.css pins these on the sidebar with higher specificity; re-map. */
+.dark #nd-sidebar {
+  --color-fd-muted: var(--muted);
+  --color-fd-secondary: var(--secondary);
+  --color-fd-muted-foreground: var(--muted-foreground);
+}
+
+@theme {
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+  /* Shukka radius ladder: --radius = 0.375rem. */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.625rem;
+}
+
+/*
+ * Scalar API reference — Shukka panel tokens. `.light-mode` / `.dark-mode`
+ * are Scalar's own roots; hex (not inherited `--ink`) so the two class
+ * systems stay independent if they ever diverge.
+ */
+.light-mode {
+  --scalar-font: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --scalar-font-code: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+  --scalar-color-1: #26251e;
+  --scalar-color-2: color-mix(in oklab, #26251e 60%, transparent);
+  --scalar-color-3: color-mix(in oklab, #26251e 40%, transparent);
+  --scalar-color-accent: #f54e00;
+  --scalar-background-1: #f7f7f4;
+  --scalar-background-2: #f2f1ed;
+  --scalar-background-3: #ebeae5;
+  --scalar-background-accent: color-mix(in oklab, #f54e00 10%, transparent);
+  --scalar-border-color: color-mix(in oklab, #26251e 10%, transparent);
+  --scalar-radius: 0.375rem;
+}
+
+.dark-mode {
+  --scalar-font: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --scalar-font-code: 'Geist Mono Variable', ui-monospace, 'SF Mono', monospace;
+  --scalar-color-1: #edecec;
+  --scalar-color-2: color-mix(in oklab, #edecec 60%, transparent);
+  --scalar-color-3: color-mix(in oklab, #edecec 40%, transparent);
+  --scalar-color-accent: #f97316;
+  --scalar-background-1: #14120b;
+  --scalar-background-2: #1b1913;
+  --scalar-background-3: #26241e;
+  --scalar-background-accent: color-mix(in oklab, #f97316 12%, transparent);
+  --scalar-border-color: color-mix(in oklab, #edecec 12%, transparent);
+  --scalar-radius: 0.375rem;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--ink) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--ink) 6%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black 35%, transparent);
+}
+
+@keyframes landing-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes landing-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.landing-in {
+  animation: landing-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-in {
+    animation: none;
+  }
+}
+
+html > body[data-scroll-locked] {
+  margin-right: 0px !important;
+  --removed-body-scroll-bar-size: 0px !important;
+}

@@ -1,0 +1,31 @@
+---
+title: Introduction to Shukka
+description: Self-host automatic updates for desktop apps. Installed users receive new versions, and installers stay in your own object storage.
+---
+
+Shukka is a self-hosted update service for Electron or Tauri desktop apps. Installers are written to your own object storage. The web UI decides when a new version is available to users, without handing installers to a third-party update service.
+
+## What it does
+
+- **Manage published versions** — the web UI lists each version and its download count, and marks the version currently offered to users.
+- **Use your own object storage** — AWS, Cloudflare R2, and MinIO are supported. Each product can have its own configuration.
+- **Installers never transit Shukka** — CI uploads files directly to object storage. Shukka never touches installer contents.
+- **Installed apps check for updates automatically** — clients keep using their existing updater to fetch new versions. Users do not need to sign in.
+- **Publish from CI** — a GitHub Action uploads the current build artifacts to Shukka.
+- **Uploads stay unpublished by default** — a version is a draft after upload and is only offered to users after you confirm it.
+
+## Quick start
+
+```bash
+docker run -d --name shukka -p 3000:3000 -v shukka-data:/data ghcr.io/shukka-app/shukka
+```
+
+Open the page, set a password, and you are ready. Other options: [self-hosting](/en-US/docs/deployment), or [Cloudflare Workers](/en-US/docs/cloudflare).
+
+<Cards>
+  <Card title="Self-hosting" href="/en-US/docs/deployment" />
+  <Card title="Cloudflare Workers" href="/en-US/docs/cloudflare" />
+  <Card title="User guide" href="/en-US/docs/guide" />
+  <Card title="Client integration" href="/en-US/docs/integration/electron" />
+  <Card title="CI publishing" href="/en-US/docs/ci" />
+</Cards>

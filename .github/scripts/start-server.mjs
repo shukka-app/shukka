@@ -8,7 +8,7 @@ import { spawnDetached } from './spawn-detached.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
-const server = join(repoRoot, '.output/server/index.mjs')
+const server = join(repoRoot, 'apps/shukka/.output/server/index.mjs')
 const endpoint = new URL(process.env.SHUKKA_URL || 'http://localhost:3000')
 const logPath = process.env.SHUKKA_LOG || join(process.env.RUNNER_TEMP || repoRoot, 'shukka-server.log')
 

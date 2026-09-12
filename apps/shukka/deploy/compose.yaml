@@ -1,0 +1,47 @@
+# Single-host example: Shukka + a local MinIO bucket.
+#
+#   docker compose -f apps/shukka/deploy/compose.yaml up -d
+#   docker exec minio mkdir -p /data/releases
+#
+# Then open http://localhost:3000 and create an app against MinIO:
+#   endpoint          http://minio:9000   (from another host: http://<this-host>:9000)
+#   region            us-east-1
+#   bucket            releases
+#   access key        shukka
+#   secret key        shukkasecret
+#   force path style  yes
+#
+# Production S3/R2: delete the minio service and point the app at your bucket.
+# Override the image without editing the file:
+#   SHUKKA_IMAGE=ghcr.io/shukka-app/shukka:1.0.3 docker compose -f apps/shukka/deploy/compose.yaml up -d
+
+name: shukka
+
+services:
+  shukka:
+    image: ${SHUKKA_IMAGE:-ghcr.io/shukka-app/shukka}
+    container_name: shukka
+    restart: unless-stopped
+    ports:
+      - "${SHUKKA_PORT:-3000}:3000"
+    volumes:
+      - shukka-data:/data
+    depends_on:
+      - minio
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: unless-stopped
+    command: ["server", "/data"]
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-shukka}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-shukkasecret}
+    volumes:
+      - minio-data:/data
+
+volumes:
+  shukka-data:
+  minio-data:

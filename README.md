@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/og.png" alt="Shukka — self-hosted updates for Electron and Tauri" width="1280">
+  <img src="apps/shukka/public/og.png" alt="Shukka — self-hosted updates for Electron and Tauri" width="1280">
 </p>
 
 <h1 align="center">Shukka</h1>
@@ -54,14 +54,14 @@ docker run -d --name shukka -p 3000:3000 -v shukka-data:/data ghcr.io/shukka-app
 Or the Compose example (Shukka + a local MinIO for the panel wizard):
 
 ```bash
-docker compose -f deploy/compose.yaml up -d
+docker compose -f apps/shukka/deploy/compose.yaml up -d
 docker exec minio mkdir -p /data/releases
 ```
 
 Ansible copies that same file onto a host and waits for `/api/health`:
 
 ```bash
-ansible-playbook -i inventory.ini deploy/ansible/playbook.yml
+ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 ```
 
 Pushing a `vMAJOR.MINOR.PATCH` tag publishes that image to GitHub Packages. Pin a
@@ -70,9 +70,9 @@ version with `ghcr.io/shukka-app/shukka:0.1.1` if you do not want `latest`.
 Or from source:
 
 ```bash
-npm ci
-npm run build
-npm start          # http://localhost:3000
+ni                         # pnpm workspace at the git root
+nr --filter shukka build
+nr --filter shukka start   # http://localhost:3000
 ```
 
 Open the panel and set the admin password on first visit. Everything Shukka persists —
@@ -86,10 +86,10 @@ secret as well. A database without the key cannot decrypt stored S3 secrets.
 `503` when SQLite is down). The image runs as `node` and health-checks that path.
 
 Forgot the admin password: delete the singleton `admin` row (`id = 1`) and reopen
-`/setup`. That is the ADR recovery path (`docs/adr/auth-model.md`) — there is no
+`/setup`. That is the ADR recovery path (`apps/shukka/docs/adr/auth-model.md`) — there is no
 reset CLI.
 
-Full operator guide — reverse proxy, backups, upgrades, env vars, what not to host on: [`docs/prd/deploy.md`](docs/prd/deploy.md). Compose and Ansible examples: [`deploy/compose.yaml`](deploy/compose.yaml), [`deploy/ansible/playbook.yml`](deploy/ansible/playbook.yml). Cloudflare Workers (same panel, remote libsql): `npm run deploy:worker` — see `docs/prd/dual-runtime.md`.
+Full operator guide — reverse proxy, backups, upgrades, env vars, what not to host on: [`apps/shukka/docs/prd/deploy.md`](apps/shukka/docs/prd/deploy.md). Compose and Ansible examples: [`apps/shukka/deploy/compose.yaml`](apps/shukka/deploy/compose.yaml), [`apps/shukka/deploy/ansible/playbook.yml`](apps/shukka/deploy/ansible/playbook.yml). Cloudflare Workers (same panel, remote libsql): `nr --filter shukka deploy:worker` — see `apps/shukka/docs/prd/dual-runtime.md`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -133,7 +133,7 @@ SHUKKA_SERVER_URL=https://updates.example.com \
 SHUKKA_API_KEY=shk_… \
 SHUKKA_APP=my-app \
 SHUKKA_DIRECTORY=dist \
-node scripts/shukka-upload.mjs
+node apps/shukka/scripts/shukka-upload.mjs
 ```
 
 ### Custom release metadata
@@ -221,9 +221,11 @@ release, so a half-finished upload never reaches a user.
 ## Develop
 
 ```bash
-npm run dev        # panel + API on :3000
-npm run check      # lint, typecheck, tests
-npm run db:generate # regenerate migrations after editing src/db/schema.ts
+ni                              # install the workspace
+nr --filter shukka dev          # panel + API on :3000
+nr --filter shukka check        # lint, typecheck, tests
+nr --filter shukka db:generate  # regenerate migrations after editing src/db/schema.ts
+nr --filter shukka-docs dev     # public docs site
 ```
 
 The GitHub Action is a JavaScript action (`using: node24`) so it does not need
@@ -235,17 +237,16 @@ the JuiceFS S3 gateway; Windows action e2e stays on MinIO. See
 
 ## Documentation
 
-User-facing docs live in [`shukka-app/docs`](https://github.com/shukka-app/docs).
-In-repo notes:
+User-facing docs live in [`apps/docs`](apps/docs). In-repo notes:
 
 | Path | Contents |
 |------|----------|
-| `docs/prd/` | Product requirements |
-| `docs/prd/deploy.md` | Self-host the Shukka server |
-| `deploy/compose.yaml` | Compose example (Shukka + MinIO) |
-| `deploy/ansible/playbook.yml` | Ansible playbook for that Compose file |
-| `docs/adr/` | Architecture decisions and their trade-offs |
-| `docs/spec.md` | Terminology, HTTP contracts, system invariants |
+| `apps/shukka/docs/prd/` | Product requirements |
+| `apps/shukka/docs/prd/deploy.md` | Self-host the Shukka server |
+| `apps/shukka/deploy/compose.yaml` | Compose example (Shukka + MinIO) |
+| `apps/shukka/deploy/ansible/playbook.yml` | Ansible playbook for that Compose file |
+| `apps/shukka/docs/adr/` | Architecture decisions and their trade-offs |
+| `apps/shukka/docs/spec.md` | Terminology, HTTP contracts, system invariants |
 | `.agents/skills/shukka-ops/references/api.md` | Full API reference |
 
 ## License

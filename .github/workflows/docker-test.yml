@@ -5,36 +5,40 @@ on:
   push:
     branches: [main]
     paths:
-      - Dockerfile
+      - apps/shukka/Dockerfile
       - .dockerignore
       - package.json
-      - package-lock.json
-      - src/**
-      - drizzle/**
-      - public/**
-      - vite.config.ts
-      - tsconfig.json
-      - scripts/shukka-upload.mjs
-      - scripts/updaters/**
-      - tests/e2e/**
-      - deploy/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/shukka/package.json
+      - apps/shukka/src/**
+      - apps/shukka/drizzle/**
+      - apps/shukka/public/**
+      - apps/shukka/vite.config.ts
+      - apps/shukka/tsconfig.json
+      - apps/shukka/scripts/shukka-upload.mjs
+      - apps/shukka/scripts/updaters/**
+      - apps/shukka/tests/e2e/**
+      - apps/shukka/deploy/**
       - .github/scripts/**
       - .github/workflows/docker-test.yml
   pull_request:
     paths:
-      - Dockerfile
+      - apps/shukka/Dockerfile
       - .dockerignore
       - package.json
-      - package-lock.json
-      - src/**
-      - drizzle/**
-      - public/**
-      - vite.config.ts
-      - tsconfig.json
-      - scripts/shukka-upload.mjs
-      - scripts/updaters/**
-      - tests/e2e/**
-      - deploy/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - apps/shukka/package.json
+      - apps/shukka/src/**
+      - apps/shukka/drizzle/**
+      - apps/shukka/public/**
+      - apps/shukka/vite.config.ts
+      - apps/shukka/tsconfig.json
+      - apps/shukka/scripts/shukka-upload.mjs
+      - apps/shukka/scripts/updaters/**
+      - apps/shukka/tests/e2e/**
+      - apps/shukka/deploy/**
       - .github/scripts/**
       - .github/workflows/docker-test.yml
 
@@ -70,7 +74,7 @@ jobs:
         run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
 
       - name: Build the image
-        run: docker build -t shukka:test .
+        run: docker build -t shukka:test -f apps/shukka/Dockerfile .
 
       - name: Start MinIO
         run: node .github/scripts/start-s3.mjs minio
@@ -104,7 +108,7 @@ jobs:
           SHUKKA_RELEASE: 'true'
         run: |
           node .github/scripts/fake-release.mjs out "1.2.${{ github.run_number }}"
-          node scripts/shukka-upload.mjs
+          node apps/shukka/scripts/shukka-upload.mjs
 
       - name: Verify the update feed serves the new version
         run: |
@@ -121,13 +125,13 @@ jobs:
             "$SHUKKA_URL/api/update/demo-app/stable" "${{ steps.publish.outputs.version }}"
 
       - name: Install electron-updater e2e
-        run: npm ci --prefix tests/e2e
+        run: npm ci --prefix apps/shukka/tests/e2e
 
       - name: electron-updater check and download
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2t64
-          xvfb-run -a node tests/e2e/run.mjs
+          xvfb-run -a node apps/shukka/tests/e2e/run.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -138,7 +142,7 @@ jobs:
           ELECTRON_DISABLE_SANDBOX: '1'
 
       - name: electron-updater rollback
-        run: xvfb-run -a node tests/e2e/run-rollback.mjs
+        run: xvfb-run -a node apps/shukka/tests/e2e/run-rollback.mjs
         env:
           SHUKKA_URL: ${{ env.SHUKKA_URL }}
           SHUKKA_API_KEY: ${{ steps.provision.outputs.api-key }}
@@ -158,7 +162,7 @@ jobs:
       SHUKKA_URL: http://localhost:3000
       MINIO_URL: http://minio:9000
       SHUKKA_IMAGE: shukka:test
-      COMPOSE_FILE: deploy/compose.yaml
+      COMPOSE_FILE: apps/shukka/deploy/compose.yaml
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -170,7 +174,7 @@ jobs:
         run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
 
       - name: Build the image
-        run: docker build -t shukka:test .
+        run: docker build -t shukka:test -f apps/shukka/Dockerfile .
 
       - name: Start the Compose example
         run: docker compose up -d
@@ -201,7 +205,7 @@ jobs:
           SHUKKA_RELEASE: 'true'
         run: |
           node .github/scripts/fake-release.mjs out "1.2.${{ github.run_number }}"
-          node scripts/shukka-upload.mjs
+          node apps/shukka/scripts/shukka-upload.mjs
 
       - name: Verify the update feed serves the new version
         run: |
@@ -239,7 +243,7 @@ jobs:
         run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
 
       - name: Build the image
-        run: docker build -t shukka:test .
+        run: docker build -t shukka:test -f apps/shukka/Dockerfile .
 
       - name: Install ansible-core
         run: sudo apt-get update && sudo apt-get install -y ansible-core
@@ -248,7 +252,7 @@ jobs:
         run: |
           ansible-playbook -i localhost, -c local \
             -e shukka_image=shukka:test \
-            deploy/ansible/playbook.yml
+            apps/shukka/deploy/ansible/playbook.yml
 
       - name: Health, non-root, fresh setup
         run: node .github/scripts/assert-container.mjs shukka --wait --fresh
@@ -271,7 +275,7 @@ jobs:
           SHUKKA_RELEASE: 'true'
         run: |
           node .github/scripts/fake-release.mjs out "1.2.${{ github.run_number }}"
-          node scripts/shukka-upload.mjs
+          node apps/shukka/scripts/shukka-upload.mjs
 
       - name: Verify the update feed serves the new version
         run: |

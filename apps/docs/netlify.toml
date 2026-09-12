@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_PUBLIC_SITE_URL = "https://shukka.akr.moe"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
