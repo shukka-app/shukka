@@ -10,11 +10,13 @@ COPY apps/docs/package.json apps/docs/package.json
 COPY packages/store/package.json packages/store/package.json
 COPY packages/store-sqlite/package.json packages/store-sqlite/package.json
 COPY packages/store-postgres/package.json packages/store-postgres/package.json
+COPY packages/store-mysql/package.json packages/store-mysql/package.json
 RUN pnpm install --frozen-lockfile --filter shukka...
 
 COPY packages/store ./packages/store
 COPY packages/store-sqlite ./packages/store-sqlite
 COPY packages/store-postgres ./packages/store-postgres
+COPY packages/store-mysql ./packages/store-mysql
 COPY apps/shukka ./apps/shukka
 WORKDIR /workspace/apps/shukka
 RUN pnpm build
@@ -39,6 +41,7 @@ RUN apk add --no-cache ca-certificates wget \
 COPY --from=build --chown=node:node /workspace/apps/shukka/.output ./.output
 COPY --from=build --chown=node:node /workspace/packages/store-sqlite/drizzle ./drizzle
 COPY --from=build --chown=node:node /workspace/packages/store-postgres/drizzle ./drizzle-postgres
+COPY --from=build --chown=node:node /workspace/packages/store-mysql/drizzle ./drizzle-mysql
 COPY apps/shukka/deploy/litestream/litestream.yml /etc/litestream.yml
 COPY apps/shukka/deploy/litestream/entrypoint.sh /usr/local/bin/shukka-entrypoint
 

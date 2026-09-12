@@ -25,6 +25,8 @@ jobs:
       - run: pnpm --filter @shukka/store-sqlite test
       - run: pnpm --filter @shukka/store-postgres lint
       - run: pnpm --filter @shukka/store-postgres typecheck
+      - run: pnpm --filter @shukka/store-mysql lint
+      - run: pnpm --filter @shukka/store-mysql typecheck
       - run: pnpm --filter shukka build
 
   postgres:
@@ -55,6 +57,37 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @shukka/store-postgres test
+      - run: pnpm --filter shukka test
+
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_USER: shukka
+          MYSQL_PASSWORD: shukka
+          MYSQL_DATABASE: shukka
+          MYSQL_ROOT_PASSWORD: shukka
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -ushukka -pshukka"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SHUKKA_DB_DRIVER: mysql
+      SHUKKA_DB_URL: mysql://shukka:shukka@127.0.0.1:3306/shukka
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shukka/store-mysql test
       - run: pnpm --filter shukka test
 
   docs:

@@ -10,6 +10,13 @@ async function bootStore(): Promise<Store> {
     const { postgresAdapter } = await import('@shukka/store-postgres')
     return postgresAdapter.boot()
   }
+  if (driver === 'mysql') {
+    if (runtime !== 'node') {
+      throw new Error('SHUKKA_DB_DRIVER=mysql is not supported on Cloudflare Workers')
+    }
+    const { mysqlAdapter } = await import('@shukka/store-mysql')
+    return mysqlAdapter.boot()
+  }
   if (driver !== 'sqlite') {
     throw new Error(`Unknown SHUKKA_DB_DRIVER: ${driver}`)
   }

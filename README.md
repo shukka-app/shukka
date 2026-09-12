@@ -85,10 +85,10 @@ secret as well. A database without the key cannot decrypt stored S3 secrets.
 `GET /api/health` is the liveness probe (`200 { status: "ok", db: "ok" }`, or
 `503` when the metadata store is down). The image runs as `node` and health-checks that path.
 
-Postgres is opt-in (`SHUKKA_DB_DRIVER=postgres` plus a Postgres URL). It is **not**
-the Docker default; the image and `apps/shukka/deploy/compose.yaml` still use SQLite.
-An optional overlay is `apps/shukka/deploy/compose.postgres.yaml`. Cloudflare Workers
-cannot use Postgres.
+Postgres and MySQL are opt-in (`SHUKKA_DB_DRIVER=postgres` or `mysql` plus a matching
+URL). They are **not** the Docker default; the image and `apps/shukka/deploy/compose.yaml`
+still use SQLite. Optional overlays are `apps/shukka/deploy/compose.postgres.yaml` and
+`apps/shukka/deploy/compose.mysql.yaml`. Cloudflare Workers cannot use Postgres or MySQL.
 
 Forgot the admin password: delete the singleton `admin` row (`id = 1`) and reopen
 `/setup`. That is the ADR recovery path (`apps/shukka/docs/adr/auth-model.md`) — there is no
@@ -100,13 +100,13 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 |----------|---------|---------|
 | `PORT` | `3000` | HTTP port |
 | `SHUKKA_DATA_DIR` | `./data` | Database location; default `encryption.key` is created here when neither key env var is set |
-| `SHUKKA_DB_DRIVER` | unset (`sqlite`) | Metadata adapter. Unset/`sqlite` is the default. `postgres` requires a Postgres URL. Not the Docker default. |
+| `SHUKKA_DB_DRIVER` | unset (`sqlite`) | Metadata adapter. Unset/`sqlite` is the default. `postgres` / `mysql` require a matching URL. Not the Docker default. |
 | `SHUKKA_DB_PATH` | `{data}/shukka.db` | Override the database file |
 | `SHUKKA_ENCRYPTION_KEY_FILEPATH` | unset | Read the 32-byte hex AES key from this file (do not set together with `SHUKKA_ENCRYPTION_KEY`) |
 | `SHUKKA_ENCRYPTION_KEY` | unset | The same hex key as a value (never writes a key file) |
 | `SHUKKA_SECURE_COOKIES` | unset | Set `1` to force `Secure` on the session cookie (or terminate TLS and forward `X-Forwarded-Proto: https`) |
 | `SHUKKA_PASSWORD_HASH` | unset (`scrypt`) | Password KDF for **first setup only**: unset/`scrypt` → `scrypt$…`; `pbkdf2` → `pbkdf2$…`. Locked after init |
-| `SHUKKA_DB_URL` | unset | Postgres URL when `SHUKKA_DB_DRIVER=postgres`; otherwise remote libsql URL (cloud isolates) |
+| `SHUKKA_DB_URL` | unset | Postgres URL when `SHUKKA_DB_DRIVER=postgres`; MySQL URL when `mysql`; otherwise remote libsql URL (cloud isolates) |
 | `SHUKKA_DB_AUTH_TOKEN` | unset | Remote libsql token (cloud isolates, optional) |
 
 ## Publish a release

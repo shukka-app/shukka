@@ -21,6 +21,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@shukka/store-postgres': fileURLToPath(new URL('./src/lib/store-postgres-stub.ts', import.meta.url)),
+      '@shukka/store-mysql': fileURLToPath(new URL('./src/lib/store-mysql-stub.ts', import.meta.url)),
     },
   },
   plugins: [
