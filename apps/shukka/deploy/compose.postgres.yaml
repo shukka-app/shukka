@@ -1,0 +1,41 @@
+# Optional Postgres overlay. The default compose.yaml stays SQLite.
+#
+#   docker compose -f apps/shukka/deploy/compose.yaml \
+#     -f apps/shukka/deploy/compose.postgres.yaml up -d
+#
+# The published image still defaults to SQLite. This file only adds a Postgres
+# process and points Shukka at it. Do not use this as the default stack.
+#
+# Then open http://localhost:3000 as with the SQLite compose example.
+
+name: shukka
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: shukka-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shukka
+      POSTGRES_PASSWORD: shukka
+      POSTGRES_DB: shukka
+    volumes:
+      - shukka-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shukka -d shukka"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  shukka:
+    environment:
+      SHUKKA_DB_DRIVER: postgres
+      SHUKKA_DB_URL: postgres://shukka:shukka@postgres:5432/shukka
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+volumes:
+  shukka-postgres:
