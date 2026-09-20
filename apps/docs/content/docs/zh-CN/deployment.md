@@ -54,6 +54,37 @@ ansible-playbook -i inventory.ini apps/shukka/deploy/ansible/playbook.yml
 5. 创建应用时测试存储连接；测试失败不会保存。
 6. 用下文「探活 / 冒烟」确认服务正常。
 
+### 使用 MySQL / PostgreSQL
+
+上面的两个 overlay **二选一**。示例和 CI 使用 MySQL 8.4 / PostgreSQL 17；这不是对其他版本或 MariaDB 兼容性的承诺。overlay 中的 `shukka` 密码仅供演示，部署前同时修改数据库密码和 Shukka 连接串。数据库容器通过健康检查后，Shukka 才会启动。
+
+已有数据库时，无需启动 overlay 中的数据库容器。先创建专用数据库和账号：账号须能读写业务表，并具有启动迁移所需的建表、建索引和修改表结构权限。再通过权限受限的环境文件传给 Shukka（以下两组选一）：
+
+```dotenv
+# MySQL
+SHUKKA_DB_DRIVER=mysql
+SHUKKA_DB_URL=mysql://shukka:URL_ENCODED_PASSWORD@db.example.com:3306/shukka
+```
+
+```dotenv
+# PostgreSQL
+SHUKKA_DB_DRIVER=postgres
+SHUKKA_DB_URL=postgres://shukka:URL_ENCODED_PASSWORD@db.example.com:5432/shukka
+```
+
+```bash
+docker run -d --name shukka --restart unless-stopped \
+  --env-file ./shukka.env \
+  -p 127.0.0.1:3000:3000 -v shukka-data:/data \
+  ghcr.io/shukka-app/shukka
+```
+
+连接串里的用户名和密码需做 URL 编码，尤其是 `@`、`:`、`/`、`#` 等字符。主机名必须能从 Shukka 容器访问；容器内 `localhost` 指向容器自身。托管数据库要求 TLS 时，须按所用驱动（MySQL：mysql2；PostgreSQL：postgres.js）及服务商配置连接参数和证书；前面的 HTTP 反向代理不会为数据库连接提供 TLS。
+
+必须同时设置 driver 和 URL，不会按 URL 自动选择适配器。首次启动会自动建表，后续启动会执行待应用的 schema 迁移；不需要在生产运行 `db:generate`。加密密钥仍独立于数据库，保留 `/data` 卷，或显式提供并备份同一个 `SHUKKA_ENCRYPTION_KEY`。
+
+**切驱动不迁移旧数据。** 没有内置的 SQLite / PostgreSQL / MySQL 跨引擎导入工具。指向新空库会重新进入 setup，旧应用和版本不会自动出现。先备份原库与密钥，保留原配置；不要把重新 setup 当成迁移完成。换用外部数据库也不等于已支持多实例 / HA。
+
 ## 从源码 + systemd
 
 需要 Node 24（与 CI / `Dockerfile` 一致）。
@@ -140,6 +171,8 @@ Shukka **不**随镜像带对象存储。需要自建 S3 时用 [`apps/shukka/de
 
 ## 备份与升级
 
+### SQLite
+
 **默认与 filepath 模式：**备份边界是整个数据目录（默认 `./data` / 容器内 `/data`）：`shukka.db`、WAL（`shukka.db-wal` / `shukka.db-shm`）、以及 `encryption.key`（或 `SHUKKA_ENCRYPTION_KEY_FILEPATH` / `SHUKKA_KEY_PATH` 指向的文件）。只拷数据库、丢掉密钥，就解不开已存的 S3 secret。
 
 **`SHUKKA_ENCRYPTION_KEY` 模式：**备份是数据库目录 **加上** 该环境变量里的密钥。进程不会写密钥文件。丢掉这个值等同丢掉 `encryption.key`。
@@ -154,7 +187,17 @@ sqlite3 /data/shukka.db ".backup /tmp/shukka-backup.db"
 
 要一份持续更新的异地副本，或跑在容器盘短暂、没有可靠本地卷的平台上，见 [Litestream 复制](/zh-CN/docs/litestream)——镜像已内置，加几个环境变量即可。
 
-升级：拉新镜像或 `git pull && ni && nr --filter shukka build`，停旧进程，用同一数据目录启动新进程。启动时 `boot()` 会自动 migrate。同一数据目录不要同时跑两个 Shukka 进程。回滚：换回旧镜像 / 旧构建，保留数据目录。
+### MySQL / PostgreSQL
+
+只备份 Shukka 的 `/data` **不包含** MySQL / PostgreSQL 中的元数据。备份必须包含数据库（MySQL 用 `mysqldump`，PostgreSQL 用 `pg_dump`，或使用服务商的一致性备份）和原来的加密密钥。Litestream 只复制 SQLite，不备份这两种数据库。
+
+恢复时先停 Shukka 写入，把备份恢复到对应引擎的空库（MySQL 用 `mysql` 导入 SQL；PostgreSQL 根据备份格式用 `psql` 或 `pg_restore`），再设置该库的连接串并恢复同一个密钥。先用备份时的 Shukka 镜像验证恢复：检查 `/api/health`、管理员登录、已有应用和 S3 存储访问。验证通过后再升级。S3 制品仍需单独备份。
+
+### 升级与回滚
+
+升级前备份数据库和密钥，记录当前镜像 tag / digest。停旧进程，保留原数据库连接和密钥，用新镜像启动；`boot()` 会自动执行 schema 迁移。不要同时启动多个进程来尝试修复迁移失败。
+
+只有旧版本兼容迁移后的 schema 时，才能直接换回旧镜像。否则应停写并恢复升级前的数据库备份及对应密钥，再运行旧镜像；恢复备份会丢失备份之后的写入。
 
 ## 探活 / 冒烟
 
@@ -168,13 +211,15 @@ curl -sS "$SHUKKA_URL/api/health"
 
 ## 忘记密码
 
-没有邮箱找回。停掉写入后打开数据目录里的 SQLite，删掉管理员行与 session，重启后重走 setup：
+没有邮箱找回。停掉 Shukka 写入，在实际使用的数据库中删除管理员行与 session，重启后重走 setup。SQLite 示例：
 
 ```bash
 sqlite3 /var/lib/shukka/shukka.db "DELETE FROM admin; DELETE FROM sessions;"
 ```
 
-Docker 卷里默认在 `/data/shukka.db`。删的是密码与登录态，app / channel / 版本记录还在。
+MySQL / PostgreSQL：连接 `SHUKKA_DB_URL` 指定的数据库，执行 `DELETE FROM sessions; DELETE FROM admin;`。
+
+SQLite 在 Docker 卷里默认位于 `/data/shukka.db`。删的是密码与登录态，app / channel / 版本记录还在。
 
 要把口令哈希算法换掉（例如迁到 Cloudflare Workers Free 前把 `scrypt$` 换成 `pbkdf2$`）也走这条路。新的 setup **之前**设好 `SHUKKA_PASSWORD_HASH`。不要手改 `admin.password_hash`。
 
@@ -193,3 +238,5 @@ Workers 上对远程库执行同一段 SQL。见 [Cloudflare Workers](/zh-CN/doc
 | CI finalize 成功但客户端下不下来 | 客户端到 S3 不通 |
 | 登录成功但 cookie 没带上 | 面板 origin 与 API origin 不一致（反代拆了主机名） |
 | 升级后数据没了 | 新容器没挂原来的卷 |
+
+MySQL / PostgreSQL 启动失败时，先检查 driver 和 URL 是否同时设置、容器网络和数据库就绪状态、账号密码及迁移权限。日志提示迁移文件缺失时检查镜像 / 构建产物；卡在迁移锁时检查其他启动进程。不要删除迁移记录绕过错误。重启后回到 setup 也可能是连接到了另一个空库，应先核对 URL。

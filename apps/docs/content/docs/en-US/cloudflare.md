@@ -41,7 +41,7 @@ npx wrangler secret put SHUKKA_PASSWORD_HASH   # pbkdf2 — only needed before f
 | Secret | Required | Notes |
 |------|------|------|
 | `SHUKKA_ENCRYPTION_KEY` | Yes | 64 hex characters (32 bytes). Generate with `openssl rand -hex 32`. Filepath / `SHUKKA_ENCRYPTION_KEY_FILEPATH` / `SHUKKA_KEY_PATH` are not supported on Workers. |
-| `SHUKKA_DB_URL` | Yes | Remote libsql HTTP URL. Node self-hosting does not read this variable. |
+| `SHUKKA_DB_URL` | Yes | Must be a remote libsql HTTP URL here. Node self-hosting also reads this variable, with the database type selected by `SHUKKA_DB_DRIVER`; Workers do not support MySQL / PostgreSQL. |
 | `SHUKKA_DB_AUTH_TOKEN` | If the database requires it | Optional token for that URL. |
 | `SHUKKA_PASSWORD_HASH` | Before first setup | Must be `pbkdf2` on Cloudflare Free. After setup, changing this variable is a no-op. |
 

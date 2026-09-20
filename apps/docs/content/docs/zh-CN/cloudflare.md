@@ -41,7 +41,7 @@ npx wrangler secret put SHUKKA_PASSWORD_HASH   # pbkdf2 —— 仅首次 setup �
 | Secret | 是否必填 | 说明 |
 |------|------|------|
 | `SHUKKA_ENCRYPTION_KEY` | 是 | 64 位 hex（32 字节）。可用 `openssl rand -hex 32` 生成。Workers 上不支持 filepath / `SHUKKA_ENCRYPTION_KEY_FILEPATH` / `SHUKKA_KEY_PATH`。 |
-| `SHUKKA_DB_URL` | 是 | 远程 libsql HTTP URL。Node 自托管不读此变量。 |
+| `SHUKKA_DB_URL` | 是 | 此处须为远程 libsql HTTP URL。Node 自托管也读取此变量，数据库类型由 `SHUKKA_DB_DRIVER` 决定；Workers 不支持 MySQL / PostgreSQL。 |
 | `SHUKKA_DB_AUTH_TOKEN` | 库要求时 | 该 URL 的可选 token。 |
 | `SHUKKA_PASSWORD_HASH` | 首次 setup 前 | Cloudflare Free 上必须是 `pbkdf2`。setup 之后再改此变量无效。 |
 

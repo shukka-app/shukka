@@ -54,6 +54,37 @@ The same image can also be deployed with [Kamal](/en-US/docs/kamal): `kamal setu
 5. Test the storage connection when creating an app. A failed test is not saved.
 6. Confirm the service with the “Health / smoke” section below.
 
+### Using MySQL / PostgreSQL
+
+Choose **one** of the two overlays above. The examples and CI use MySQL 8.4 / PostgreSQL 17; this does not promise compatibility with other versions or MariaDB. The `shukka` passwords in the overlays are examples: replace both the database password and Shukka connection URL before deployment. Shukka starts after the database container passes its health check.
+
+For an existing database, you do not need the database container from the overlay. Create a dedicated database and account first. The account needs read/write access to application tables and permission to create tables, create indexes, and alter tables for startup migrations. Pass one of these configurations through an environment file with restricted file permissions:
+
+```dotenv
+# MySQL
+SHUKKA_DB_DRIVER=mysql
+SHUKKA_DB_URL=mysql://shukka:URL_ENCODED_PASSWORD@db.example.com:3306/shukka
+```
+
+```dotenv
+# PostgreSQL
+SHUKKA_DB_DRIVER=postgres
+SHUKKA_DB_URL=postgres://shukka:URL_ENCODED_PASSWORD@db.example.com:5432/shukka
+```
+
+```bash
+docker run -d --name shukka --restart unless-stopped \
+  --env-file ./shukka.env \
+  -p 127.0.0.1:3000:3000 -v shukka-data:/data \
+  ghcr.io/shukka-app/shukka
+```
+
+URL-encode the username and password, especially characters such as `@`, `:`, `/`, and `#`. The database hostname must be reachable from the Shukka container; `localhost` inside it refers to that container. If your database provider requires TLS, configure connection parameters and certificates for the driver (mysql2 for MySQL; postgres.js for PostgreSQL) and provider. The HTTP reverse proxy does not secure the database connection.
+
+Set both the driver and URL: the URL does not automatically select an adapter. Startup creates tables and applies pending schema migrations; do not run `db:generate` in production. The encryption key remains separate from the database. Keep the `/data` volume, or explicitly supply and back up the same `SHUKKA_ENCRYPTION_KEY`.
+
+**Changing drivers does not migrate existing data.** There is no built-in cross-engine import tool for SQLite / PostgreSQL / MySQL. Pointing at a new empty database returns to setup; existing apps and releases do not appear automatically. Back up the original database and key and retain the original configuration. Completing setup is not a data migration. An external database also does not imply support for multiple instances / HA.
+
 ## From source + systemd
 
 You need Node 24 (same as CI / `Dockerfile`).
@@ -140,6 +171,8 @@ Shukka does **not** ship object storage in the image. If you need self-hosted S3
 
 ## Backup and upgrade
 
+### SQLite
+
 **Default and filepath modes:** the backup boundary is the entire data directory (default `./data` / `/data` in the container): `shukka.db`, WAL (`shukka.db-wal` / `shukka.db-shm`), and `encryption.key` (or the file named by `SHUKKA_ENCRYPTION_KEY_FILEPATH` / `SHUKKA_KEY_PATH`). Copying only the database and dropping the key makes stored S3 secrets unreadable.
 
 **`SHUKKA_ENCRYPTION_KEY` mode:** back up the database directory **and** that secret. The process never writes a key file. Losing the value is the same failure as losing `encryption.key`.
@@ -154,7 +187,17 @@ and copy the key file at the same time. Artifacts live in each app's bucket. Man
 
 For a continuously updated off-host copy, or for platforms with an ephemeral container filesystem and no reliable local volume, see [Litestream](/en-US/docs/litestream) — it is built into the image and only takes a few environment variables.
 
-Upgrade: pull a new image or `git pull && ni && nr --filter shukka build`, stop the old process, and start the new process with the same data directory. Migrations run automatically on startup (`boot()`). Do not run two Shukka processes against the same data directory. Rollback: switch back to the old image / old build and keep the data directory.
+### MySQL / PostgreSQL
+
+Backing up Shukka's `/data` alone **does not include** metadata in MySQL / PostgreSQL. Back up the database (`mysqldump` for MySQL, `pg_dump` for PostgreSQL, or a consistent provider backup) and the original encryption key. Litestream only replicates SQLite; it does not back up either of these databases.
+
+To restore, stop Shukka writes and restore into an empty database of the same engine (`mysql` for a MySQL SQL dump; `psql` or `pg_restore` for PostgreSQL, depending on the backup format). Point Shukka at that database and restore the same key. Use the Shukka image from the time of the backup first: verify `/api/health`, admin login, existing apps, and S3 storage access before upgrading. Back up S3 artifacts separately.
+
+### Upgrades and rollbacks
+
+Before upgrading, back up the database and key and record the current image tag / digest. Stop the old process and start the new image with the same database connection and key; `boot()` automatically applies schema migrations. Do not start multiple processes to try to repair a failed migration.
+
+Switching back to the old image is only sufficient if it supports the migrated schema. Otherwise, stop writes, restore the pre-upgrade database backup and matching key, then run the old image. Restoring a backup discards writes made since that backup.
 
 ## Health / smoke
 
@@ -168,13 +211,15 @@ curl -sS "$SHUKKA_URL/api/health"
 
 ## Forgotten password
 
-There is no email reset. Stop writes, open the SQLite file in the data directory, delete the admin row and sessions, then restart and go through setup again:
+There is no email reset. Stop Shukka writes, delete the admin row and sessions in the database actually in use, then restart and go through setup again. For SQLite:
 
 ```bash
 sqlite3 /var/lib/shukka/shukka.db "DELETE FROM admin; DELETE FROM sessions;"
 ```
 
-On a Docker volume the default path is `/data/shukka.db`. This deletes the password and login state. App / channel / version records remain.
+For MySQL / PostgreSQL, connect to the database specified by `SHUKKA_DB_URL` and run `DELETE FROM sessions; DELETE FROM admin;`.
+
+For SQLite, the default path on a Docker volume is `/data/shukka.db`. This deletes the password and login state. App / channel / version records remain.
 
 The same steps are how you change the password-hash algorithm (for example `scrypt$` → `pbkdf2$` before moving to Cloudflare Workers Free). Set `SHUKKA_PASSWORD_HASH` **before** the new setup. Do not rewrite `admin.password_hash` by hand.
 
@@ -193,3 +238,5 @@ On Workers, run that SQL against the remote database. See [Cloudflare Workers](/
 | CI finalize succeeds but clients cannot download | Client cannot reach S3 |
 | Sign-in succeeds but the cookie is not set | Panel origin and API origin differ (the proxy split hostnames) |
 | Data is gone after upgrade | The new container did not mount the original volume |
+
+If MySQL / PostgreSQL startup fails, check that both driver and URL are set, then check container networking, database readiness, credentials, and migration permissions. Missing migration files indicate an image / build problem; waiting on a migration lock calls for checking other starting processes. Do not delete migration records to bypass errors. Returning to setup can also mean the URL points at another empty database; verify it first.
