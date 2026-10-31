@@ -128,7 +128,8 @@
                 "enum": [
                   "electron",
                   "tauri",
-                  "sparkle"
+                  "sparkle",
+                  "sdk"
                 ]
               },
               "createdAt": {
@@ -370,7 +371,8 @@
                 "enum": [
                   "electron",
                   "tauri",
-                  "sparkle"
+                  "sparkle",
+                  "sdk"
                 ]
               },
               "createdAt": {
@@ -447,7 +449,8 @@
             "enum": [
               "electron",
               "tauri",
-              "sparkle"
+              "sparkle",
+              "sdk"
             ]
           }
         },

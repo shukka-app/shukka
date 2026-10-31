@@ -682,4 +682,20 @@ describe('dashboard appDetail shape', () => {
     expect(detail.channels[0]?.currentVersionId).toBeNull()
     expect((await appSummaries())[0]?.channels).toEqual([{ id: detail.channels[0]?.id, name: 'stable', currentVersion: null }])
   })
+
+  it('publishes an SDK app without metadata and serves every file as an artifact', async () => {
+    const app = await createApp({ ...appInput, updaterKind: 'sdk' })
+    const init = await initUpload(app, {
+      channel: 'stable',
+      version: '1.4.2',
+      files: [{ filename: 'App-1.4.2.dmg' }, { filename: 'App-1.4.2.exe' }, { filename: 'notes.yml' }],
+    })
+    for (const file of init.files) objects.set(file.key, 'binary')
+
+    const result = await finalizeUpload(app, init.uploadId, { release: true })
+    expect(result.artifacts.map((artifact) => artifact.kind)).toEqual(['artifact', 'artifact', 'artifact'])
+
+    await expect(resolveFeedRequest('acme', 'stable', 'App-1.4.2.dmg', ORIGIN)).resolves.toMatchObject({ kind: 'redirect' })
+    await expect(resolveFeedRequest('acme', 'stable', 'notes.yml', ORIGIN)).resolves.toMatchObject({ kind: 'redirect' })
+  })
 })

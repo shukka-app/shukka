@@ -46,7 +46,7 @@ export const apps = mysqlTable('apps', {
   releaseLogLocales: text('release_log_locales').notNull().default('[]'),
   releaseLogFallbackLocale: varchar('release_log_fallback_locale', { length: 32 }).notNull().default('en-US'),
   /** Which client feed this app serves. Set at create; not changed afterwards. */
-  updaterKind: varchar('updater_kind', { length: 16, enum: ['electron', 'tauri', 'sparkle'] })
+  updaterKind: varchar('updater_kind', { length: 16, enum: ['electron', 'tauri', 'sparkle', 'sdk'] })
     .notNull()
     .default('electron'),
   createdAt: int('created_at').notNull().default(now),

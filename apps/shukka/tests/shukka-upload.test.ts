@@ -15,7 +15,7 @@ const { apiRequest, collectFiles, detectUpdaterKind, finalizeWithRetry, parseApi
   parseApiBody: (text: string) => unknown
   parseReleaseMetadata: (text: string) => Record<string, unknown>
   collectFiles: (directory: string, kind?: string) => Promise<CollectedFile[]>
-  detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri' | 'sparkle'>
+  detectUpdaterKind: (directory: string, override?: string) => Promise<'electron' | 'tauri' | 'sparkle' | 'sdk'>
   versionFromMetadata: (
     files: { filename: string; path: string }[],
     directory?: string,
@@ -172,6 +172,31 @@ describe('detectUpdaterKind', () => {
     expect(await detectUpdaterKind(mixed, 'tauri')).toBe('tauri')
     expect(await detectUpdaterKind(mixed, 'electron')).toBe('electron')
     expect(await detectUpdaterKind(mixed, 'sparkle')).toBe('sparkle')
+    expect(await detectUpdaterKind(mixed, 'sdk')).toBe('sdk')
+  })
+
+  it('never infers sdk from the directory, but collects it free-form when requested', async () => {
+    const directory = tempDir()
+    write(join(directory, 'App-1.4.2.dmg'), 'dmg')
+    write(join(directory, 'App-1.4.2.exe'), 'exe')
+    write(join(directory, 'builder-debug.yml'), 'debug: true\n')
+    write(join(directory, 'builder-effective-config.yaml'), 'config: true\n')
+    write(join(directory, 'notes.json'), '{}')
+    write(join(directory, '.DS_Store'), 'junk')
+    mkdirSync(join(directory, 'nested'))
+    write(join(directory, 'nested', 'ignored.bin'), 'nope')
+
+    expect(await detectUpdaterKind(directory)).toBe('electron')
+    expect(await detectUpdaterKind(directory, 'sdk')).toBe('sdk')
+
+    const files = await collectFiles(directory, 'sdk')
+    expect(files.map((file) => file.filename)).toEqual([
+      'App-1.4.2.dmg',
+      'App-1.4.2.exe',
+      'builder-debug.yml',
+      'builder-effective-config.yaml',
+      'notes.json',
+    ])
   })
 
   it('infers sparkle from appcast.xml or a zip+.sig pair, not from a lone .sig', async () => {
@@ -287,6 +312,18 @@ describe('versionFromMetadata', () => {
       /process\.exit\(1\)/,
     )
     expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/latest\*\.yml/))
+
+    exit.restore()
+  })
+
+  it('requires an explicit version for SDK releases', async () => {
+    const exit = mockExit()
+
+    await expect(
+      versionFromMetadata([{ filename: 'App-1.4.2.dmg', path: '/tmp/App-1.4.2.dmg' }], undefined, 'sdk'),
+    ).rejects.toThrow(/process\.exit\(1\)/)
+    expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/SDK apps have no metadata file/))
+    expect(exit.write).toHaveBeenCalledWith(expect.stringMatching(/SHUKKA_VERSION/))
 
     exit.restore()
   })

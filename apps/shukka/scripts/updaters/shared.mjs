@@ -102,8 +102,10 @@ export async function detectUpdaterKind(directory, override = '') {
   const requested = String(override ?? '')
     .trim()
     .toLowerCase()
-  if (requested === 'electron' || requested === 'tauri' || requested === 'sparkle') return requested
-  if (requested) fail(`Unknown updater kind "${override}". Use electron, tauri, or sparkle.`)
+  if (requested === 'electron' || requested === 'tauri' || requested === 'sparkle' || requested === 'sdk') {
+    return requested
+  }
+  if (requested) fail(`Unknown updater kind "${override}". Use electron, tauri, sparkle, or sdk.`)
 
   const entries = await readdir(directory, { withFileTypes: true })
   if (entries.some((entry) => entry.isFile() && isYmlName(entry.name))) return 'electron'

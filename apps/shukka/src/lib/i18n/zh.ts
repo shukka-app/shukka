@@ -70,11 +70,12 @@ export const zh = {
     kindElectron: 'Electron',
     kindTauri: 'Tauri',
     kindSparkle: 'Sparkle',
+    kindSdk: 'SDK',
     firstRun: {
       title: '发布你的第一个更新',
-      description: 'Shukka 直接从你自己的存储提供 Electron、Tauri 与 Sparkle 更新源。三步即可跑通更新流水线：',
+      description: 'Shukka 直接从你自己的存储提供 Electron、Tauri、Sparkle 更新源，以及可被 SDK 读取的 release 清单。三步即可跑通更新流水线：',
       step1Title: '创建应用',
-      step1Detail: '选择 Electron、Tauri 或 Sparkle，命名并指向一个 S3 存储桶——AWS、R2、MinIO 均可。',
+      step1Detail: '选择 Electron、Tauri、Sparkle 或 SDK，命名并指向一个 S3 存储桶——AWS、R2、MinIO 均可。',
       step2Title: '创建 API key',
       step2Detail: '每个仓库一个 key；它只能发布到所属应用。',
       step3Title: '从 CI 发布',
@@ -281,6 +282,16 @@ export const zh = {
       step2Title: '写入 EdDSA 公钥',
       step2Detail: 'SUPublicEDKey 是 generate_keys 的公钥。Shukka 不保存私钥；sign_update 在你的 CI 里跑。',
       publishDetail: '把 Sparkle 产物目录发布上来的三种方式——按你的流水线任选其一。',
+    },
+    sdk: {
+      step1Title: '安装客户端 SDK',
+      step1Detail:
+        'Shukka 只发布 release 清单——检查、下载与安装都由你的应用自己决定。@shukka/sdk 用 TypeScript/JavaScript 读取清单；其他语言直接以 HTTP 请求同一个公开端点即可。',
+      step2Title: '读取当前版本并下载',
+      step2Detail:
+        'release 端点公开：返回该 channel 的版本、发布时间，以及每个制品的文件名、大小和 URL。文件 URL 会 302 到存储，任意 HTTP 客户端都可流式下载。',
+      publishDetail:
+        '把构建产物目录发布上来的三种方式——按你的流水线任选其一。SDK 应用没有元数据文件，必须显式传版本号。上传成功默认是草稿，更新源看不见；传 release: true 或事后 promote 才会上线。',
     },
     publishTitle: '发布版本',
     githubActionTitle: 'GitHub Action',

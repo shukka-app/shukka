@@ -73,12 +73,14 @@ export const en = {
     kindElectron: 'Electron',
     kindTauri: 'Tauri',
     kindSparkle: 'Sparkle',
+    kindSdk: 'SDK',
     firstRun: {
       title: 'Ship your first update',
       description:
-        'Shukka serves Electron, Tauri, and Sparkle update feeds straight from your own storage. Three steps to a working update pipeline:',
+        'Shukka serves Electron, Tauri, and Sparkle update feeds — plus an SDK-readable release manifest — straight from your own storage. Three steps to a working update pipeline:',
       step1Title: 'Create an app',
-      step1Detail: 'Pick Electron, Tauri, or Sparkle, name it, and point it at an S3 bucket — AWS, R2, and MinIO all work.',
+      step1Detail:
+        'Pick Electron, Tauri, Sparkle, or SDK, name it, and point it at an S3 bucket — AWS, R2, and MinIO all work.',
       step2Title: 'Create an API key',
       step2Detail: 'One key per repository; it can only publish to its own app.',
       step3Title: 'Publish from CI',
@@ -298,6 +300,16 @@ export const en = {
       step2Detail:
         'SUPublicEDKey is the public half of generate_keys. Shukka never stores the private key; sign_update runs in your CI.',
       publishDetail: 'Three ways to get the Sparkle archive directory up — pick whichever fits your pipeline.',
+    },
+    sdk: {
+      step1Title: 'Install the client SDK',
+      step1Detail:
+        'Shukka only publishes the release manifest — checking, downloading and installing belong to your app. @shukka/sdk reads the manifest in TypeScript/JavaScript; any other language can call the same public endpoint over plain HTTP.',
+      step2Title: 'Read the current release and download',
+      step2Detail:
+        'The release endpoint is public: it returns the channel version, release time, and every artifact with a filename, size and URL. File URLs 302 to storage, so any HTTP client can stream them.',
+      publishDetail:
+        'Three ways to get the build directory up — pick whichever fits your pipeline. SDK apps have no metadata file, so the version must be passed explicitly. A successful upload is a draft the feed cannot see until you pass release: true or promote it.',
     },
     publishTitle: 'Publish a release',
     githubActionTitle: 'GitHub Action',
