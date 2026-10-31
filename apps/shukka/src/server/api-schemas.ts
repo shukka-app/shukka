@@ -222,3 +222,15 @@ export const tauriFeedSchema = z.object({
   pub_date: z.string(),
   platforms: z.record(z.string(), z.object({ url: z.string(), signature: z.string() })),
 })
+
+export const channelReleaseResponseSchema = z.object({
+  version: z.string(),
+  releasedAt: unixSeconds,
+  files: z.array(
+    z.object({
+      filename: z.string(),
+      size: z.number().int(),
+      url: z.string(),
+    }),
+  ),
+})

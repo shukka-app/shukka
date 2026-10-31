@@ -215,6 +215,7 @@ const EXPECTED_OPERATION_IDS: Record<string, string> = {
   'PUT /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}': 'upsertNote',
   'DELETE /api/v1/apps/{appSlug}/channels/{channel}/versions/{version}/notes/{locale}': 'deleteNote',
   'GET /api/v1/apps/{appSlug}/channels/{channel}/notes': 'listPublicNotes',
+  'GET /api/v1/apps/{appSlug}/channels/{channel}/release': 'getChannelRelease',
   'PUT /api/v1/apps/{appSlug}/notes-config': 'saveNotesConfig',
   'POST /api/v1/upload/init': 'initUpload',
   'POST /api/v1/upload/finalize': 'finalizeUpload',

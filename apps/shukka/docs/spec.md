@@ -2,7 +2,7 @@
 
 ## Product scope
 
-Shukka 是一个自托管的桌面应用发版管理器：管理面板 + 上传 API + 面向 Electron / Tauri / Sparkle 更新客户端的无鉴权 feed，制品存储在每个 app 自配的 S3 兼容存储中。
+Shukka 是一个自托管的桌面应用发版管理器：管理面板 + 上传 API + 面向 Electron / Tauri / Sparkle 更新客户端的无鉴权 feed + 面向非 updater 客户端的公开 release 清单，制品存储在每个 app 自配的 S3 兼容存储中。
 
 Out of scope until explicitly specified: anything not yet accepted in a PRD.
 
@@ -48,6 +48,13 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 响应为 `{ notes: [{ version, releasedAt, locale, markdown, html, text }] }`；每个版本的 note 按 locale fallback chain 解析到单一 locale，链穷尽则该版本省略 note。
 - 与 feed 同一信任模型：无鉴权；错误响应同一信封 `{ error, message }`。App 未启用 release log 时不返回数据。
 
+### Channel release manifest（无鉴权）
+
+- `GET /api/v1/apps/{appSlug}/channels/{channel}/release` 返回 channel 当前已发布版本的非 updater 清单：`{ version, releasedAt, files: [{ filename, size, url }] }`。`releasedAt` 为 Unix 秒。
+- `files` 只含 `kind: artifact` 的制品，不含 yml / `latest.json` / appcast.xml / `.sig` 等元数据文件；顺序为文件名排序。`url` 为绝对地址，指向本 feed 的 `/api/update/{appSlug}/{channel}/{filename}`，因此下载 302 与命中规则与 feed 完全一致。
+- channel 无已发布的当前版本（含当前版本仍是 draft）、app 或 channel 不存在时 404。与 feed 同一信任模型（无鉴权、同一错误信封），响应 `cache-control: no-store`。
+- 与 `updaterKind` 无关：Electron / Tauri / Sparkle 的 app 都返回同一形状。它不替代 updater feed，也不出现在 feed 文档内。
+
 ### Upload API（Bearer API key）
 
 - `POST /api/v1/upload/init`：body 含 `channel`、`version`、文件清单；返回 pending upload id 与每文件 presigned PUT URL。同 channel 已存在同 version（含 draft）时拒绝。文件清单必须通过该 app adapter 的元数据要求（Electron：至少一个 `.yml`；Tauri：`latest.json` 和/或成对的制品 + `.sig`；Sparkle：`appcast.xml` 和/或成对的制品 + `sign_update` sidecar `.sig`）。
@@ -63,7 +70,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - `GET .../channels/{channel}/versions/{version}/artifacts/{filename}`：对该版本（含 draft）已存文件 302 到短时效 S3 URL；不计入命中。文件不在该版本上 → 404。公开 feed 的 draft≡404 与命中规则不变。
 - `PATCH .../channels/{channel}` 设 `currentVersion`：目标为 draft 时在同一事务写入 `releasedAt` 再切指针（promote）；目标为已发布版本则只切指针（回滚）。
 - 实例级（列/建 app、登录改密、存储探测）与 API key CRUD 仅 session，不在 key 能力面。
-- 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session，英文）只展示 API key（或 session）可调用的操作与公开 feed/notes；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。JSON 请求/响应形状由 Zod 经 `z.toJSONSchema` 写入文档，与路径、方法、参数名、错误码一样不随语言变化。叙事文案（info、tag、summary、description）可生成 English 与简体中文两份；operation `summary` 是短标题（文档站 Scalar 侧栏用它当接口名），细节放 `description`。人类可读文档在 `apps/docs` 按站点语言加载对应快照，不在实例内渲染。
+- 公开 API 文档（`GET /api/v1/openapi.json`，机器可读，session，英文）只展示 API key（或 session）可调用的操作与公开 feed/notes/release manifest；session-only 管理操作（删 app、API key 生命周期、实例级路由）不在文档中。JSON 请求/响应形状由 Zod 经 `z.toJSONSchema` 写入文档，与路径、方法、参数名、错误码一样不随语言变化。叙事文案（info、tag、summary、description）可生成 English 与简体中文两份；operation `summary` 是短标题（文档站 Scalar 侧栏用它当接口名），细节放 `description`。人类可读文档在 `apps/docs` 按站点语言加载对应快照，不在实例内渲染。
 - 制品字节永不经过 Shukka 进程（上传直传 S3，下载 302）。
 - 错误响应统一为 `{ error, message }`，`error` 取自固定码集：`unauthorized`、`forbidden`、`not_found`、`conflict`、`invalid_request`、`storage_error`、`metadata_error`、`rate_limited`。未匹配的 `/api` 路径与已有 `/api` 路由上未实现的 HTTP 方法同样返回该信封的 `not_found`（404），不返回 HTML。
 

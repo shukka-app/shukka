@@ -21,7 +21,7 @@ export const en = {
     versions: { name: 'Versions', description: 'Delete a version; read its notes and trend; download an artifact.' },
     notes: { name: 'Notes', description: 'Per-version release notes (editor) and public read.' },
     upload: { name: 'Upload', description: 'Presigned direct upload; defaults to draft.' },
-    feed: { name: 'Feed', description: 'Public update feed (Electron yml or Tauri JSON) — no auth.' },
+    feed: { name: 'Feed', description: 'Public update feed (Electron yml, Tauri JSON, Sparkle appcast) and release manifest — no auth.' },
   },
   responses: {
     notFound: 'Missing or draft',
@@ -43,6 +43,7 @@ export const en = {
     releaseMetadata: 'Version and custom metadata',
     feedDocument: 'Generated feed document',
     artifactRedirect: 'Artifact redirect',
+    channelRelease: 'Current released version and its files',
   },
   ops: {
     getReleaseMetadata: {
@@ -117,6 +118,11 @@ export const en = {
       summary: 'Get public feed',
       description: 'Electron yml / Tauri latest.json / Sparkle appcast; artifacts 302. Drafts are 404.',
     },
+    getChannelRelease: {
+      summary: 'Get channel release',
+      description:
+        'Format-neutral manifest for non-updater clients: current version, release time, and downloadable artifacts. Lists `kind: artifact` files only; each URL 302s into the feed. 404 when the channel has no released current version.',
+    },
   },
 }
 
@@ -134,7 +140,7 @@ export const zh = {
     versions: { name: '版本', description: '删除版本；读取其 notes 与趋势；下载制品。' },
     notes: { name: '发布说明', description: '按版本的 release notes（编辑面）与公开读取。' },
     upload: { name: '上传', description: '预签名直传；默认落为草稿。' },
-    feed: { name: '更新源', description: '公开更新 feed（Electron yml 或 Tauri JSON）——无需鉴权。' },
+    feed: { name: '更新源', description: '公开更新 feed（Electron yml、Tauri JSON、Sparkle appcast）与发布清单——无需鉴权。' },
   },
   responses: {
     notFound: '不存在或仍为草稿',
@@ -156,6 +162,7 @@ export const zh = {
     releaseMetadata: '版本及自定义 metadata',
     feedDocument: '生成的 feed 文档',
     artifactRedirect: '制品重定向',
+    channelRelease: '当前已发布版本及其文件',
   },
   ops: {
     getReleaseMetadata: {
@@ -229,6 +236,11 @@ export const zh = {
     getFeedFile: {
       summary: '读取公开 feed',
       description: 'Electron yml / Tauri latest.json / Sparkle appcast，制品 302。草稿为 404。',
+    },
+    getChannelRelease: {
+      summary: '读取渠道发布',
+      description:
+        '面向非 updater 客户端的格式无关清单：当前版本、发布时间与可下载制品。仅列 `kind: artifact` 的文件，每个 URL 302 进入 feed。渠道无已发布的当前版本时 404。',
     },
   },
 } satisfies OpenApiCopy

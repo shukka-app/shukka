@@ -18,6 +18,7 @@ import {
   channelCreateResponseSchema,
   channelListResponseSchema,
   channelTrendResponseSchema,
+  channelReleaseResponseSchema,
   createChannelBodySchema,
   editorNotesResponseSchema,
   errorSchema,
@@ -101,6 +102,7 @@ const schemas = {
   OkResponse: jsonSchema(okResponseSchema),
 
   TauriFeed: jsonSchema(tauriFeedSchema),
+  ChannelRelease: jsonSchema(channelReleaseResponseSchema),
 } as const
 
 type SchemaName = keyof typeof schemas
@@ -316,6 +318,18 @@ export function openApiDocument(origin: string, locale: OpenApiLocale = 'en') {
             { name: 'locale', in: 'query', schema: { type: 'string' } },
           ],
           responses: { '200': jsonResponse(t.responses.publicNotes, ref('PublicNotes')) },
+        },
+      },
+      '/api/v1/apps/{appSlug}/channels/{channel}/release': {
+        get: {
+          tags: [t.tags.feed.name],
+          ...operation(t, 'getChannelRelease'),
+          security: [],
+          parameters: [slugParam, channelParam],
+          responses: {
+            '200': jsonResponse(t.responses.channelRelease, ref('ChannelRelease')),
+            '404': notFound,
+          },
         },
       },
       '/api/v1/apps/{appSlug}/notes-config': {
