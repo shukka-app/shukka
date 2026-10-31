@@ -25,11 +25,11 @@ docker run -d --name shukka --restart unless-stopped \
 
 The image is on [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka) and can be pulled without logging in. Pushing a semver tag (`vMAJOR.MINOR.PATCH`) builds and publishes via GitHub Actions. Untagged pulls use `latest`. Pin a version with `ghcr.io/shukka-app/shukka:0.1.0`. To build from source, run `docker build -t shukka -f apps/shukka/Dockerfile .` at the repo root and replace the image name above with `shukka`.
 
-The same stack as Compose (Shukka plus an example MinIO) is [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml). Pin the image with `SHUKKA_IMAGE`:
+The same stack as Compose (Shukka plus an example S3 bucket served by s3proxy) is [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml). Pin the image with `SHUKKA_IMAGE`:
 
 ```bash
 docker compose -f apps/shukka/deploy/compose.yaml up -d
-docker exec minio mkdir -p /data/releases
+docker exec s3proxy mkdir -p /data/releases
 ```
 
 Ansible copies that file onto a host and waits for `/api/health`: [`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml). Docker Compose v2 must already be installed.

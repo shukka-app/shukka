@@ -113,7 +113,7 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - **Finalize 重试**：uploader 对 finalize 的网络错误、429 与 5xx 最多重试 3 次（指数退避）；每次重试前先用绑定 key 读取该版本的 metadata 接口，已存在即视为发布成功，不会重复 finalize。4xx（如 409 / 422）不重试。init 不重试。
 - `action.yml` 与仓库 workflow 必须通过 actionlint。
 - Action e2e 必须在 GitHub-hosted `windows-latest` 上跑通同一条发布路径（init → 直传 → finalize → feed → 宿主平台 electron-updater）。
-- Feed e2e：在真实 MinIO + 已发布版本上，用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。Sparkle：Linux 上断言生成的单 item appcast、enclosure 302 与 EdDSA 字节；`macos-latest` 上的 Action job 用 Sparkle.framework 做真实 `check` + download（不安装）。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`、`docs/adr/sparkle-updater-e2e.md`。
+- Feed e2e：在真实 S3 兼容后端 + 已发布版本上（Linux 矩阵为 s3proxy 与 JuiceFS 网关；Windows / macOS 为 MinIO 二进制），用 Electron library 拉起 `electron-updater`（generic provider）做 check + download + sha512；另用真实 Tauri 进程拉起 `tauri-plugin-updater` 做 check + download + minisign。两者都不测安装。回退 e2e（`tests/e2e/run-rollback.mjs`）连续发布两版后 `PATCH currentVersion` 指回旧已发布版本，确认 feed 与 electron-updater 看到旧版本，被切走的已发布制品仍按文件名 302。Sparkle：Linux 上断言生成的单 item appcast、enclosure 302 与 EdDSA 字节；`macos-latest` 上的 Action job 用 Sparkle.framework 做真实 `check` + download（不安装）。见 `docs/adr/electron-updater-e2e.md`、`docs/adr/tauri-updater-e2e.md`、`docs/adr/sparkle-updater-e2e.md`。
 
 ### Runtime image
 
@@ -167,7 +167,8 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
   in `src/lib/`. Nested `/api/admin/apps/:id` routes are gone.
 - GitHub Action is a node24 JavaScript action at repository root `action.yml` (`main: apps/shukka/scripts/shukka-upload.mjs`) with kind-specific collect/version in `apps/shukka/scripts/updaters/*.mjs`; consumers keep `uses: shukka-app/shukka@v*`. Agent skill at
   `.agents/skills/shukka-ops/`. See `docs/prd/adapter-upload.md`, `docs/adr/adapter-owned-uploader.md`, and `docs/adr/github-action-subdirectory.md`.
-- Verified end to end against MinIO: publish through the action, HTTP feed + 302, a
+- Verified end to end against real S3-compatible backends (s3proxy / JuiceFS on Linux,
+  the MinIO binary on Windows / macOS): publish through the action, HTTP feed + 302, a
   host-platform `electron-updater` check/download, and channel rollback via
   `PATCH currentVersion` (`tests/e2e/`, `docs/adr/electron-updater-e2e.md`).
 - Updater adapters: App `updaterKind` (`electron` | `tauri` | `sparkle`) per

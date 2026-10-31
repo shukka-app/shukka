@@ -11,14 +11,14 @@
 
 ## Goals
 
-1. 仓库提供一份 Compose 示例：Shukka + 可选的本机 MinIO，一块数据卷，镜像可覆盖。
+1. 仓库提供一份 Compose 示例：Shukka + 可选的本机 S3 桶（s3proxy），一块数据卷，镜像可覆盖。
 2. 仓库提供一份 Ansible playbook：把那份 Compose 拷到主机并 `docker compose up`，等到 `GET /api/health` 为 ok。
 3. README 与 `docs/prd/deploy.md` 指向这两份文件。
 4. 现有 `.github/workflows/docker-test.yml` 增加 job，按文件原样拉起并走通主路径（不新开 workflow）。
 
 ## Non-goals
 
-- 不把 MinIO 打进运行镜像。
+- 不把 s3proxy 或其他对象存储打进运行镜像。
 - 不让 playbook 安装 Docker / 配 TLS / 管反向代理。
 - 不做 Helm、K8s、多主机编排。
 - 不在 Compose / Ansible job 上重复 electron-updater / Tauri；那仍由 image job 与 Action test 覆盖。
@@ -30,9 +30,9 @@
 
 1. 主机已有 Docker Compose v2。
 2. `docker compose -f apps/shukka/deploy/compose.yaml up -d`
-3. `docker exec minio mkdir -p /data/releases`（示例 bucket）。
-4. 打开面板 setup，创建 app 时填 Compose 文件头注释里的 MinIO 值。
-5. 已有自己的 S3/R2 时删掉 `minio` 服务，镜像用 `SHUKKA_IMAGE` 钉版本。
+3. `docker exec s3proxy mkdir -p /data/releases`（示例 bucket）。
+4. 打开面板 setup，创建 app 时填 Compose 文件头注释里的 s3proxy 值。
+5. 已有自己的 S3/R2 时删掉 `s3proxy` 服务，镜像用 `SHUKKA_IMAGE` 钉版本。
 6. 需要 Postgres 时叠加 `apps/shukka/deploy/compose.postgres.yaml`；需要 MySQL 时叠加 `apps/shukka/deploy/compose.mysql.yaml`（默认文件仍是 sqlite）。
 
 ### 运维：Ansible
@@ -51,7 +51,7 @@
 ## Failure behavior
 
 - Compose / playbook 启动失败：容器或 health 达不到 ok，CI 红。
-- MinIO 未就绪就建 bucket：playbook 重试 `docker exec`；CI 先 `wait-for` 再 mkdir。
+- S3 服务未就绪就建 bucket：playbook 重试 `docker exec`；CI 先 `wait-for` 再 mkdir。
 - 示例未改、镜像坏了：与 `docker run` 的 image job 一样失败。
 
 ## Acceptance criteria
@@ -63,6 +63,7 @@
 
 ## Resolved product decisions
 
-- 示例带 MinIO，方便本机走完整发版；生产对象存储仍按 app 在面板配置。
+- 示例带 s3proxy，方便本机走完整发版；生产对象存储仍按 app 在面板配置。
+- 2026-10-31 修订：示例栈的 S3 服务由 MinIO 换成 s3proxy——MinIO 的容器镜像已无法匿名拉取（quay.io 返回 401）。产品仍支持把 MinIO 作为 app 的 endpoint；非 Docker 的 Windows / macOS job 继续用 MinIO 官方二进制。
 - Ansible 只编排已有的 Compose 文件，不另写一套 `docker run`。
 - 验证加在已有 Docker test workflow，不并进 `ci.yml`，不新开 workflow。

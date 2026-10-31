@@ -10,11 +10,11 @@ Accepted.
 
 ## Decision
 
-1. **示例放在 `apps/shukka/deploy/`**：`compose.yaml` 跑 Shukka + MinIO；`ansible/playbook.yml` 把该文件拷到主机并 `docker compose up`。镜像通过 `SHUKKA_IMAGE` / `shukka_image` 覆盖，Compose **不**写 `build:`——playbook 只拷编排文件，远端没有 Dockerfile 上下文。
+1. **示例放在 `apps/shukka/deploy/`**：`compose.yaml` 跑 Shukka + s3proxy（文件系统后端的 S3 服务）；`ansible/playbook.yml` 把该文件拷到主机并 `docker compose up`。镜像通过 `SHUKKA_IMAGE` / `shukka_image` 覆盖，Compose **不**写 `build:`——playbook 只拷编排文件，远端没有 Dockerfile 上下文。
 2. **Ansible 只用 builtin 模块**（`command` / `copy` / `file` / `uri`）。Docker 与 Compose v2 是前置条件，playbook 不装引擎。
 3. **验证加在已有** `.github/workflows/docker-test.yml`：`compose` 与 `ansible` 两个 job，复用 `provision.mjs`、`fake-release.mjs`、`shukka-upload.mjs`、`verify-feed.mjs`、`assert-container.mjs`。不新开 workflow，不并进 `ci.yml`。
 4. **这两个 job 不跑 electron-updater / rollback**。镜像契约与 updater 仍由同 workflow 的 `image` job 覆盖。
-5. **MinIO 主机名仍是 `minio`**，与 image job 相同：runner `/etc/hosts` 指向 `127.0.0.1`，presigned URL 从容器和 runner 都能解析。Compose 网络提供容器侧 DNS；不再用 `--add-host minio:host-gateway`。
+5. **S3 主机名是 `s3proxy`**，与 image job 相同：runner `/etc/hosts` 指向 `127.0.0.1`，presigned URL 从容器和 runner 都能解析。Compose 网络提供容器侧 DNS；不再用 `--add-host s3proxy:host-gateway`。
 
 ## Alternatives
 
@@ -26,8 +26,12 @@ Accepted.
 
 ## Trade-offs & failure bounds
 
-- 示例默认带 MinIO，方便本机发版；生产应用自己的 bucket 时要删掉该服务。
+- 示例默认带 s3proxy，方便本机发版；生产应用自己的 bucket 时要删掉该服务。
 - compose / ansible job 各建一次镜像，换墙钟时间几乎仍由 `image` job 决定，多消耗构建分钟数。
 - Playbook 不安装 Docker：没有引擎的主机在「Check that Docker Compose is available」失败。
-- `container_name: shukka` / `minio` 固定名称，单主机不能并排跑两份示例栈。
+- `container_name: shukka` / `s3proxy` 固定名称，单主机不能并排跑两份示例栈。
 - Postgres / MySQL 不在这份默认文件里。需要时用 `compose.postgres.yaml` / `compose.mysql.yaml` overlay，见 [store-postgres](store-postgres.md)、[store-mysql](store-mysql.md)。
+
+## Revision
+
+2026-10-31：示例栈的 S3 服务由 MinIO 换成 s3proxy。MinIO 的容器镜像已无法匿名拉取（quay.io 返回 401），示例栈按原文件无法启动。选择 s3proxy 的理由与影响面见 [s3-backend-ci-matrix](s3-backend-ci-matrix.md)。产品面不变：MinIO 仍是面板支持的 endpoint。

@@ -38,22 +38,24 @@ permissions:
   contents: read
 
 # Runs the real publish path against each supported S3-compatible backend
-# (MinIO and the JuiceFS S3 gateway) via a GitHub Actions matrix.
+# (s3proxy and the JuiceFS S3 gateway) via a GitHub Actions matrix.
 #
 # Locally with act: start one S3 backend and Shukka on the host first, then
 #   act workflow_dispatch -W .github/workflows/action-test.yml \
 #     --env SHUKKA_URL=http://host.docker.internal:3777 \
-#     --env MINIO_URL=http://localhost:9000 \
-#     --matrix s3:minio
-# SHUKKA_URL is dialled from inside the act container, while MINIO_URL is the
+#     --env S3_URL=http://localhost:9000 \
+#     --matrix s3:s3proxy
+# SHUKKA_URL is dialled from inside the act container, while S3_URL is the
 # endpoint the host-side Shukka process uses - hence the different hostnames.
 # The two setup steps below are skipped under act since the host provides both.
 #
 # publish-windows starts MinIO from the official binary (hosted Windows has no
 # Docker) and exercises the JavaScript action — no bash — plus electron-updater.
 # sparkle-updater does the same on macos-latest with Sparkle.framework
-# (check + download, no install). JuiceFS stays on the Ubuntu matrix: its CI
-# gateway is the Docker image used by scripts/juicefs-dev.mjs.
+# (check + download, no install). The Ubuntu legs use s3proxy rather than MinIO:
+# MinIO's published container images are no longer pullable anonymously.
+# JuiceFS stays on the Ubuntu matrix: its CI gateway is the Docker image used by
+# scripts/juicefs-dev.mjs.
 jobs:
   publish:
     name: Publish (${{ matrix.s3 }})
@@ -61,10 +63,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        s3: [minio, juicefs]
+        s3: [s3proxy, juicefs]
     env:
       SHUKKA_URL: ${{ vars.SHUKKA_URL || 'http://localhost:3000' }}
-      MINIO_URL: ${{ vars.MINIO_URL || 'http://localhost:9000' }}
+      S3_URL: ${{ vars.S3_URL || 'http://localhost:9000' }}
       S3_BACKEND: ${{ matrix.s3 }}
     steps:
       - uses: actions/checkout@v7.0.1
@@ -216,10 +218,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        s3: [minio, juicefs]
+        s3: [s3proxy, juicefs]
     env:
       SHUKKA_URL: ${{ vars.SHUKKA_URL || 'http://localhost:3000' }}
-      MINIO_URL: ${{ vars.MINIO_URL || 'http://localhost:9000' }}
+      S3_URL: ${{ vars.S3_URL || 'http://localhost:9000' }}
       S3_BACKEND: ${{ matrix.s3 }}
     steps:
       - uses: actions/checkout@v7.0.1

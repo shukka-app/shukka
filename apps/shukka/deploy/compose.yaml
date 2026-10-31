@@ -1,17 +1,19 @@
-# Single-host example: Shukka + a local MinIO bucket.
+# Single-host example: Shukka + a local S3-compatible bucket (s3proxy).
 #
 #   docker compose -f apps/shukka/deploy/compose.yaml up -d
-#   docker exec minio mkdir -p /data/releases
+#   docker exec s3proxy mkdir -p /data/releases
 #
-# Then open http://localhost:3000 and create an app against MinIO:
-#   endpoint          http://minio:9000   (from another host: http://<this-host>:9000)
+# Then open http://localhost:3000 and create an app against s3proxy:
+#   endpoint          http://s3proxy:9000   (from another host: http://<this-host>:9000)
 #   region            us-east-1
 #   bucket            releases
 #   access key        shukka
 #   secret key        shukkasecret
 #   force path style  yes
 #
-# Production S3/R2: delete the minio service and point the app at your bucket.
+# s3proxy stores objects as files under /data and validates SigV4; it is a
+# convenience bucket for the example, not a production recommendation.
+# Production S3/R2: delete the s3proxy service and point the app at your bucket.
 # Override the image without editing the file:
 #   SHUKKA_IMAGE=ghcr.io/shukka-app/shukka:1.0.3 docker compose -f apps/shukka/deploy/compose.yaml up -d
 
@@ -27,21 +29,25 @@ services:
     volumes:
       - shukka-data:/data
     depends_on:
-      - minio
+      - s3proxy
 
-  minio:
-    image: quay.io/minio/minio
-    container_name: minio
+  s3proxy:
+    # Pinned by digest: s3proxy publishes no semver tags.
+    image: andrewgaul/s3proxy@sha256:1f8915c2b4a8af22bf1fc191500f242974a458c457391b5788f9107544273dc3
+    container_name: s3proxy
     restart: unless-stopped
-    command: ["server", "/data"]
     ports:
-      - "${MINIO_PORT:-9000}:9000"
+      - "${S3_PORT:-9000}:9000"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-shukka}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-shukkasecret}
+      S3PROXY_ENDPOINT: http://0.0.0.0:9000
+      S3PROXY_AUTHORIZATION: aws-v4
+      S3PROXY_IDENTITY: ${S3_ACCESS_KEY:-shukka}
+      S3PROXY_CREDENTIAL: ${S3_SECRET_KEY:-shukkasecret}
+      JCLOUDS_PROVIDER: filesystem
+      JCLOUDS_FILESYSTEM_BASEDIR: /data
     volumes:
-      - minio-data:/data
+      - s3-data:/data
 
 volumes:
   shukka-data:
-  minio-data:
+  s3-data:
