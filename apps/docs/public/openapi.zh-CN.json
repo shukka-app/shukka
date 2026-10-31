@@ -33,7 +33,7 @@
     },
     {
       "name": "更新源",
-      "description": "公开更新 feed（Electron yml 或 Tauri JSON）——无需鉴权。"
+      "description": "公开更新 feed（Electron yml、Tauri JSON、Sparkle appcast）与发布清单——无需鉴权。"
     }
   ],
   "components": {
@@ -1126,6 +1126,46 @@
           "platforms"
         ],
         "additionalProperties": false
+      },
+      "ChannelRelease": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "releasedAt": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "filename",
+                "size",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "version",
+          "releasedAt",
+          "files"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -1918,6 +1958,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicNotes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/release": {
+      "get": {
+        "tags": [
+          "更新源"
+        ],
+        "operationId": "getChannelRelease",
+        "summary": "读取渠道发布",
+        "description": "面向非 updater 客户端的格式无关清单：当前版本、发布时间与可下载制品。仅列 `kind: artifact` 的文件，每个 URL 302 进入 feed。渠道无已发布的当前版本时 404。",
+        "security": [],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前已发布版本及其文件",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelRelease"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "不存在或仍为草稿",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

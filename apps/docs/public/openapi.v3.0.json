@@ -33,7 +33,7 @@
     },
     {
       "name": "Feed",
-      "description": "Public update feed (Electron yml or Tauri JSON) — no auth."
+      "description": "Public update feed (Electron yml, Tauri JSON, Sparkle appcast) and release manifest — no auth."
     }
   ],
   "components": {
@@ -1073,6 +1073,46 @@
           "platforms"
         ],
         "additionalProperties": false
+      },
+      "ChannelRelease": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "releasedAt": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "filename",
+                "size",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "version",
+          "releasedAt",
+          "files"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -1865,6 +1905,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicNotes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appSlug}/channels/{channel}/release": {
+      "get": {
+        "tags": [
+          "Feed"
+        ],
+        "operationId": "getChannelRelease",
+        "summary": "Get channel release",
+        "description": "Format-neutral manifest for non-updater clients: current version, release time, and downloadable artifacts. Lists `kind: artifact` files only; each URL 302s into the feed. 404 when the channel has no released current version.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "appSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current released version and its files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelRelease"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing or draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
