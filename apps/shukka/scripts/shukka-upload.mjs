@@ -12,6 +12,7 @@ import { createReadStream } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collectElectronFiles, inferElectronVersion } from './updaters/electron.mjs'
+import { collectSdkFiles } from './updaters/sdk.mjs'
 import { detectUpdaterKind, fail, kindFromFilenames } from './updaters/shared.mjs'
 import { collectSparkleFiles, inferSparkleVersion } from './updaters/sparkle.mjs'
 import { collectTauriFiles, inferTauriVersion } from './updaters/tauri.mjs'
@@ -37,6 +38,8 @@ export async function collectFiles(directory, kind) {
   const resolved = kind ?? (await detectUpdaterKind(directory))
   if (resolved === 'tauri') return collectTauriFiles(directory)
   if (resolved === 'sparkle') return collectSparkleFiles(directory)
+  // Free-form: every non-dotfile in the directory, with no name-based filtering.
+  if (resolved === 'sdk') return collectSdkFiles(directory)
   return collectElectronFiles(directory)
 }
 
@@ -44,6 +47,9 @@ export async function versionFromMetadata(files, directory, kind) {
   const resolved = kind ?? kindFromFilenames(files.map((file) => file.filename)) ?? 'electron'
   if (resolved === 'tauri') return inferTauriVersion(files, directory)
   if (resolved === 'sparkle') return inferSparkleVersion(files)
+  if (resolved === 'sdk') {
+    fail('SDK apps have no metadata file to read the version from; pass version / SHUKKA_VERSION')
+  }
   return inferElectronVersion(files)
 }
 

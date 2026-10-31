@@ -1,6 +1,6 @@
 export type StoreResult<T> = { ok: true; value: T } | { ok: false; error: 'conflict' }
 
-export type UpdaterKind = 'electron' | 'tauri' | 'sparkle'
+export type UpdaterKind = 'electron' | 'tauri' | 'sparkle' | 'sdk'
 export type ArtifactKind = 'metadata' | 'artifact'
 export type HitKind = 'metadata' | 'artifact'
 

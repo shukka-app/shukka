@@ -41,4 +41,17 @@ describe('buildIntegrationSnippets', () => {
     expect(snippets.agentCli.code).toContain('/apps/shukka/skills/shukka-publish')
     expect(snippets.agentCli.code).not.toContain('archive/')
   })
+
+  it('shows SDK usage instead of an updater for sdk apps', () => {
+    const sdkApp = { slug: 'desk', updaterKind: 'sdk' } as PublicApp
+    const snippets = buildIntegrationSnippets({ app: sdkApp, ...args })
+
+    expect(snippets.builderConfig.code).toContain('npm install @shukka/sdk')
+    expect(snippets.builderConfig.code).not.toContain('electron-updater')
+    expect(snippets.mainProcess.code).toContain('getChannelRelease')
+    expect(snippets.mainProcess.code).toContain("appSlug: 'desk'")
+    expect(snippets.httpApi.code).toContain('/api/v1/apps/desk/channels/stable/release')
+    expect(snippets.githubAction.code).toContain('updater-kind: sdk')
+    expect(snippets.githubAction.code).toContain('version: 1.4.2')
+  })
 })

@@ -251,6 +251,83 @@ npx skills add https://github.com/shukka-app/shukka/tree/${skillRef}/apps/shukka
   }
 }
 
+function sdkSnippets({
+  app,
+  channelName,
+  serverUrl,
+}: {
+  app: PublicApp
+  channelName: string
+  serverUrl: string
+}): Record<keyof IntegrationSnippets, { code: string; lang: HighlightLang }> {
+  const releaseUrl = `${serverUrl}/api/v1/apps/${app.slug}/channels/${channelName}/release`
+  return {
+    builderConfig: {
+      lang: 'bash',
+      code: `# No updater to configure: the app owns checking, downloading and installing.
+# Any language works — the TypeScript SDK reads the same public endpoint.
+npm install @shukka/sdk`,
+    },
+    mainProcess: {
+      lang: 'ts',
+      code: `import { createShukkaClient } from '@shukka/sdk'
+
+const shukka = createShukkaClient({ baseUrl: '${serverUrl}' })
+
+// Public — no API key. {
+//   version, releasedAt,
+//   files: [{ filename, size, url }]
+// }
+const { data: release } = await shukka.getChannelRelease({
+  path: { appSlug: '${app.slug}', channel: '${channelName}' },
+})
+
+// file.url 302s to storage; fetch it with your own download / verify path.
+for (const file of release.files) {
+  const response = await fetch(file.url)
+}`,
+    },
+    githubAction: {
+      lang: 'yaml',
+      code: `- uses: shukka-app/shukka@v1.3.0
+  with:
+    server-url: \${{ secrets.SHUKKA_URL }}
+    api-key: \${{ secrets.SHUKKA_API_KEY }}
+    app: ${app.slug}
+    channel: ${channelName}
+    directory: dist
+    updater-kind: sdk
+    version: 1.4.2   # SDK apps have no metadata to infer it from
+    release: true   # ${draftIfOmitted(channelName)}`,
+    },
+    httpApi: {
+      lang: 'bash',
+      code: `# 1. Init — version is required: no metadata file declares it
+curl -X POST ${serverUrl}/api/v1/upload/init \\
+  -H "Authorization: Bearer $SHUKKA_API_KEY" \\
+  -H "content-type: application/json" \\
+  -d '{"app":"${app.slug}","channel":"${channelName}","version":"1.4.2","files":[{"filename":"App-1.4.2.dmg","size":123456789}]}'
+
+# 2. Upload each file's bytes straight to S3
+curl -X PUT --data-binary @App-1.4.2.dmg "<uploadUrl from init>"
+
+# 3. Finalize — "release":true goes live now; ${draftIfOmitted(channelName)}.
+curl -X POST ${serverUrl}/api/v1/upload/finalize \\
+  -H "Authorization: Bearer $SHUKKA_API_KEY" \\
+  -H "content-type: application/json" \\
+  -d '{"uploadId":"<uploadId>","app":"${app.slug}","release":true}'
+
+# What the app reads (public, no auth)
+curl "${releaseUrl}"`,
+    },
+    agentCli: {
+      lang: 'bash',
+      code: `# Installs the Shukka publish skill into your coding agent (Claude Code, Cursor, Codex, ...)
+npx skills add https://github.com/shukka-app/shukka/tree/${skillRef}/apps/shukka/skills/shukka-publish`,
+    },
+  }
+}
+
 /** The four snippets the integration guide shows; the route loader highlights them. */
 export function buildIntegrationSnippets({
   app,
@@ -268,6 +345,9 @@ export function buildIntegrationSnippets({
   }
   if (app.updaterKind === 'sparkle') {
     return sparkleSnippets({ app, channelName, feedUrl, serverUrl })
+  }
+  if (app.updaterKind === 'sdk') {
+    return sdkSnippets({ app, channelName, serverUrl })
   }
   return electronSnippets({ app, channelName, feedUrl, serverUrl })
 }

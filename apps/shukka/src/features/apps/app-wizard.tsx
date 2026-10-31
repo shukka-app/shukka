@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Check, ChevronRight, Server } from 'lucide-react'
+import { Check, ChevronRight, Server, Terminal } from 'lucide-react'
 import { siAlibabacloud, siCloudflare, siElectron, siMinio, siTauri } from 'simple-icons'
 import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
@@ -167,7 +167,7 @@ const EMPTY_STORAGE: StorageFields = {
 
 type IdentityErrors = { name?: string; slug?: string; updaterKind?: string }
 
-const UPDATER_KINDS: UpdaterKind[] = ['electron', 'tauri', 'sparkle']
+const UPDATER_KINDS: UpdaterKind[] = ['electron', 'tauri', 'sparkle', 'sdk']
 
 function updaterKindIcon(kind: UpdaterKind) {
   switch (kind) {
@@ -177,6 +177,8 @@ function updaterKindIcon(kind: UpdaterKind) {
       return <SimpleIcon path={siTauri.path} hex={siTauri.hex} className="size-4" />
     case 'sparkle':
       return <SparkleMark className="size-4" />
+    case 'sdk':
+      return <Terminal className="size-4" />
   }
 }
 type StorageErrors = Partial<Record<keyof StorageFields, string>>

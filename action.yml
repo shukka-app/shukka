@@ -28,11 +28,11 @@ inputs:
     required: false
     default: 'dist'
   version:
-    description: 'Release version. When omitted: Electron reads version: from latest*.yml. Tauri uses this input / SHUKKA_VERSION, then latest.json, then the nearest tauri.conf.json, then a _1.0.0_ token in the artifact filename. Sparkle uses appcast.xml (shortVersionString, else sparkle:version), then an App-1.4.2.zip filename token.'
+    description: 'Release version. When omitted: Electron reads version: from latest*.yml. Tauri uses this input / SHUKKA_VERSION, then latest.json, then the nearest tauri.conf.json, then a _1.0.0_ token in the artifact filename. Sparkle uses appcast.xml (shortVersionString, else sparkle:version), then an App-1.4.2.zip filename token. SDK apps always require this input — they have no metadata file.'
     required: false
     default: ''
   updater-kind:
-    description: 'Optional electron, tauri, or sparkle override. When omitted, inferred from files (yml → electron; appcast.xml or Sparkle archive+.sig → sparkle; .sig / latest.json / known bundle layout → tauri). The server still validates against the app updaterKind.'
+    description: 'Optional electron, tauri, sparkle, or sdk override. When omitted, inferred from files (yml → electron; appcast.xml or Sparkle archive+.sig → sparkle; .sig / latest.json / known bundle layout → tauri). SDK apps have no inferable layout, so pass sdk explicitly. The server still validates against the app updaterKind.'
     required: false
     default: ''
   create-channel:
