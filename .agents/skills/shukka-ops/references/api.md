@@ -38,13 +38,16 @@ All request and response bodies are JSON. Errors carry a stable machine-readable
 checked at finalize when provided. File rules follow the app's `updaterKind`:
 Electron requires at least one `.yml`; Tauri requires `latest.json` and/or
 artifact + matching `.sig` pairs; Sparkle requires `appcast.xml` and/or a
-Sparkle archive + matching `.sig` from `sign_update`. `version` and each
+Sparkle archive + matching `.sig` from `sign_update`; SDK is free-form — every
+file is an artifact, and nothing is parsed, classified or filtered by name. `version` and each
 `filename` must not contain path separators or `..`. The publish action reads
 `version` from `latest*.yml` (Electron) when the input is omitted. For Tauri it
 uses the input / `SHUKKA_VERSION`, then `latest.json`, then the nearest
 `tauri.conf.json`, then a `_1.0.0_` filename token — `latest.json` is not
 required. For Sparkle it uses `appcast.xml` (`sparkle:shortVersionString`, else
-`sparkle:version`), then an `App-1.4.2.zip` filename token.
+`sparkle:version`), then an `App-1.4.2.zip` filename token. For SDK the version
+must be passed explicitly, and `updater-kind: sdk` must be set — it cannot be
+inferred from the directory.
 
 ```json
 {
@@ -132,7 +135,7 @@ version, trends). Keys may **not** delete the app or manage API keys.
 }
 ```
 
-`updaterKind` is `"electron"`, `"tauri"`, or `"sparkle"` (defaults to `"electron"` if omitted).
+`updaterKind` is `"electron"`, `"tauri"`, `"sparkle"`, or `"sdk"` (defaults to `"electron"` if omitted).
 Kind is chosen at create and is not changed afterwards. `s3Endpoint` is `null` for
 AWS S3. Set `s3ForcePathStyle` for MinIO. Objects land at
 `{s3Prefix}/{channel}/{version}/{filename}`.
