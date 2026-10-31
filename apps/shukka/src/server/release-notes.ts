@@ -127,7 +127,11 @@ export async function publicNotes(appSlug: string, channelName: string, query: N
   for (const version of selected) {
     const resolved = resolveNoteLocale(byVersion.get(version.id) ?? [], query.locale, config.fallbackLocale)
     if (resolved && version.releasedAt != null) {
-      notes.push({ version: version.version, releasedAt: version.releasedAt, ...resolved })
+      // Spread only the documented fields: the stored row also carries `id` and
+      // `versionId`, which are internal (the editor endpoint exposes them, the
+      // public one must not).
+      const { locale, markdown, html, text } = resolved
+      notes.push({ version: version.version, releasedAt: version.releasedAt, locale, markdown, html, text })
     }
   }
   return { notes }

@@ -224,6 +224,22 @@ describe('publicNotes range semantics', () => {
     expect(betaOnly.notes.map((note) => note.version)).toEqual(['1.3.5'])
   })
 
+  it('exposes only the documented note fields', async () => {
+    const app = await enabledApp()
+    const { versionId } = await publish(app, 'stable', '1.0.0')
+    await notesServer.upsertNote(app.id, versionId, 'en-US', 'notes')
+
+    const result = await notesServer.publicNotes('acme', 'stable', { from: null, to: null, locale: null })
+    expect(Object.keys(result.notes[0]!).sort()).toEqual([
+      'html',
+      'locale',
+      'markdown',
+      'releasedAt',
+      'text',
+      'version',
+    ])
+  })
+
   it('is loud about unknown range bounds', async () => {
     const app = await enabledApp()
     const { versionId } = await publish(app, 'stable', '1.0.0')
