@@ -114,7 +114,7 @@ Full operator guide — reverse proxy, backups, upgrades, env vars, what not to 
 Create an app in the panel, then an API key on its **API keys** tab. In CI:
 
 ```yaml
-- uses: shukka-app/shukka@v1.3.0
+- uses: shukka-app/shukka@v1.3.1
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}
