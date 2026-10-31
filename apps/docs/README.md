@@ -32,7 +32,7 @@ nr --filter shukka-docs start
 
 `/[lang]/api` 路由用 [Scalar](https://scalar.com/)（`ApiReferenceReact`，客户端渲染）按语言展示对应 OpenAPI 快照：`en-US` 用 `public/openapi.json`，`zh-CN` 用 `public/openapi.zh-CN.json`。主题色取自 Shukka 面板 token（`app/global.css` 的 `--scalar-*`），配置在 `lib/scalar-options.ts`。
 
-两份 JSON 都是从主仓库的 spec 生成器（`src/server/openapi.ts`，`openApiDocument(origin, locale)`）提取的静态快照。路径与 schema 相同，叙事文案分英文 / 简体中文。`middleware.ts` 的 matcher 排除 `openapi*.json`，否则 i18n 会给中文快照加上语言前缀。主仓库 API 变更后重新生成：
+三份 JSON 都是从主仓库的 spec 生成器提取的静态快照：`openapi.json`（3.1.0 / en）、`openapi.zh-CN.json`（3.1.0 / zh）、`openapi.v3.0.json`（3.0.3 / en，供只认 3.0 的代码生成器使用，文档站不加载）。前两份路径与 schema 相同，叙事文案分英文 / 简体中文。`middleware.ts` 的 matcher 排除 `openapi*.json`，否则 i18n 会给中文快照加上语言前缀。主仓库 API 变更后重新生成：
 
 ```bash
 nr --filter shukka-docs sync:openapi

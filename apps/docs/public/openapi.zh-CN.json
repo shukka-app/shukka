@@ -76,6 +76,1056 @@
           "message"
         ],
         "additionalProperties": false
+      },
+      "AppDetail": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "s3Endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "s3Region": {
+                "type": "string"
+              },
+              "s3Bucket": {
+                "type": "string"
+              },
+              "s3Prefix": {
+                "type": "string"
+              },
+              "s3AccessKeyId": {
+                "type": "string"
+              },
+              "s3ForcePathStyle": {
+                "type": "boolean"
+              },
+              "releaseLogEnabled": {
+                "type": "boolean"
+              },
+              "releaseLogLocales": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "releaseLogFallbackLocale": {
+                "type": "string"
+              },
+              "updaterKind": {
+                "type": "string",
+                "enum": [
+                  "electron",
+                  "tauri",
+                  "sparkle"
+                ]
+              },
+              "createdAt": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name",
+              "s3Endpoint",
+              "s3Region",
+              "s3Bucket",
+              "s3Prefix",
+              "s3AccessKeyId",
+              "s3ForcePathStyle",
+              "releaseLogEnabled",
+              "releaseLogLocales",
+              "releaseLogFallbackLocale",
+              "updaterKind",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "currentVersionId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "feedUrl": {
+                  "type": "string"
+                },
+                "versions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "appId": {
+                        "type": "integer"
+                      },
+                      "channelId": {
+                        "type": "integer"
+                      },
+                      "version": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "integer"
+                      },
+                      "releasedAt": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "metadataHits": {
+                        "type": "integer"
+                      },
+                      "artifactHits": {
+                        "type": "integer"
+                      },
+                      "isDraft": {
+                        "type": "boolean"
+                      },
+                      "isCurrent": {
+                        "type": "boolean"
+                      },
+                      "artifacts": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "integer"
+                            },
+                            "versionId": {
+                              "type": "integer"
+                            },
+                            "filename": {
+                              "type": "string"
+                            },
+                            "s3Key": {
+                              "type": "string"
+                            },
+                            "size": {
+                              "type": "integer"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "metadata",
+                                "artifact"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "versionId",
+                            "filename",
+                            "s3Key",
+                            "size",
+                            "kind"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "appId",
+                      "channelId",
+                      "version",
+                      "createdAt",
+                      "releasedAt",
+                      "metadataHits",
+                      "artifactHits",
+                      "isDraft",
+                      "isCurrent",
+                      "artifacts"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "currentVersionId",
+                "feedUrl",
+                "versions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "keys": {
+            "description": "Present only for session actors; omitted when authenticated with an API key.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "integer"
+                },
+                "lastUsedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "revokedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "hint",
+                "createdAt",
+                "lastUsedAt",
+                "revokedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "app",
+          "channels"
+        ],
+        "additionalProperties": false
+      },
+      "AppUpdated": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "s3Endpoint": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "s3Region": {
+                "type": "string"
+              },
+              "s3Bucket": {
+                "type": "string"
+              },
+              "s3Prefix": {
+                "type": "string"
+              },
+              "s3AccessKeyId": {
+                "type": "string"
+              },
+              "s3ForcePathStyle": {
+                "type": "boolean"
+              },
+              "releaseLogEnabled": {
+                "type": "boolean"
+              },
+              "releaseLogLocales": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "releaseLogFallbackLocale": {
+                "type": "string"
+              },
+              "updaterKind": {
+                "type": "string",
+                "enum": [
+                  "electron",
+                  "tauri",
+                  "sparkle"
+                ]
+              },
+              "createdAt": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name",
+              "s3Endpoint",
+              "s3Region",
+              "s3Bucket",
+              "s3Prefix",
+              "s3AccessKeyId",
+              "s3ForcePathStyle",
+              "releaseLogEnabled",
+              "releaseLogLocales",
+              "releaseLogFallbackLocale",
+              "updaterKind",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "app"
+        ],
+        "additionalProperties": false
+      },
+      "AppUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "s3Endpoint": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "s3Region": {
+            "type": "string",
+            "minLength": 1
+          },
+          "s3Bucket": {
+            "type": "string",
+            "minLength": 1
+          },
+          "s3Prefix": {
+            "default": "",
+            "type": "string"
+          },
+          "s3AccessKeyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "s3SecretAccessKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "s3ForcePathStyle": {
+            "default": false,
+            "type": "boolean"
+          },
+          "updaterKind": {
+            "type": "string",
+            "enum": [
+              "electron",
+              "tauri",
+              "sparkle"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "s3Region",
+          "s3Bucket",
+          "s3AccessKeyId"
+        ]
+      },
+      "ChannelList": {
+        "type": "object",
+        "properties": {
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "appId": {
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "currentVersionId": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "appId",
+                "name",
+                "currentVersionId",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "channels"
+        ],
+        "additionalProperties": false
+      },
+      "ChannelCreated": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "appId": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "currentVersionId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "appId",
+              "name",
+              "currentVersionId",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "additionalProperties": false
+      },
+      "CreateChannelRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SetCurrentVersionRequest": {
+        "type": "object",
+        "properties": {
+          "currentVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version string, or null to clear current"
+          }
+        },
+        "required": [
+          "currentVersion"
+        ]
+      },
+      "ChannelTrend": {
+        "type": "object",
+        "properties": {
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "integer"
+                },
+                "metadata": {
+                  "type": "integer"
+                },
+                "artifact": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "t",
+                "metadata",
+                "artifact"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "granularity",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "VersionTrend": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "integer"
+                },
+                "metadata": {
+                  "type": "integer"
+                },
+                "artifact": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "t",
+                "metadata",
+                "artifact"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "EditorNotes": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "locale": {
+                  "type": "string"
+                },
+                "markdown": {
+                  "type": "string"
+                },
+                "html": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "integer"
+                },
+                "versionId": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "locale",
+                "markdown",
+                "html",
+                "text",
+                "id",
+                "versionId"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "PublicNotes": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "locale": {
+                  "type": "string"
+                },
+                "markdown": {
+                  "type": "string"
+                },
+                "html": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "releasedAt": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "locale",
+                "markdown",
+                "html",
+                "text",
+                "version",
+                "releasedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "SavedNote": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "object",
+            "properties": {
+              "locale": {
+                "type": "string"
+              },
+              "markdown": {
+                "type": "string"
+              },
+              "html": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "id": {
+                "type": "integer"
+              },
+              "versionId": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "locale",
+              "markdown",
+              "html",
+              "text",
+              "id",
+              "versionId"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "UpsertNoteRequest": {
+        "type": "object",
+        "properties": {
+          "markdown": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 65536
+          }
+        },
+        "required": [
+          "markdown"
+        ]
+      },
+      "NotesConfigResponse": {
+        "type": "object",
+        "properties": {
+          "releaseLog": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "locales": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "fallbackLocale": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "enabled",
+              "locales",
+              "fallbackLocale"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "releaseLog"
+        ],
+        "additionalProperties": false
+      },
+      "SaveNotesConfigRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "locales": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "fallbackLocale": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "enabled",
+          "locales",
+          "fallbackLocale"
+        ]
+      },
+      "ReleaseMetadata": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "metadata",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "ReplaceReleaseMetadataRequest": {
+        "type": "object",
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+          }
+        },
+        "required": [
+          "metadata"
+        ]
+      },
+      "UploadInitResponse": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "integer"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "uploadUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "filename",
+                "key",
+                "uploadUrl"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "uploadId",
+          "expiresAt",
+          "files"
+        ],
+        "additionalProperties": false
+      },
+      "InitUploadRequest": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "createChannel": {
+            "type": "boolean"
+          },
+          "files": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "filename"
+              ]
+            }
+          }
+        },
+        "required": [
+          "channel",
+          "version",
+          "files"
+        ]
+      },
+      "UploadFinalizeResponse": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "metadata",
+                    "artifact"
+                  ]
+                }
+              },
+              "required": [
+                "filename",
+                "size",
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "versionId",
+          "version",
+          "channel",
+          "artifacts"
+        ],
+        "additionalProperties": false
+      },
+      "FinalizeUploadRequest": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "app": {
+            "type": "string"
+          },
+          "release": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
+          }
+        },
+        "required": [
+          "uploadId"
+        ]
+      },
+      "OkResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
+      "TauriFeed": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "pub_date": {
+            "type": "string"
+          },
+          "platforms": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "signature": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "signature"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "version",
+          "pub_date",
+          "platforms"
+        ],
+        "additionalProperties": false
       }
     }
   },
@@ -93,6 +1143,7 @@
         "tags": [
           "应用"
         ],
+        "operationId": "getApp",
         "summary": "读取应用",
         "description": "应用详情，含渠道、版本与 keys。",
         "parameters": [
@@ -111,272 +1162,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "app": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "slug": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "s3Endpoint": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "s3Region": {
-                          "type": "string"
-                        },
-                        "s3Bucket": {
-                          "type": "string"
-                        },
-                        "s3Prefix": {
-                          "type": "string"
-                        },
-                        "s3AccessKeyId": {
-                          "type": "string"
-                        },
-                        "s3ForcePathStyle": {
-                          "type": "boolean"
-                        },
-                        "releaseLogEnabled": {
-                          "type": "boolean"
-                        },
-                        "releaseLogLocales": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "releaseLogFallbackLocale": {
-                          "type": "string"
-                        },
-                        "updaterKind": {
-                          "type": "string",
-                          "enum": [
-                            "electron",
-                            "tauri",
-                            "sparkle"
-                          ]
-                        },
-                        "createdAt": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "slug",
-                        "name",
-                        "s3Endpoint",
-                        "s3Region",
-                        "s3Bucket",
-                        "s3Prefix",
-                        "s3AccessKeyId",
-                        "s3ForcePathStyle",
-                        "releaseLogEnabled",
-                        "releaseLogLocales",
-                        "releaseLogFallbackLocale",
-                        "updaterKind",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "channels": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "currentVersionId": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "feedUrl": {
-                            "type": "string"
-                          },
-                          "versions": {
-                            "type": "array",
-                            "items": {
-                              "type": "object",
-                              "properties": {
-                                "id": {
-                                  "type": "integer"
-                                },
-                                "appId": {
-                                  "type": "integer"
-                                },
-                                "channelId": {
-                                  "type": "integer"
-                                },
-                                "version": {
-                                  "type": "string"
-                                },
-                                "createdAt": {
-                                  "type": "integer"
-                                },
-                                "releasedAt": {
-                                  "anyOf": [
-                                    {
-                                      "type": "integer"
-                                    },
-                                    {
-                                      "type": "null"
-                                    }
-                                  ]
-                                },
-                                "metadataHits": {
-                                  "type": "integer"
-                                },
-                                "artifactHits": {
-                                  "type": "integer"
-                                },
-                                "isDraft": {
-                                  "type": "boolean"
-                                },
-                                "isCurrent": {
-                                  "type": "boolean"
-                                },
-                                "artifacts": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "integer"
-                                      },
-                                      "versionId": {
-                                        "type": "integer"
-                                      },
-                                      "filename": {
-                                        "type": "string"
-                                      },
-                                      "s3Key": {
-                                        "type": "string"
-                                      },
-                                      "size": {
-                                        "type": "integer"
-                                      },
-                                      "kind": {
-                                        "type": "string",
-                                        "enum": [
-                                          "metadata",
-                                          "artifact"
-                                        ]
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "versionId",
-                                      "filename",
-                                      "s3Key",
-                                      "size",
-                                      "kind"
-                                    ],
-                                    "additionalProperties": false
-                                  }
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "appId",
-                                "channelId",
-                                "version",
-                                "createdAt",
-                                "releasedAt",
-                                "metadataHits",
-                                "artifactHits",
-                                "isDraft",
-                                "isCurrent",
-                                "artifacts"
-                              ],
-                              "additionalProperties": false
-                            }
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "currentVersionId",
-                          "feedUrl",
-                          "versions"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "keys": {
-                      "description": "Present only for session actors; omitted when authenticated with an API key.",
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "hint": {
-                            "type": "string"
-                          },
-                          "createdAt": {
-                            "type": "integer"
-                          },
-                          "lastUsedAt": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "revokedAt": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "hint",
-                          "createdAt",
-                          "lastUsedAt",
-                          "revokedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "app",
-                    "channels"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/AppDetail"
                 }
               }
             }
@@ -387,6 +1173,7 @@
         "tags": [
           "应用"
         ],
+        "operationId": "updateApp",
         "summary": "更新应用设置",
         "description": "会探测 S3。API key 只能改 `name`。slug 与存储字段仅 session 可改；原样回传未变更的值是允许的。在已有制品时改 endpoint/bucket/prefix，会探测新位置上最新对象是否存在。",
         "parameters": [
@@ -404,68 +1191,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "slug": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "s3Endpoint": {
-                    "default": null,
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "s3Region": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "s3Bucket": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "s3Prefix": {
-                    "default": "",
-                    "type": "string"
-                  },
-                  "s3AccessKeyId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "s3SecretAccessKey": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "s3ForcePathStyle": {
-                    "default": false,
-                    "type": "boolean"
-                  },
-                  "updaterKind": {
-                    "type": "string",
-                    "enum": [
-                      "electron",
-                      "tauri",
-                      "sparkle"
-                    ]
-                  }
-                },
-                "required": [
-                  "name",
-                  "slug",
-                  "s3Region",
-                  "s3Bucket",
-                  "s3AccessKeyId"
-                ]
+                "$ref": "#/components/schemas/AppUpdateRequest"
               }
             }
           }
@@ -476,88 +1202,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "app": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "slug": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "s3Endpoint": {
-                          "type": [
-                            "string",
-                            "null"
-                          ]
-                        },
-                        "s3Region": {
-                          "type": "string"
-                        },
-                        "s3Bucket": {
-                          "type": "string"
-                        },
-                        "s3Prefix": {
-                          "type": "string"
-                        },
-                        "s3AccessKeyId": {
-                          "type": "string"
-                        },
-                        "s3ForcePathStyle": {
-                          "type": "boolean"
-                        },
-                        "releaseLogEnabled": {
-                          "type": "boolean"
-                        },
-                        "releaseLogLocales": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "releaseLogFallbackLocale": {
-                          "type": "string"
-                        },
-                        "updaterKind": {
-                          "type": "string",
-                          "enum": [
-                            "electron",
-                            "tauri",
-                            "sparkle"
-                          ]
-                        },
-                        "createdAt": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "slug",
-                        "name",
-                        "s3Endpoint",
-                        "s3Region",
-                        "s3Bucket",
-                        "s3Prefix",
-                        "s3AccessKeyId",
-                        "s3ForcePathStyle",
-                        "releaseLogEnabled",
-                        "releaseLogLocales",
-                        "releaseLogFallbackLocale",
-                        "updaterKind",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "app"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/AppUpdated"
                 }
               }
             }
@@ -570,6 +1215,7 @@
         "tags": [
           "渠道"
         ],
+        "operationId": "listChannels",
         "summary": "列出渠道",
         "parameters": [
           {
@@ -587,51 +1233,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "channels": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "integer"
-                          },
-                          "appId": {
-                            "type": "integer"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "currentVersionId": {
-                            "anyOf": [
-                              {
-                                "type": "integer"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "createdAt": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "appId",
-                          "name",
-                          "currentVersionId",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "channels"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ChannelList"
                 }
               }
             }
@@ -642,6 +1244,7 @@
         "tags": [
           "渠道"
         ],
+        "operationId": "createChannel",
         "summary": "创建渠道",
         "parameters": [
           {
@@ -658,16 +1261,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "name"
-                ]
+                "$ref": "#/components/schemas/CreateChannelRequest"
               }
             }
           }
@@ -678,48 +1272,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "channel": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "integer"
-                        },
-                        "appId": {
-                          "type": "integer"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "currentVersionId": {
-                          "anyOf": [
-                            {
-                              "type": "integer"
-                            },
-                            {
-                              "type": "null"
-                            }
-                          ]
-                        },
-                        "createdAt": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "appId",
-                        "name",
-                        "currentVersionId",
-                        "createdAt"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "channel"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ChannelCreated"
                 }
               }
             }
@@ -732,6 +1285,7 @@
         "tags": [
           "渠道"
         ],
+        "operationId": "setCurrentVersion",
         "summary": "设置当前版本",
         "description": "设置 `currentVersion`：promote 草稿或回滚到已发布版本。",
         "parameters": [
@@ -757,24 +1311,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "currentVersion": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ],
-                    "description": "Version string, or null to clear current"
-                  }
-                },
-                "required": [
-                  "currentVersion"
-                ]
+                "$ref": "#/components/schemas/SetCurrentVersionRequest"
               }
             }
           }
@@ -785,17 +1322,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -806,6 +1333,7 @@
         "tags": [
           "渠道"
         ],
+        "operationId": "deleteChannel",
         "summary": "删除渠道",
         "description": "删除渠道及其对象。",
         "parameters": [
@@ -832,17 +1360,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -855,6 +1373,7 @@
         "tags": [
           "渠道"
         ],
+        "operationId": "getChannelTrend",
         "summary": "渠道命中趋势",
         "parameters": [
           {
@@ -892,44 +1411,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "granularity": {
-                      "type": "string",
-                      "enum": [
-                        "hour",
-                        "day"
-                      ]
-                    },
-                    "points": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "t": {
-                            "type": "integer"
-                          },
-                          "metadata": {
-                            "type": "integer"
-                          },
-                          "artifact": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "t",
-                          "metadata",
-                          "artifact"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "granularity",
-                    "points"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ChannelTrend"
                 }
               }
             }
@@ -942,6 +1424,7 @@
         "tags": [
           "版本"
         ],
+        "operationId": "deleteVersion",
         "summary": "删除版本",
         "description": "删除版本及其对象。",
         "parameters": [
@@ -976,17 +1459,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -999,6 +1472,7 @@
         "tags": [
           "版本"
         ],
+        "operationId": "getArtifact",
         "summary": "下载制品",
         "description": "对该版本上单个制品签发预签名 GET（含草稿）。不计入命中。",
         "parameters": [
@@ -1044,31 +1518,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "enum": [
-                        "unauthorized",
-                        "forbidden",
-                        "not_found",
-                        "conflict",
-                        "invalid_request",
-                        "storage_error",
-                        "metadata_error",
-                        "rate_limited"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": [
-                    "error",
-                    "message"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1081,6 +1531,7 @@
         "tags": [
           "版本"
         ],
+        "operationId": "getReleaseMetadata",
         "summary": "读取 release metadata",
         "description": "读取精确版本的自定义 metadata。已发布版本可公开读取；草稿需 session 或绑定 app 的 key。显式 Authorization 必须通过验证（401/403）。返回 no-store，不增加更新检查次数，不依赖 release log。",
         "security": [
@@ -1124,22 +1575,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "metadata": {
-                      "type": "object",
-                      "additionalProperties": true,
-                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
-                    },
-                    "version": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "metadata",
-                    "version"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReleaseMetadata"
                 }
               }
             }
@@ -1149,31 +1585,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "enum": [
-                        "unauthorized",
-                        "forbidden",
-                        "not_found",
-                        "conflict",
-                        "invalid_request",
-                        "storage_error",
-                        "metadata_error",
-                        "rate_limited"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": [
-                    "error",
-                    "message"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1184,6 +1596,7 @@
         "tags": [
           "版本"
         ],
+        "operationId": "replaceReleaseMetadata",
         "summary": "替换 release metadata",
         "description": "整份替换 metadata 对象（16 KiB UTF-8 JSON）；{} 清空，最后成功写入生效。",
         "parameters": [
@@ -1217,17 +1630,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "metadata": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
-                  }
-                },
-                "required": [
-                  "metadata"
-                ]
+                "$ref": "#/components/schemas/ReplaceReleaseMetadataRequest"
               }
             }
           }
@@ -1238,22 +1641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "metadata": {
-                      "type": "object",
-                      "additionalProperties": true,
-                      "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
-                    },
-                    "version": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "metadata",
-                    "version"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ReleaseMetadata"
                 }
               }
             }
@@ -1266,6 +1654,7 @@
         "tags": [
           "版本"
         ],
+        "operationId": "getVersionTrend",
         "summary": "版本命中趋势",
         "description": "草稿为空。",
         "parameters": [
@@ -1300,36 +1689,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "points": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "t": {
-                            "type": "integer"
-                          },
-                          "metadata": {
-                            "type": "integer"
-                          },
-                          "artifact": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "t",
-                          "metadata",
-                          "artifact"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "points"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/VersionTrend"
                 }
               }
             }
@@ -1342,6 +1702,7 @@
         "tags": [
           "发布说明"
         ],
+        "operationId": "getEditorNotes",
         "summary": "读取编辑器 notes",
         "description": "某一版本的全部 locale。",
         "parameters": [
@@ -1376,48 +1737,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "notes": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "locale": {
-                            "type": "string"
-                          },
-                          "markdown": {
-                            "type": "string"
-                          },
-                          "html": {
-                            "type": "string"
-                          },
-                          "text": {
-                            "type": "string"
-                          },
-                          "id": {
-                            "type": "integer"
-                          },
-                          "versionId": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "locale",
-                          "markdown",
-                          "html",
-                          "text",
-                          "id",
-                          "versionId"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "notes"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/EditorNotes"
                 }
               }
             }
@@ -1430,6 +1750,7 @@
         "tags": [
           "发布说明"
         ],
+        "operationId": "upsertNote",
         "summary": "写入某一 locale 的 note",
         "parameters": [
           {
@@ -1470,16 +1791,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "markdown": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "markdown"
-                ]
+                "$ref": "#/components/schemas/UpsertNoteRequest"
               }
             }
           }
@@ -1490,45 +1802,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "note": {
-                      "type": "object",
-                      "properties": {
-                        "locale": {
-                          "type": "string"
-                        },
-                        "markdown": {
-                          "type": "string"
-                        },
-                        "html": {
-                          "type": "string"
-                        },
-                        "text": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "type": "integer"
-                        },
-                        "versionId": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "locale",
-                        "markdown",
-                        "html",
-                        "text",
-                        "id",
-                        "versionId"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "note"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/SavedNote"
                 }
               }
             }
@@ -1539,6 +1813,7 @@
         "tags": [
           "发布说明"
         ],
+        "operationId": "deleteNote",
         "summary": "删除某一 locale 的 note",
         "parameters": [
           {
@@ -1580,17 +1855,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -1603,6 +1868,7 @@
         "tags": [
           "发布说明"
         ],
+        "operationId": "listPublicNotes",
         "summary": "读取公开 notes",
         "description": "仅已发布版本，无需鉴权。",
         "security": [],
@@ -1651,48 +1917,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "notes": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "locale": {
-                            "type": "string"
-                          },
-                          "markdown": {
-                            "type": "string"
-                          },
-                          "html": {
-                            "type": "string"
-                          },
-                          "text": {
-                            "type": "string"
-                          },
-                          "version": {
-                            "type": "string"
-                          },
-                          "releasedAt": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "locale",
-                          "markdown",
-                          "html",
-                          "text",
-                          "version",
-                          "releasedAt"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "notes"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PublicNotes"
                 }
               }
             }
@@ -1705,6 +1930,7 @@
         "tags": [
           "发布说明"
         ],
+        "operationId": "saveNotesConfig",
         "summary": "保存 notes 配置",
         "description": "保存 release-log 配置，不探测 S3。",
         "parameters": [
@@ -1722,28 +1948,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "enabled": {
-                    "type": "boolean"
-                  },
-                  "locales": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  },
-                  "fallbackLocale": {
-                    "type": "string",
-                    "minLength": 1
-                  }
-                },
-                "required": [
-                  "enabled",
-                  "locales",
-                  "fallbackLocale"
-                ]
+                "$ref": "#/components/schemas/SaveNotesConfigRequest"
               }
             }
           }
@@ -1754,38 +1959,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "releaseLog": {
-                      "type": "object",
-                      "properties": {
-                        "enabled": {
-                          "type": "boolean"
-                        },
-                        "locales": {
-                          "type": "array",
-                          "items": {
-                            "type": "string",
-                            "minLength": 1
-                          }
-                        },
-                        "fallbackLocale": {
-                          "type": "string",
-                          "minLength": 1
-                        }
-                      },
-                      "required": [
-                        "enabled",
-                        "locales",
-                        "fallbackLocale"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "required": [
-                    "releaseLog"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/NotesConfigResponse"
                 }
               }
             }
@@ -1798,6 +1972,7 @@
         "tags": [
           "上传"
         ],
+        "operationId": "initUpload",
         "summary": "开始上传",
         "description": "开始一次待完成的上传。Electron 至少需要一个 `.yml`；Tauri 需要 `latest.json` 和/或制品+`.sig` 成对；Sparkle 需要 `appcast.xml` 和/或归档+`.sig`（见 spec）。",
         "security": [
@@ -1810,49 +1985,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "app": {
-                    "type": "string"
-                  },
-                  "channel": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "version": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "createChannel": {
-                    "type": "boolean"
-                  },
-                  "files": {
-                    "minItems": 1,
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "filename": {
-                          "type": "string",
-                          "minLength": 1
-                        },
-                        "size": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        }
-                      },
-                      "required": [
-                        "filename"
-                      ]
-                    }
-                  }
-                },
-                "required": [
-                  "channel",
-                  "version",
-                  "files"
-                ]
+                "$ref": "#/components/schemas/InitUploadRequest"
               }
             }
           }
@@ -1863,44 +1996,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "uploadId": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "type": "integer"
-                    },
-                    "files": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "filename": {
-                            "type": "string"
-                          },
-                          "key": {
-                            "type": "string"
-                          },
-                          "uploadUrl": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "filename",
-                          "key",
-                          "uploadUrl"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "uploadId",
-                    "expiresAt",
-                    "files"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/UploadInitResponse"
                 }
               }
             }
@@ -1913,6 +2009,7 @@
         "tags": [
           "上传"
         ],
+        "operationId": "finalizeUpload",
         "summary": "完成上传",
         "description": "创建版本。默认是草稿；`release: true` 则立即上线。",
         "security": [
@@ -1925,27 +2022,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "uploadId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "app": {
-                    "type": "string"
-                  },
-                  "release": {
-                    "type": "boolean"
-                  },
-                  "metadata": {
-                    "type": "object",
-                    "additionalProperties": true,
-                    "description": "Custom JSON object; at most 16 KiB of compact UTF-8 JSON. Public after release."
-                  }
-                },
-                "required": [
-                  "uploadId"
-                ]
+                "$ref": "#/components/schemas/FinalizeUploadRequest"
               }
             }
           }
@@ -1956,52 +2033,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "versionId": {
-                      "type": "integer"
-                    },
-                    "version": {
-                      "type": "string"
-                    },
-                    "channel": {
-                      "type": "string"
-                    },
-                    "artifacts": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "filename": {
-                            "type": "string"
-                          },
-                          "size": {
-                            "type": "integer"
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "metadata",
-                              "artifact"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "filename",
-                          "size",
-                          "kind"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "versionId",
-                    "version",
-                    "channel",
-                    "artifacts"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/UploadFinalizeResponse"
                 }
               }
             }
@@ -2014,6 +2046,7 @@
         "tags": [
           "更新源"
         ],
+        "operationId": "getChannelFeed",
         "summary": "读取渠道 feed",
         "description": "Tauri 返回 JSON；Sparkle 返回单条目 appcast。",
         "security": [],
@@ -2041,43 +2074,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "version": {
-                      "type": "string"
-                    },
-                    "pub_date": {
-                      "type": "string"
-                    },
-                    "platforms": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "url": {
-                            "type": "string"
-                          },
-                          "signature": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "url",
-                          "signature"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "version",
-                    "pub_date",
-                    "platforms"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TauriFeed"
                 }
               },
               "text/yaml": {
@@ -2097,31 +2094,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "enum": [
-                        "unauthorized",
-                        "forbidden",
-                        "not_found",
-                        "conflict",
-                        "invalid_request",
-                        "storage_error",
-                        "metadata_error",
-                        "rate_limited"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": [
-                    "error",
-                    "message"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -2134,6 +2107,7 @@
         "tags": [
           "更新源"
         ],
+        "operationId": "getFeedFile",
         "summary": "读取公开 feed",
         "description": "Electron yml / Tauri latest.json / Sparkle appcast，制品 302。草稿为 404。",
         "security": [],
@@ -2169,43 +2143,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "version": {
-                      "type": "string"
-                    },
-                    "pub_date": {
-                      "type": "string"
-                    },
-                    "platforms": {
-                      "type": "object",
-                      "propertyNames": {
-                        "type": "string"
-                      },
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "url": {
-                            "type": "string"
-                          },
-                          "signature": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "url",
-                          "signature"
-                        ],
-                        "additionalProperties": false
-                      }
-                    }
-                  },
-                  "required": [
-                    "version",
-                    "pub_date",
-                    "platforms"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/TauriFeed"
                 }
               },
               "text/yaml": {
@@ -2228,31 +2166,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "enum": [
-                        "unauthorized",
-                        "forbidden",
-                        "not_found",
-                        "conflict",
-                        "invalid_request",
-                        "storage_error",
-                        "metadata_error",
-                        "rate_limited"
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "details": {}
-                  },
-                  "required": [
-                    "error",
-                    "message"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
