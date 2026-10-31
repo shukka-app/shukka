@@ -52,7 +52,7 @@
 `uses:` 不变：
 
 ```yaml
-- uses: shukka-app/shukka@v1.2.0
+- uses: shukka-app/shukka@v1.3.0
 ```
 
 根 `action.yml` 执行 `apps/shukka/scripts/shukka-upload.mjs`。

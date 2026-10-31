@@ -10,7 +10,7 @@ Root `action.yml` is a JavaScript action: the runner's bundled Node runs `apps/s
 It publishes every artifact in a directory as one version:
 
 ```yaml
-- uses: shukka-app/shukka@v1.2.0
+- uses: shukka-app/shukka@v1.3.0
   with:
     server-url: ${{ secrets.SHUKKA_URL }}
     api-key: ${{ secrets.SHUKKA_API_KEY }}

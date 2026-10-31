@@ -36,7 +36,7 @@ describe('buildIntegrationSnippets', () => {
 
   it('keeps the GitHub Action at the repo root and the publish skill nested', () => {
     const snippets = buildIntegrationSnippets({ app: electronApp, ...args })
-    expect(snippets.githubAction.code).toContain('uses: shukka-app/shukka@v1.2.0')
+    expect(snippets.githubAction.code).toContain('uses: shukka-app/shukka@v1.3.0')
     expect(snippets.githubAction.code).not.toContain('/apps/shukka@')
     expect(snippets.agentCli.code).toContain('/apps/shukka/skills/shukka-publish')
     expect(snippets.agentCli.code).not.toContain('archive/')
