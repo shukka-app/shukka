@@ -129,12 +129,6 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - 公开仓库的镜像可匿名拉取。构建失败不推送。见 `docs/prd/container-image.md`、`docs/adr/ghcr-on-semver-tag.md`。
 - PR 与 `main` 上的 `.github/workflows/docker-test.yml` 用工作区根 context + `apps/shukka/Dockerfile` 构建镜像（不推送），按 `docker run -p 3000:3000 -v …:/data` 启动，走通 health、首次 setup、发版、feed、卷在重启后仍在、以及 host-platform electron-updater / rollback。同一 workflow 还按 `apps/shukka/deploy/compose.yaml` 与 `apps/shukka/deploy/ansible/playbook.yml` 拉起示例栈，走通 health、setup、发版、feed 与重启后 feed 仍在（不重复 updater）。见 `docs/adr/docker-image-ci.md`、`docs/adr/compose-and-ansible.md`。
 
-### SDK contract
-
-- 发布 GitHub Release 时，`.github/workflows/sdk-dispatch.yml` 向 `shukka-app/sdk` 发送 `repository_dispatch`（`event_type: shukka-release`）；`client_payload.spec_base_url` 指向该 tag 的 `apps/docs/public` 原始文件，`client_payload.tag` 为该 tag。契约以 tag 为准，不跟随移动的 `main`。
-- 跨仓库 dispatch 使用仓库 secret `SDK_DISPATCH_TOKEN`（对 `shukka-app/sdk` 有 contents 写权限的 fine-grained PAT）；`GITHUB_TOKEN` 不能跨仓库。secret 缺失时 workflow 失败并打印配置指引。
-- 接收方按 `spec_base_url` 拉取 3.1.0 与 3.0.3 快照；无 diff 时不产生 PR。见 `docs/adr/sdk-contract-dispatch.md`。
-
 ## System-wide invariants
 
 - 一个 version 恰属于一个 channel；同 channel 内 version 字符串唯一（draft 与 released 共用此唯一性）。
