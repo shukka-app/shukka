@@ -55,8 +55,10 @@ permissions:
 # deploy/compose.yaml, and deploy/ansible/playbook.yml. Each path covers health,
 # first-time setup, S3-backed publish, and the public feed. The image job also
 # checks volume restart and host-platform electron-updater + rollback.
-# MinIO is reached by hostname so presigned URLs work from both the container
-# (write probe / HeadObject) and the runner (PUT / download).
+# s3proxy (filesystem backend) stands in for MinIO: MinIO's container images are
+# no longer pullable anonymously. It is reached by hostname so presigned URLs
+# work from both the container (write probe / HeadObject) and the runner
+# (PUT / download).
 jobs:
   image:
     name: Image flows
@@ -64,7 +66,7 @@ jobs:
     timeout-minutes: 30
     env:
       SHUKKA_URL: http://localhost:3000
-      MINIO_URL: http://minio:9000
+      S3_URL: http://s3proxy:9000
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -72,21 +74,21 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Resolve MinIO from the runner and the container
-        run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
+      - name: Resolve s3proxy from the runner and the container
+        run: echo '127.0.0.1 s3proxy' | sudo tee -a /etc/hosts
 
       - name: Build the image
         run: docker build -t shukka:test -f apps/shukka/Dockerfile .
 
-      - name: Start MinIO
-        run: node .github/scripts/start-s3.mjs minio
+      - name: Start s3proxy
+        run: node .github/scripts/start-s3.mjs s3proxy
 
       - name: Run the image
         run: |
           docker run -d --name shukka \
             -p 3000:3000 \
             -v shukka-data:/data \
-            --add-host minio:host-gateway \
+            --add-host s3proxy:host-gateway \
             shukka:test
 
       - name: Health, non-root, fresh setup
@@ -162,7 +164,7 @@ jobs:
     timeout-minutes: 20
     env:
       SHUKKA_URL: http://localhost:3000
-      MINIO_URL: http://minio:9000
+      S3_URL: http://s3proxy:9000
       SHUKKA_IMAGE: shukka:test
       COMPOSE_FILE: apps/shukka/deploy/compose.yaml
     steps:
@@ -172,8 +174,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Resolve MinIO from the runner and the stack
-        run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
+      - name: Resolve s3proxy from the runner and the stack
+        run: echo '127.0.0.1 s3proxy' | sudo tee -a /etc/hosts
 
       - name: Build the image
         run: docker build -t shukka:test -f apps/shukka/Dockerfile .
@@ -181,10 +183,10 @@ jobs:
       - name: Start the Compose example
         run: docker compose up -d
 
-      - name: Create the example MinIO bucket
+      - name: Create the example S3 bucket
         run: |
-          node .github/scripts/wait-for.mjs http://127.0.0.1:9000/minio/health/live
-          docker exec minio mkdir -p /data/releases
+          node .github/scripts/wait-for.mjs http://127.0.0.1:9000/
+          docker exec s3proxy mkdir -p /data/releases
 
       - name: Health, non-root, fresh setup
         run: node .github/scripts/assert-container.mjs shukka --wait --fresh
@@ -233,7 +235,7 @@ jobs:
     timeout-minutes: 20
     env:
       SHUKKA_URL: http://localhost:3000
-      MINIO_URL: http://minio:9000
+      S3_URL: http://s3proxy:9000
     steps:
       - uses: actions/checkout@v7.0.1
 
@@ -241,8 +243,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Resolve MinIO from the runner and the stack
-        run: echo '127.0.0.1 minio' | sudo tee -a /etc/hosts
+      - name: Resolve s3proxy from the runner and the stack
+        run: echo '127.0.0.1 s3proxy' | sudo tee -a /etc/hosts
 
       - name: Build the image
         run: docker build -t shukka:test -f apps/shukka/Dockerfile .
@@ -295,4 +297,4 @@ jobs:
 
       - name: Deployed stack logs
         if: failure()
-        run: docker logs shukka && docker logs minio
+        run: docker logs shukka && docker logs s3proxy

@@ -64,9 +64,11 @@ and walks health, setup, publish, and feed.
 
 The GitHub Action is a node24 JavaScript action at the repository root
 (`uses: shukka-app/shukka@v*`; in-repo `uses: ./`). `main` points at
-`apps/shukka/scripts/shukka-upload.mjs`. It does not call bash. CI matrices MinIO and the JuiceFS S3 gateway on Ubuntu
+`apps/shukka/scripts/shukka-upload.mjs`. It does not call bash. CI matrices s3proxy
+and the JuiceFS S3 gateway on Ubuntu
 (`.github/workflows/ci.yml` `s3` job, plus `.github/workflows/action-test.yml`
-publish / Tauri jobs). Windows action e2e stays on MinIO (no Docker). The
+publish / Tauri jobs). MinIO's container images are no longer pullable, so the
+Windows and macOS action jobs start the MinIO binary instead (no Docker). The
 action-test workflow then runs `apps/shukka/tests/e2e/` (Electron library + electron-updater)
 against that published feed.
 
@@ -101,4 +103,4 @@ Dependencies are installed by the environment update script (`npm install`). Sta
 
 - `nr --filter shukka typecheck` self-generates the route tree via `pretypecheck` (`tsr generate`).
 - `nr --filter shukka dev` serves the panel + API on `:3000`. On a fresh database the root redirects to `/setup` to set the admin password before login.
-- Creating an app end-to-end requires a reachable S3-compatible endpoint — the creation wizard validates bucket connectivity ("Verifying bucket…") and blocks with "Could not reach storage" otherwise. For local manual testing, run MinIO or `nr --filter shukka juicefs` (the same backends the CI S3 matrix uses) and in the wizard pick that provider. MinIO / JuiceFS both need **path-style** addressing (the wizard sets it).
+- Creating an app end-to-end requires a reachable S3-compatible endpoint — the creation wizard validates bucket connectivity ("Verifying bucket…") and blocks with "Could not reach storage" otherwise. For local manual testing, run `.github/scripts/start-s3.mjs s3proxy` (Docker), `nr --filter shukka juicefs`, or your own MinIO, and in the wizard pick that provider. s3proxy, MinIO and JuiceFS all need **path-style** addressing (the wizard sets it).

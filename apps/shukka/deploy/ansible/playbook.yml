@@ -4,7 +4,7 @@
 #
 # Docker Engine with the Compose v2 plugin must already be on the host.
 # Override the image or bind port with --extra-vars:
-#   -e shukka_image=ghcr.io/shukka-app/shukka:1.0.3 -e shukka_port=3000
+#   -e shukka_image=ghcr.io/shukka-app/shukka:1.0.3 -e shukka_port=3000 -e s3_port=9000
 
 - name: Deploy Shukka
   hosts: all
@@ -13,7 +13,7 @@
     shukka_deploy_dir: /opt/shukka
     shukka_image: ghcr.io/shukka-app/shukka
     shukka_port: 3000
-    minio_port: 9000
+    s3_port: 9000
   tasks:
     - name: Check that Docker Compose is available
       ansible.builtin.command:
@@ -32,24 +32,24 @@
         dest: "{{ shukka_deploy_dir }}/compose.yaml"
         mode: "0644"
 
-    - name: Start Shukka and the example MinIO
+    - name: Start Shukka and the example S3 bucket
       ansible.builtin.command:
         cmd: docker compose up -d
         chdir: "{{ shukka_deploy_dir }}"
       environment:
         SHUKKA_IMAGE: "{{ shukka_image }}"
         SHUKKA_PORT: "{{ shukka_port }}"
-        MINIO_PORT: "{{ minio_port }}"
+        S3_PORT: "{{ s3_port }}"
       changed_when: true
 
-    - name: Create the example MinIO bucket
+    - name: Create the example S3 bucket
       ansible.builtin.command:
-        cmd: docker exec minio mkdir -p /data/releases
-      register: minio_bucket
-      until: minio_bucket.rc == 0
+        cmd: docker exec s3proxy mkdir -p /data/releases
+      register: s3_bucket
+      until: s3_bucket.rc == 0
       retries: 30
       delay: 2
-      changed_when: minio_bucket.rc == 0
+      changed_when: s3_bucket.rc == 0
 
     - name: Wait until GET /api/health is ok
       ansible.builtin.uri:

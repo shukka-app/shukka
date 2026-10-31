@@ -51,11 +51,11 @@ flowchart LR
 docker run -d --name shukka -p 3000:3000 -v shukka-data:/data ghcr.io/shukka-app/shukka
 ```
 
-Or the Compose example (Shukka + a local MinIO for the panel wizard):
+Or the Compose example (Shukka + a local S3-compatible bucket for the panel wizard):
 
 ```bash
 docker compose -f apps/shukka/deploy/compose.yaml up -d
-docker exec minio mkdir -p /data/releases
+docker exec s3proxy mkdir -p /data/releases
 ```
 
 Ansible copies that same file onto a host and waits for `/api/health`:
@@ -236,8 +236,10 @@ nr --filter shukka-docs dev     # public docs site
 
 The GitHub Action is a JavaScript action (`using: node24`) so it does not need
 bash — Windows self-hosted runners with only MinGit work. It is linted with
-[actionlint](https://github.com/rhysd/actionlint). Ubuntu CI matrices MinIO and
-the JuiceFS S3 gateway; Windows action e2e stays on MinIO. See
+[actionlint](https://github.com/rhysd/actionlint). Ubuntu CI matrices s3proxy
+(the filesystem-backed S3 server in the example stack) and the JuiceFS S3
+gateway; the Windows and macOS action jobs stay on the MinIO binary, because
+MinIO's published container images are no longer pullable anonymously. See
 `.github/workflows/ci.yml`, `.github/workflows/action-test.yml`, and
 `.github/workflows/docker-test.yml` (image build + container flows, no push).
 
@@ -249,7 +251,7 @@ User-facing docs live in [`apps/docs`](apps/docs). In-repo notes:
 |------|----------|
 | `apps/shukka/docs/prd/` | Product requirements |
 | `apps/shukka/docs/prd/deploy.md` | Self-host the Shukka server |
-| `apps/shukka/deploy/compose.yaml` | Compose example (Shukka + MinIO) |
+| `apps/shukka/deploy/compose.yaml` | Compose example (Shukka + s3proxy) |
 | `apps/shukka/deploy/ansible/playbook.yml` | Ansible playbook for that Compose file |
 | `apps/shukka/docs/adr/` | Architecture decisions and their trade-offs |
 | `apps/shukka/docs/spec.md` | Terminology, HTTP contracts, system invariants |

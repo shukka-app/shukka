@@ -50,11 +50,11 @@ docker run -d --name shukka --restart unless-stopped \
 
 公开镜像是 `ghcr.io/shukka-app/shukka`（semver 标签发布，见 `docs/prd/container-image.md`）。拉取失败时在仓库根 `docker build -t shukka -f apps/shukka/Dockerfile .`。
 
-同一份编排在 `apps/shukka/deploy/compose.yaml`（Shukka + 示例 MinIO）。钉版本用 `SHUKKA_IMAGE`：
+同一份编排在 `apps/shukka/deploy/compose.yaml`（Shukka + 示例 s3proxy）。钉版本用 `SHUKKA_IMAGE`：
 
 ```bash
 docker compose -f apps/shukka/deploy/compose.yaml up -d
-docker exec minio mkdir -p /data/releases
+docker exec s3proxy mkdir -p /data/releases
 ```
 
 多机或重复安装用 `apps/shukka/deploy/ansible/playbook.yml`（把上面的 Compose 拷到主机并等到 health）。Docker Compose v2 是前置条件。见 `docs/prd/deploy-examples.md`。
@@ -91,9 +91,9 @@ ExecStart=/usr/bin/node .output/server/index.mjs
 Restart=on-failure
 ```
 
-### 运维：本机 MinIO（可选）
+### 运维：本机 S3 兼容存储（可选）
 
-Shukka **不**随镜像带对象存储。需要自建 S3 时用 `deploy/compose.yaml` 里的 MinIO，或另起一个，再在面板创建 app（MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——presigned PUT 由 CI 直传，不经过 Shukka。Shukka 仍只挂自己的数据卷。
+Shukka **不**随镜像带对象存储。需要自建 S3 时用 `deploy/compose.yaml` 里的 s3proxy，或自备 MinIO / R2 / AWS，再在面板创建 app（s3proxy 与 MinIO：填 endpoint、勾 path-style；向导默认 region `us-east-1`）。GitHub Actions 必须能从公网打到该 endpoint——presigned PUT 由 CI 直传，不经过 Shukka。Shukka 仍只挂自己的数据卷。
 
 `nr --filter shukka juicefs` / `apps/shukka/scripts/juicefs-dev.mjs` 只给本地开发当 S3 网关，不是生产部署方案。
 
@@ -154,7 +154,7 @@ Worker 必填 `SHUKKA_ENCRYPTION_KEY`（不要 filepath）与 `SHUKKA_DB_URL`。
 
 SCF 是 Node 运行时但磁盘短暂、实例并发，本地 SQLite 文件不可用：必须设 `SHUKKA_DB_URL`（+ 可选 `SHUKKA_DB_AUTH_TOKEN`）走远程 libsql，并设 `SHUKKA_ENCRYPTION_KEY`。HTTP 函数包 = `scf_bootstrap` + Nitro 产物（`.output/`，依赖已被 Nitro trace 进 `.output/server/node_modules`），监听 `PORT=9000`。进程 `boot()` 会对远程库 migrate。
 
-仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`MINIO_*`。
+仅客户端 / CI / 测试脚本使用、**不要**当成 Shukka 服务配置：`SHUKKA_URL`、`SHUKKA_SERVER_URL`、`SHUKKA_API_KEY`、`SHUKKA_APP`、`SHUKKA_PASSWORD`（`.github/scripts/provision.mjs` 的测试默认值）、`S3_*`（Docker 后端）与 `MINIO_*`（非 Docker job 的 MinIO 二进制）。
 
 ## 反向代理与 TLS
 
@@ -224,7 +224,7 @@ curl -sS "$SHUKKA_URL/api/admin/session"
 | 形态 | 结论 |
 |------|------|
 | 单机 systemd（上一节） | 可行，等价于主路径减去容器 |
-| Compose：Shukka + 可选 MinIO | 可行；用 `deploy/compose.yaml`，MinIO 要对 CI/客户端可达 |
+| Compose：Shukka + 可选 s3proxy | 可行；用 `deploy/compose.yaml`，S3 服务要对 CI/客户端可达；生产换成自己的 bucket |
 | Fly.io / Railway / Render 等带持久盘的单实例 PaaS | 可以，必须挂持久卷到 `SHUKKA_DATA_DIR`，**副本数 = 1** |
 | 多副本 / 滚动两实例共用一块 SQLite | 不要 |
 | 单机 Docker + 自备 Postgres（`SHUKKA_DB_DRIVER=postgres`） | 可行；Postgres 进程不在默认镜像里，须 overlay 或外部实例 |

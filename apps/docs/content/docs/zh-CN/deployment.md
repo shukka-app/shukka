@@ -25,11 +25,11 @@ docker run -d --name shukka --restart unless-stopped \
 
 镜像在 [GitHub Packages](https://github.com/shukka-app/shukka/pkgs/container/shukka)，无需登录即可拉取。推送 semver 标签（`vMAJOR.MINOR.PATCH`）会由 GitHub Actions 构建并发布；未加 tag 时拉的是 `latest`。钉版本用 `ghcr.io/shukka-app/shukka:0.1.0`。要从源码自行构建时，在仓库根执行 `docker build -t shukka -f apps/shukka/Dockerfile .`，把上面的镜像名换成 `shukka`。
 
-同一份编排在 [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml)（Shukka + 示例 MinIO）。钉版本用 `SHUKKA_IMAGE`：
+同一份编排在 [`apps/shukka/deploy/compose.yaml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/compose.yaml)（Shukka + 示例 S3 桶，由 s3proxy 提供）。钉版本用 `SHUKKA_IMAGE`：
 
 ```bash
 docker compose -f apps/shukka/deploy/compose.yaml up -d
-docker exec minio mkdir -p /data/releases
+docker exec s3proxy mkdir -p /data/releases
 ```
 
 Ansible 把该文件拷到主机并等到 `/api/health`：[`apps/shukka/deploy/ansible/playbook.yml`](https://github.com/shukka-app/shukka/blob/main/apps/shukka/deploy/ansible/playbook.yml)。Docker Compose v2 是前置条件。
