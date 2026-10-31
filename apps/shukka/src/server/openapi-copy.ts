@@ -58,14 +58,14 @@ export const en = {
       summary: 'Get app',
       description: 'App detail including channels, versions, and keys.',
     },
-    patchApp: {
+    updateApp: {
       summary: 'Update app settings',
       description:
         'Probes S3. API keys may only change `name`. Slug and storage fields are session-only; resubmitting unchanged values is allowed. Changing endpoint/bucket/prefix with existing artifacts probes the newest object at the new location.',
     },
     listChannels: { summary: 'List channels' },
     createChannel: { summary: 'Create a channel' },
-    setCurrent: {
+    setCurrentVersion: {
       summary: 'Set current version',
       description: 'Promote a draft (`currentVersion`) or roll back to a released version.',
     },
@@ -73,7 +73,7 @@ export const en = {
       summary: 'Delete a channel',
       description: 'Deletes the channel and its objects.',
     },
-    channelTrend: { summary: 'Channel hit trend' },
+    getChannelTrend: { summary: 'Channel hit trend' },
     deleteVersion: {
       summary: 'Delete a version',
       description: 'Deletes the version and its objects.',
@@ -82,17 +82,17 @@ export const en = {
       summary: 'Get artifact',
       description: 'Presigned GET for one artifact on that version (drafts included). Does not increment hits.',
     },
-    versionTrend: {
+    getVersionTrend: {
       summary: 'Version hit trend',
       description: 'Empty for drafts.',
     },
-    editorNotes: {
+    getEditorNotes: {
       summary: 'Get editor notes',
       description: 'Every locale for one version.',
     },
     upsertNote: { summary: 'Upsert a locale note' },
     deleteNote: { summary: 'Delete a locale note' },
-    publicNotes: {
+    listPublicNotes: {
       summary: 'Get public notes',
       description: 'Released versions only; no auth.',
     },
@@ -100,20 +100,20 @@ export const en = {
       summary: 'Save notes config',
       description: 'Saves release-log config without an S3 probe.',
     },
-    uploadInit: {
+    initUpload: {
       summary: 'Start upload',
       description:
         'Start a pending upload. Electron requires at least one `.yml`; Tauri requires `latest.json` and/or artifact+`.sig` pairs; Sparkle requires `appcast.xml` and/or archive+`.sig` (see spec).',
     },
-    uploadFinalize: {
+    finalizeUpload: {
       summary: 'Finalize upload',
       description: 'Creates a version. Default is draft; `release: true` goes live.',
     },
-    channelFeed: {
+    getChannelFeed: {
       summary: 'Get channel feed',
       description: 'Tauri returns JSON; Sparkle returns a one-item appcast.',
     },
-    publicFeed: {
+    getFeedFile: {
       summary: 'Get public feed',
       description: 'Electron yml / Tauri latest.json / Sparkle appcast; artifacts 302. Drafts are 404.',
     },
@@ -171,14 +171,14 @@ export const zh = {
       summary: '读取应用',
       description: '应用详情，含渠道、版本与 keys。',
     },
-    patchApp: {
+    updateApp: {
       summary: '更新应用设置',
       description:
         '会探测 S3。API key 只能改 `name`。slug 与存储字段仅 session 可改；原样回传未变更的值是允许的。在已有制品时改 endpoint/bucket/prefix，会探测新位置上最新对象是否存在。',
     },
     listChannels: { summary: '列出渠道' },
     createChannel: { summary: '创建渠道' },
-    setCurrent: {
+    setCurrentVersion: {
       summary: '设置当前版本',
       description: '设置 `currentVersion`：promote 草稿或回滚到已发布版本。',
     },
@@ -186,7 +186,7 @@ export const zh = {
       summary: '删除渠道',
       description: '删除渠道及其对象。',
     },
-    channelTrend: { summary: '渠道命中趋势' },
+    getChannelTrend: { summary: '渠道命中趋势' },
     deleteVersion: {
       summary: '删除版本',
       description: '删除版本及其对象。',
@@ -195,17 +195,17 @@ export const zh = {
       summary: '下载制品',
       description: '对该版本上单个制品签发预签名 GET（含草稿）。不计入命中。',
     },
-    versionTrend: {
+    getVersionTrend: {
       summary: '版本命中趋势',
       description: '草稿为空。',
     },
-    editorNotes: {
+    getEditorNotes: {
       summary: '读取编辑器 notes',
       description: '某一版本的全部 locale。',
     },
     upsertNote: { summary: '写入某一 locale 的 note' },
     deleteNote: { summary: '删除某一 locale 的 note' },
-    publicNotes: {
+    listPublicNotes: {
       summary: '读取公开 notes',
       description: '仅已发布版本，无需鉴权。',
     },
@@ -213,20 +213,20 @@ export const zh = {
       summary: '保存 notes 配置',
       description: '保存 release-log 配置，不探测 S3。',
     },
-    uploadInit: {
+    initUpload: {
       summary: '开始上传',
       description:
         '开始一次待完成的上传。Electron 至少需要一个 `.yml`；Tauri 需要 `latest.json` 和/或制品+`.sig` 成对；Sparkle 需要 `appcast.xml` 和/或归档+`.sig`（见 spec）。',
     },
-    uploadFinalize: {
+    finalizeUpload: {
       summary: '完成上传',
       description: '创建版本。默认是草稿；`release: true` 则立即上线。',
     },
-    channelFeed: {
+    getChannelFeed: {
       summary: '读取渠道 feed',
       description: 'Tauri 返回 JSON；Sparkle 返回单条目 appcast。',
     },
-    publicFeed: {
+    getFeedFile: {
       summary: '读取公开 feed',
       description: 'Electron yml / Tauri latest.json / Sparkle appcast，制品 302。草稿为 404。',
     },

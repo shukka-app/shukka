@@ -202,6 +202,15 @@ Out of scope until explicitly specified: anything not yet accepted in a PRD.
 - OpenAPI narrative copy is English + Simplified Chinese; the live
   `GET /api/v1/openapi.json` stays English
   (`docs/prd/openapi-i18n.md`, `docs/adr/openapi-locale.md`).
+- Every documented operation carries a stable `operationId` (lowerCamelCase,
+  unique, taken from the `ops` copy key). Renaming one is a breaking change for
+  generated clients. The same contract is published as OpenAPI 3.1.0 and, for
+  generators that reject 3.1, as a 3.0.3 snapshot with identical operations
+  (`docs/prd/sdk.md`, `docs/adr/openapi-operation-ids.md`,
+  `docs/adr/openapi-30-snapshot.md`).
+- Request and response bodies are named `components.schemas` entries referenced
+  via `$ref`; those names are the model names in generated SDKs, so renaming one
+  is a breaking change (`docs/adr/openapi-component-schemas.md`).
 - Dual runtime: Node/Nitro self-host stays the recommended Docker path;
   Cloudflare Workers is a second full-panel deploy (`docs/prd/dual-runtime.md`,
   `docs/adr/dual-runtime.md`). Worker requires `SHUKKA_DB_URL` and
