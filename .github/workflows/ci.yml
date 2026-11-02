@@ -126,16 +126,16 @@ jobs:
       - run: pnpm --filter shukka check:worker-size
 
   # Real S3 path against every supported compatible backend: write probe,
-  # presigned PUT, finalize HeadObject, and a 302 download. s3proxy stands in
-  # for MinIO here: MinIO's container images are no longer pullable
-  # anonymously; the Windows/macOS jobs still exercise the MinIO binary.
+  # presigned PUT, finalize HeadObject, and a 302 download. fakes3 (in-memory,
+  # SigV4-verifying) is the generic S3 server; the Windows/macOS jobs still
+  # exercise the MinIO binary.
   s3:
     name: S3 (${{ matrix.s3 }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        s3: [s3proxy, juicefs]
+        s3: [fakes3, juicefs]
     env:
       SHUKKA_URL: http://localhost:3000
       S3_URL: http://localhost:9000

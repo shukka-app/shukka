@@ -9,7 +9,7 @@
  * shukka-juicefs-data volume, and serves a MinIO-compatible S3 API on port 9000.
  * The gateway exposes one bucket named "releases" (--bucket-name) backed by the
  * volume root, so the bucket exists as soon as the gateway is healthy — no bucket
- * creation step is needed. Credentials match the MinIO / JuiceFS CI matrix used
+ * creation step is needed. Credentials match the fakes3 / JuiceFS CI matrix used
  * by .github/workflows/ci.yml and .github/workflows/action-test.yml.
  *
  * Note: the juicedata/juicefs Docker Hub repository ships a Docker volume plugin,

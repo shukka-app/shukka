@@ -236,10 +236,11 @@ nr --filter shukka-docs dev     # public docs site
 
 The GitHub Action is a JavaScript action (`using: node24`) so it does not need
 bash — Windows self-hosted runners with only MinGit work. It is linted with
-[actionlint](https://github.com/rhysd/actionlint). Ubuntu CI matrices s3proxy
-(the filesystem-backed S3 server in the example stack) and the JuiceFS S3
-gateway; the Windows and macOS action jobs stay on the MinIO binary, because
-MinIO's published container images are no longer pullable anonymously. See
+[actionlint](https://github.com/rhysd/actionlint). Ubuntu CI matrices
+[fakes3](https://github.com/AkaraChen/fakes3) (an in-memory S3 server that
+verifies SigV4) and the JuiceFS S3 gateway; the Windows and macOS action jobs
+stay on the MinIO binary, because fakes3 runs only on Linux and hosted Windows /
+macOS runners have no Docker. See
 `.github/workflows/ci.yml`, `.github/workflows/action-test.yml`, and
 `.github/workflows/docker-test.yml` (image build + container flows, no push).
 
