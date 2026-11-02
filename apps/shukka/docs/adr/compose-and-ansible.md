@@ -14,7 +14,7 @@ Accepted.
 2. **Ansible 只用 builtin 模块**（`command` / `copy` / `file` / `uri`）。Docker 与 Compose v2 是前置条件，playbook 不装引擎。
 3. **验证加在已有** `.github/workflows/docker-test.yml`：`compose` 与 `ansible` 两个 job，复用 `provision.mjs`、`fake-release.mjs`、`shukka-upload.mjs`、`verify-feed.mjs`、`assert-container.mjs`。不新开 workflow，不并进 `ci.yml`。
 4. **这两个 job 不跑 electron-updater / rollback**。镜像契约与 updater 仍由同 workflow 的 `image` job 覆盖。
-5. **S3 主机名是 `s3proxy`**，与 image job 相同：runner `/etc/hosts` 指向 `127.0.0.1`，presigned URL 从容器和 runner 都能解析。Compose 网络提供容器侧 DNS；不再用 `--add-host s3proxy:host-gateway`。
+5. **S3 主机名是 `s3proxy`**，做法与 image job（主机名 `fakes3`）相同：runner `/etc/hosts` 指向 `127.0.0.1`，presigned URL 从容器和 runner 都能解析。Compose 网络提供容器侧 DNS；不再用 `--add-host s3proxy:host-gateway`。
 
 ## Alternatives
 

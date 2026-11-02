@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// Starts the S3 backend selected by argv / S3_BACKEND (s3proxy | juicefs).
-// s3proxy is a Docker S3 server with a filesystem backend; JuiceFS reuses
+// Starts the S3 backend selected by argv / S3_BACKEND (fakes3 | juicefs).
+// fakes3 is an in-memory S3 server for tests (Docker); JuiceFS reuses
 // apps/shukka/scripts/juicefs-dev.mjs (gateway).
 //
-// MinIO's published container images are no longer pullable anonymously
-// (quay.io answers 401), so the Docker-facing CI paths run s3proxy instead.
-// The non-Docker jobs (Windows / macOS runners) still use the MinIO binary
-// via start-minio.mjs.
+// fakes3 runs with --auth, so it verifies SigV4 on every request, presigned
+// URLs included. It only runs on Linux, so the Windows / macOS runners (no
+// Docker) still use the MinIO binary via start-minio.mjs.
 import { spawn, spawnSync } from 'node:child_process'
+import { devNull } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const BACKENDS = new Set(['s3proxy', 'juicefs'])
-const backend = process.argv[2] ?? process.env.S3_BACKEND ?? 's3proxy'
+const BACKENDS = new Set(['fakes3', 'juicefs'])
+const backend = process.argv[2] ?? process.env.S3_BACKEND ?? 'fakes3'
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
 const endpoint = process.env.S3_URL ?? process.env.MINIO_URL ?? 'http://localhost:9000'
@@ -20,9 +20,7 @@ const accessKey = process.env.S3_ACCESS_KEY ?? process.env.MINIO_ACCESS_KEY ?? '
 const secretKey = process.env.S3_SECRET_KEY ?? process.env.MINIO_SECRET_KEY ?? 'shukkasecret'
 const bucket = process.env.S3_BUCKET ?? process.env.MINIO_BUCKET ?? 'releases'
 
-// Pinned by digest: s3proxy publishes no semver tags, and a tracked `master`
-// would make CI drift without a commit.
-const S3PROXY_IMAGE = 'andrewgaul/s3proxy@sha256:1f8915c2b4a8af22bf1fc191500f242974a458c457391b5788f9107544273dc3'
+const FAKES3_IMAGE = 'ghcr.io/akarachen/fakes3:0.1.0'
 
 function fail(message) {
   process.stderr.write(`${message}\n`)
@@ -45,44 +43,61 @@ function waitFor(url) {
   })
 }
 
-async function startS3proxy() {
-  const existing = docker(['inspect', '--format', '{{.State.Status}}', 's3proxy'])
+async function startFakes3() {
+  const existing = docker(['inspect', '--format', '{{.State.Status}}', 'fakes3'])
   if (existing.status === 0 && existing.stdout.trim() === 'running') {
-    process.stdout.write('s3proxy container is already running\n')
+    process.stdout.write('fakes3 container is already running\n')
   } else {
-    process.stdout.write('Starting s3proxy\n')
+    process.stdout.write('Starting fakes3\n')
     const started = docker(
       [
         'run',
         '-d',
         '--name',
-        's3proxy',
+        'fakes3',
         '-p',
         '9000:9000',
         '-e',
-        'S3PROXY_ENDPOINT=http://0.0.0.0:9000',
+        'FAKES3_AUTH=1',
         '-e',
-        'S3PROXY_AUTHORIZATION=aws-v4',
+        `FAKES3_ACCESS_KEY=${accessKey}`,
         '-e',
-        `S3PROXY_IDENTITY=${accessKey}`,
-        '-e',
-        `S3PROXY_CREDENTIAL=${secretKey}`,
-        '-e',
-        'JCLOUDS_PROVIDER=filesystem',
-        '-e',
-        'JCLOUDS_FILESYSTEM_BASEDIR=/data',
-        S3PROXY_IMAGE,
+        `FAKES3_SECRET_KEY=${secretKey}`,
+        FAKES3_IMAGE,
       ],
       { stdio: 'inherit' },
     )
-    if (started.status !== 0) fail('Could not start s3proxy')
+    if (started.status !== 0) fail('Could not start fakes3')
   }
 
-  await waitFor(`${endpoint.replace(/\/+$/, '')}/`)
-  // The filesystem provider maps each bucket to a directory.
-  const mkdir = docker(['exec', 's3proxy', 'mkdir', '-p', `/data/${bucket}`])
-  if (mkdir.status !== 0) fail(`Could not create s3proxy bucket directory /data/${bucket}`)
-  process.stdout.write(`s3proxy ready at ${endpoint} (bucket ${bucket})\n`)
+  const origin = endpoint.replace(/\/+$/, '')
+  await waitFor(`${origin}/`)
+  // fakes3 starts empty and keeps nothing on disk, so create the bucket over
+  // S3. curl signs the request (SigV4) since --auth rejects unsigned writes;
+  // 409 BucketAlreadyOwnedByYou means a reused container already has it.
+  const created = spawnSync(
+    'curl',
+    [
+      '-sS',
+      '-o',
+      devNull,
+      '-w',
+      '%{http_code}',
+      '-X',
+      'PUT',
+      '--aws-sigv4',
+      'aws:amz:us-east-1:s3',
+      '--user',
+      `${accessKey}:${secretKey}`,
+      `${origin}/${bucket}`,
+    ],
+    { encoding: 'utf8' },
+  )
+  if (created.error?.code === 'ENOENT') fail('curl is not installed.')
+  if (!['200', '409'].includes(created.stdout)) {
+    fail(`Could not create fakes3 bucket ${bucket} (HTTP ${created.stdout || '?'}): ${created.stderr.trim()}`)
+  }
+  process.stdout.write(`fakes3 ready at ${endpoint} (bucket ${bucket})\n`)
 }
 
 function startJuicefs() {
@@ -98,5 +113,5 @@ if (!BACKENDS.has(backend)) {
 if (backend === 'juicefs') {
   startJuicefs()
 } else {
-  await startS3proxy()
+  await startFakes3()
 }

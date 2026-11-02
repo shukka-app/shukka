@@ -38,13 +38,13 @@ permissions:
   contents: read
 
 # Runs the real publish path against each supported S3-compatible backend
-# (s3proxy and the JuiceFS S3 gateway) via a GitHub Actions matrix.
+# (fakes3 and the JuiceFS S3 gateway) via a GitHub Actions matrix.
 #
 # Locally with act: start one S3 backend and Shukka on the host first, then
 #   act workflow_dispatch -W .github/workflows/action-test.yml \
 #     --env SHUKKA_URL=http://host.docker.internal:3777 \
 #     --env S3_URL=http://localhost:9000 \
-#     --matrix s3:s3proxy
+#     --matrix s3:fakes3
 # SHUKKA_URL is dialled from inside the act container, while S3_URL is the
 # endpoint the host-side Shukka process uses - hence the different hostnames.
 # The two setup steps below are skipped under act since the host provides both.
@@ -52,8 +52,9 @@ permissions:
 # publish-windows starts MinIO from the official binary (hosted Windows has no
 # Docker) and exercises the JavaScript action — no bash — plus electron-updater.
 # sparkle-updater does the same on macos-latest with Sparkle.framework
-# (check + download, no install). The Ubuntu legs use s3proxy rather than MinIO:
-# MinIO's published container images are no longer pullable anonymously.
+# (check + download, no install). The Ubuntu legs use fakes3 rather than MinIO:
+# MinIO's published container images are no longer pullable anonymously, and
+# fakes3 runs only on Linux, so the Windows / macOS legs keep the MinIO binary.
 # JuiceFS stays on the Ubuntu matrix: its CI gateway is the Docker image used by
 # scripts/juicefs-dev.mjs.
 jobs:
@@ -63,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        s3: [s3proxy, juicefs]
+        s3: [fakes3, juicefs]
     env:
       SHUKKA_URL: ${{ vars.SHUKKA_URL || 'http://localhost:3000' }}
       S3_URL: ${{ vars.S3_URL || 'http://localhost:9000' }}
@@ -218,7 +219,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        s3: [s3proxy, juicefs]
+        s3: [fakes3, juicefs]
     env:
       SHUKKA_URL: ${{ vars.SHUKKA_URL || 'http://localhost:3000' }}
       S3_URL: ${{ vars.S3_URL || 'http://localhost:9000' }}
